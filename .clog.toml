@@ -1,0 +1,10 @@
+[clog]
+repository = "https://github.com/kbknapp/cargo-outdated"
+outfile = "CHANGELOG.md"
+from-latest-tag = true
+
+[sections]
+Performance = ["perf"]
+Improvements = ["impr", "im", "imp"]
+Documentation = ["docs"]
+Deprecations = ["depr"]
