@@ -3,129 +3,24 @@ extern crate clap;
 extern crate toml;
 extern crate semver;
 
-use std::env;
-use std::fs::{self, File};
-use std::io::Read;
-use std::path::{Path, PathBuf};
-use std::process::exit;
-use std::str::FromStr;
-
-use clap::{App, ArgMatches, SubCommand};
-use toml::{Table, Value};
-
 #[macro_use]
 mod macros;
+mod config;
+mod lockfile;
+mod deps;
 
-#[derive(Debug)]
-struct Config<'tu> {
-    to_update: Option<Vec<&'tu str>>,
-    depth: u8
-}
+use std::env;
+use std::error::Error;
+use std::fs::{self, File};
+use std::io::{Read, Write};
+use std::path::{Path, PathBuf};
+use std::process;
 
-impl<'tu> Config<'tu> {
-    fn from_matches(m: &'tu ArgMatches) -> Self {
-        Config {
-            to_update: m.values_of("PKG"),
-            depth: m.value_of("DEPTH").unwrap_or("1").parse().unwrap_or(1)
-        }
-    }
-}
+use clap::{App, SubCommand};
+use toml::Table;
 
-struct Dep {
-    name: String,
-    raw_ver: Option<String>,
-    current_ver: Option<semver::Version>,
-    possible_ver: Option<semver::Version>,
-    latest_ver: Option<semver::Version>,
-    sub_deps: Vec<String>
-}
-
-#[derive(Debug)]
-struct RawDep {
-    name: String,
-    ver: String,
-    is_root: bool,
-    depth: u8
-}
-
-impl FromStr for RawDep {
-    type Err = String;
-    fn from_str(s: &str) -> Result<Self, <Self as FromStr>::Err> {
-       let raw_dep_vec: Vec<_> = s.split(" ").collect();
-       if raw_dep_vec.len() < 2 { 
-           return Err(format!("failed to parse dependency string '{}'", s)) 
-       }
-       Ok(RawDep {
-           name: raw_dep_vec[0].to_owned(),
-           ver: raw_dep_vec[1].to_owned(),
-           is_root: false,
-           depth: 1
-       })
-    }
-}
-
-struct Lockfile {
-    deps: Vec<RawDep>
-}
-
-impl Lockfile {
-    fn get_root_deps(&mut self, table: &Table) -> CliResult<()> {
-        let root_table = match table.get("root") {
-            Some(table) => table,
-            None        => {
-                return Err(String::from("couldn't find '[root]' table in Cargo.lock"));
-            }
-        };
-
-        match root_table.lookup("dependencies") {
-            Some(&Value::Array(ref val)) => {
-                debugln!("found root deps table");
-
-                for v in val {
-                    let val_str = v.as_str().unwrap_or("");
-                    debugln!("adding root dep {}", val_str);
-                    let mut raw_dep: RawDep = try!(val_str.parse());
-                    raw_dep.is_root = true;
-                    self.deps.push(raw_dep);
-                }
-            },
-            Some(_) => unreachable!(),
-            None => return Err(String::from("No root dependencies"))
-        };
-
-        debugln!("Root deps: {:?}", self.deps);
-        Ok(())
-    }
-
-    fn get_non_root_deps(&mut self, table: &Table) -> CliResult<()> {
-        let arr = match table.get("package") {
-            Some(&Value::Array(ref val)) => {
-                debugln!("found non root deps");
-
-                for v in val {
-                    let name_str = v.lookup("name").unwrap().as_str().unwrap_or("");
-                    let ver_str = v.lookup("version").unwrap().as_str().unwrap_or("");
-                    match v.lookup("dependencies") {
-                        Some(&Value::Array(ref deps)) => {
-                            for d in deps {
-                                let dep_str = d.as_str().unwrap_or("");
-                                debugln!("adding non root dep {}", dep_str);
-                                self.deps.push(try!(dep_str.parse()));
-                            }
-                        },
-                        Some(..) => unreachable!(),
-                        None => ()
-                    }
-                }
-            },
-            Some(_) => unreachable!(),
-            None => return Err(String::from("No non root dependencies"))
-        };
-
-        debugln!("All deps: {:#?}", self.deps);
-        Ok(())
-    }
-}
+use config::Config;
+use lockfile::Lockfile;
 
 type CliResult<T> = Result<T, String>;
 
@@ -152,24 +47,74 @@ fn main() {
 
     if let Err(e) = execute(cfg) {
         wlnerr!("cargo-outdated: {}", e);
-        exit(1);
+        process::exit(1);
     }
 }
 
+//
+// FIXME: Remove unwrap()'s
+//
 fn execute(cfg: Config) -> CliResult<()> {
     debugln!("executing; execute; cfg={:?}", cfg);
 
-    let all_deps = try!(parse_lockfile());
+    let all_deps = try!(parse_lockfile(try!(find_root_lockfile_for_cwd())));
+
+    let temp_manifest = cfg.tmp_dir.join("Cargo.toml");
+    let temp_lockfile = cfg.tmp_dir.join("Cargo.lock");
+
+    let mut lf = match fs::copy(try!(find_root_lockfile_for_cwd()), &temp_lockfile) {
+        Ok(f) => f,
+        Err(e) => {
+            debugln!("temp Cargo.lock failed with error: {}", e);
+            return Err(e.description().to_owned())
+        }
+    };
+
+
+    let mut mf = match File::create(&temp_manifest) {
+        Ok(f) => f,
+        Err(e) => {
+            debugln!("temp Cargo.toml failed with error: {}", e);
+            return Err(e.description().to_owned())
+        }
+    };
+
+    debugln!("temp Cargo.toml created");
+    write!(mf, "[package]\n\
+                  name = \"temp\"\n\
+                  version = \"1.0.0\"\n\
+                  [[bin]]\n\
+                  name = \"test\"\n\
+                  [dependencies]\n").unwrap();
+
+    for dep in all_deps.deps.values() {
+        write!(mf, "{} = \"~{}\"\n", dep.name, dep.ver).unwrap();
+    }
+
+    let cwd = env::current_dir().unwrap();
+    env::set_current_dir(&cfg.tmp_dir).unwrap();
+    process::Command::new("cargo")
+                    .arg("update")
+                    .output()
+                    .unwrap();
+
+    let val_it = try!(parse_lockfile(&temp_lockfile));
+    if let Some(new_deps) = all_deps.get_semver_diff(val_it.deps.values()) {
+        for d in new_deps.iter() {
+            println!("        Name\tCurr\tNew");
+            println!("Update: {}\t{}\t{}", d.name, &*all_deps.deps.get(&d.name).unwrap().ver, d.possible_ver.clone().unwrap());
+        }
+    }
+
+    env::set_current_dir(&cwd).unwrap();
 
     Ok(())
 }
 
 
-fn parse_lockfile() -> CliResult<Lockfile> {
+fn parse_lockfile<P: AsRef<Path>>(p: P) -> CliResult<Lockfile> {
     debugln!("executing; parse_lockfile");
-    let lock_path = try!(find_root_lockfile_for_cwd());
-
-    let mut f = match File::open(lock_path) {
+    let mut f = match File::open(p.as_ref()) {
         Ok(f) => f,
         Err(_) => return Err(String::from("Couldn't open Cargo.lock for reading"))
     };
@@ -184,7 +129,7 @@ fn parse_lockfile() -> CliResult<Lockfile> {
         Some(toml) => return parse_table(toml),
         None => {}
     }
-    
+
 
     // On err
     let mut error_str = format!("could not parse input as TOML\n");
@@ -237,7 +182,7 @@ fn find_project_lockfile(pwd: &Path, file: &str) -> CliResult<PathBuf> {
 
 fn parse_table(table: Table) -> CliResult<Lockfile> {
     debugln!("executing; parse_table");
-    let mut lockfile = Lockfile { deps: vec![] };
+    let mut lockfile = Lockfile::new();
 
     try!(lockfile.get_root_deps(&table));
 
