@@ -1,9 +1,14 @@
 use std::collections::HashMap;
+use std::io::{Read, Write};
+use std::error::Error;
+use std::fs::File;
+use std::path::Path;
 
-use toml::{Value, Table};
+use toml::{self, Value, Table};
 
 use deps::RawDep;
 use deps::Dep;
+use error::CliError;
 
 use CliResult;
 
@@ -17,12 +22,59 @@ impl Lockfile {
         Lockfile { deps: HashMap::new() }
     }
 
+    pub fn from_file<P: AsRef<Path>>(p: P) -> CliResult<Self> {
+        debugln!("executing; parse_lockfile");
+        let mut f = match File::open(p.as_ref()) {
+            Ok(f) => f,
+            Err(e) => return Err(CliError::FileOpen(e.description().to_owned()))
+        };
+
+        let mut s = String::new();
+        if let Err(e) = f.read_to_string(&mut s) {
+            return Err(CliError::Generic(format!("Couldn't read the contents of Cargo.lock with error: {}", e.description())))
+        }
+
+        let mut parser = toml::Parser::new(&s);
+        match parser.parse() {
+            Some(toml) => return Lockfile::parse_table(toml),
+            None => {}
+        }
+
+
+        // On err
+        let mut error_str = format!("could not parse input as TOML\n");
+        for error in parser.errors.iter() {
+            let (loline, locol) = parser.to_linecol(error.lo);
+            let (hiline, hicol) = parser.to_linecol(error.hi);
+            error_str.push_str(&format!("{:?}:{}:{}{} {}\n",
+                                        f,
+                                        loline + 1, locol + 1,
+                                        if loline != hiline || locol != hicol {
+                                            format!("-{}:{}", hiline + 1,
+                                                    hicol + 1)
+                                        } else {
+                                            "".to_string()
+                                        },
+                                        error.desc));
+        }
+        Err(CliError::Generic(error_str))
+    }
+
+    fn parse_table(table: Table) -> CliResult<Self> {
+        debugln!("executing; parse_table");
+        let mut lockfile = Lockfile::new();
+
+        try!(lockfile.get_root_deps(&table));
+
+        try!(lockfile.get_non_root_deps(&table));
+
+        Ok(lockfile)
+    }
+
     pub fn get_root_deps(&mut self, table: &Table) -> CliResult<()> {
         let root_table = match table.get("root") {
             Some(table) => table,
-            None        => {
-                return Err(String::from("couldn't find '[root]' table in Cargo.lock"));
-            }
+            None        => return Err(CliError::TomlTableRoot)
         };
 
         match root_table.lookup("dependencies") {
@@ -32,17 +84,44 @@ impl Lockfile {
                 for v in val {
                     let val_str = v.as_str().unwrap_or("");
                     debugln!("adding root dep {}", val_str);
-                    let mut raw_dep: RawDep = try!(val_str.parse());
+                    let mut raw_dep: RawDep = match val_str.parse() {
+                        Ok(val) => val,
+                        Err(e)  => return Err(CliError::Generic(e))
+                    };
                     raw_dep.is_root = true;
                     self.deps.insert(raw_dep.name.clone(), raw_dep);
                 }
             },
             Some(_) => unreachable!(),
-            None => return Err(String::from("No root dependencies"))
+            None => return Err(CliError::NoRootDeps)
         };
 
         debugln!("Root deps: {:?}", self.deps);
         Ok(())
+    }
+
+    fn write_manifest_pretext(w: &mut W) -> CliResult<()> where W: Write {
+        write!(w, "[package]\n\
+                      name = \"temp\"\n\
+                      version = \"1.0.0\"\n\
+                      [[bin]]\n\
+                      name = \"test\"\n\
+                      [dependencies]\n").unwrap();
+    }
+
+    pub fn write_semver_manifest(w: &mut W) -> CliResult<()> where W: Write {
+        try!(Lockfile::write_manifest_pretext(w));
+
+        for dep in all_deps.deps.values() {
+            write!(mf, "{} = \"~{}\"\n", dep.name, dep.ver).unwrap();
+        }
+    }
+    pub fn write_allver_manifest(w: &mut W) -> CliResult<()> where W: Write {
+        try!(Lockfile::write_manifest_pretext(w));
+
+        for dep in all_deps.deps.values() {
+            write!(mf, "{} = \"*\"\n", dep.name).unwrap();
+        }
     }
 
     pub fn get_non_root_deps(&mut self, table: &Table) -> CliResult<()> {
@@ -51,14 +130,15 @@ impl Lockfile {
                 debugln!("found non root deps");
 
                 for v in val {
-                    let name_str = v.lookup("name").unwrap().as_str().unwrap_or("");
-                    let ver_str = v.lookup("version").unwrap().as_str().unwrap_or("");
                     match v.lookup("dependencies") {
                         Some(&Value::Array(ref deps)) => {
                             for d in deps {
                                 let dep_str = d.as_str().unwrap_or("");
                                 debugln!("adding non root dep {}", dep_str);
-                                let raw_dep: RawDep = try!(dep_str.parse());
+                                let raw_dep: RawDep = match dep_str.parse() {
+                                    Ok(val) => val,
+                                    Err(e)  => return Err(CliError::Generic(e))
+                                };
                                 self.deps.insert(raw_dep.name.clone(), raw_dep);
                             }
                         },
@@ -68,7 +148,7 @@ impl Lockfile {
                 }
             },
             Some(_) => unreachable!(),
-            None => return Err(String::from("No non root dependencies"))
+            None => return Err(CliError::NoNonRootDeps)
         };
 
         debugln!("All deps: {:#?}", self.deps);

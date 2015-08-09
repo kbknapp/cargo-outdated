@@ -2,27 +2,36 @@
 extern crate clap;
 extern crate toml;
 extern crate semver;
+extern crate tempdir;
+#[cfg(feature = "color")]
+extern crate ansi_term;
+extern crate tabwriter;
 
 #[macro_use]
 mod macros;
 mod config;
 mod lockfile;
 mod deps;
+mod error;
+mod fmt;
 
 use std::env;
 use std::error::Error;
 use std::fs::{self, File};
-use std::io::{Read, Write};
+use std::io::{Write, stdout};
 use std::path::{Path, PathBuf};
 use std::process;
 
 use clap::{App, SubCommand};
-use toml::Table;
+use tempdir::TempDir;
+use tabwriter::TabWriter;
 
 use config::Config;
 use lockfile::Lockfile;
+use error::CliError;
+use fmt::Format;
 
-type CliResult<T> = Result<T, String>;
+pub type CliResult<T> = Result<T, CliError>;
 
 fn main() {
     debugln!("executing; cmd=cargo-outdated; args={:?}", env::args().collect::<Vec<_>>());
@@ -39,15 +48,16 @@ fn main() {
         .subcommand(SubCommand::with_name("outdated")
             .about("Displays information about project dependency versions")
             .args_from_usage("-p, --package [PKG]...    'Package to inspect for updates'
+                              -v, --verbose             'Print verbose output'
                               -d, --depth [DEPTH]       'How deep in the dependency chain to search{n}\
                                                          (Defaults to 1, or root deps only)'"))
         .get_matches();
 
-    let cfg = Config::from_matches(&m);
-
-    if let Err(e) = execute(cfg) {
-        wlnerr!("cargo-outdated: {}", e);
-        process::exit(1);
+    if let Some(m) = m.subcommand_matches("outdated") {
+        let cfg = Config::from_matches(m);
+        if let Err(e) = execute(cfg) {
+            e.exit();
+        }
     }
 }
 
@@ -57,53 +67,61 @@ fn main() {
 fn execute(cfg: Config) -> CliResult<()> {
     debugln!("executing; execute; cfg={:?}", cfg);
 
-    let all_deps = try!(parse_lockfile(try!(find_root_lockfile_for_cwd())));
+    verbose!(cfg, "Parsing {}...", Format::Warning("Cargo.lock"));
+    let all_deps = try!(Lockfile::from_file(try!(find_root_lockfile_for_cwd())));
+    verboseln!(cfg, "{}", Format::Good("Done"));
 
-    let temp_manifest = cfg.tmp_dir.join("Cargo.toml");
-    let temp_lockfile = cfg.tmp_dir.join("Cargo.lock");
+    let tmp = match TempDir::new("cargo-outdated") {
+        Ok(t)  => t,
+        Err(e) => return Err(CliError::Generic(e.description().to_owned())),
+    };
 
-    let mut lf = match fs::copy(try!(find_root_lockfile_for_cwd()), &temp_lockfile) {
+    verbose!(cfg, "Setting up temp space...");
+    let temp_manifest = tmp.path().join("Cargo.toml");
+    let temp_lockfile = tmp.path().join("Cargo.lock");
+
+    let lf = match fs::copy(try!(find_root_lockfile_for_cwd()), &temp_lockfile) {
         Ok(f) => f,
         Err(e) => {
             debugln!("temp Cargo.lock failed with error: {}", e);
-            return Err(e.description().to_owned())
+            return Err(CliError::Generic(e.description().to_owned()))
         }
     };
-
 
     let mut mf = match File::create(&temp_manifest) {
         Ok(f) => f,
         Err(e) => {
             debugln!("temp Cargo.toml failed with error: {}", e);
-            return Err(e.description().to_owned())
+            return Err(CliError::Generic(e.description().to_owned()))
         }
     };
 
     debugln!("temp Cargo.toml created");
-    write!(mf, "[package]\n\
-                  name = \"temp\"\n\
-                  version = \"1.0.0\"\n\
-                  [[bin]]\n\
-                  name = \"test\"\n\
-                  [dependencies]\n").unwrap();
+    try!(all_deps.write_semver_manifest(&mut mf));
+    verboseln!(cfg, "{}", Format::Good("Done"));
 
-    for dep in all_deps.deps.values() {
-        write!(mf, "{} = \"~{}\"\n", dep.name, dep.ver).unwrap();
-    }
-
+    verbose!(cfg, "Checking for updates...");
     let cwd = env::current_dir().unwrap();
-    env::set_current_dir(&cfg.tmp_dir).unwrap();
+    env::set_current_dir(tmp.path()).unwrap();
     process::Command::new("cargo")
                     .arg("update")
                     .output()
                     .unwrap();
+    verboseln!(cfg, "{}", Format::Good("Done"));
 
-    let val_it = try!(parse_lockfile(&temp_lockfile));
+    verbose!(cfg, "Parsing the results...");
+    let val_it = try!(Lockfile::from_file(&temp_lockfile));
+    verboseln!(cfg, "{}", Format::Good("Done"));
+
+    verboseln!(cfg, "Displaying the results:\n");
     if let Some(new_deps) = all_deps.get_semver_diff(val_it.deps.values()) {
+        let mut tw = TabWriter::new(vec![]);
+        write!(&mut tw, "\tName\tCurr\tNew\n").unwrap();
         for d in new_deps.iter() {
-            println!("        Name\tCurr\tNew");
-            println!("Update: {}\t{}\t{}", d.name, &*all_deps.deps.get(&d.name).unwrap().ver, d.possible_ver.clone().unwrap());
+            write!(&mut tw, "\t{}\t{}\t{}\n", d.name, &*all_deps.deps.get(&d.name).unwrap().ver, d.possible_ver.clone().unwrap()).unwrap();
         }
+        tw.flush().unwrap();
+        write!(stdout(), "{}", String::from_utf8(tw.unwrap()).unwrap()).unwrap();
     }
 
     env::set_current_dir(&cwd).unwrap();
@@ -111,50 +129,11 @@ fn execute(cfg: Config) -> CliResult<()> {
     Ok(())
 }
 
-
-fn parse_lockfile<P: AsRef<Path>>(p: P) -> CliResult<Lockfile> {
-    debugln!("executing; parse_lockfile");
-    let mut f = match File::open(p.as_ref()) {
-        Ok(f) => f,
-        Err(_) => return Err(String::from("Couldn't open Cargo.lock for reading"))
-    };
-
-    let mut s = String::new();
-    if let Err(..) = f.read_to_string(&mut s) {
-        return Err(String::from("Couldn't read the contents of Cargo.lock"))
-    }
-
-    let mut parser = toml::Parser::new(&s);
-    match parser.parse() {
-        Some(toml) => return parse_table(toml),
-        None => {}
-    }
-
-
-    // On err
-    let mut error_str = format!("could not parse input as TOML\n");
-    for error in parser.errors.iter() {
-        let (loline, locol) = parser.to_linecol(error.lo);
-        let (hiline, hicol) = parser.to_linecol(error.hi);
-        error_str.push_str(&format!("{:?}:{}:{}{} {}\n",
-                                    f,
-                                    loline + 1, locol + 1,
-                                    if loline != hiline || locol != hicol {
-                                        format!("-{}:{}", hiline + 1,
-                                                hicol + 1)
-                                    } else {
-                                        "".to_string()
-                                    },
-                                    error.desc));
-    }
-    Err(error_str)
-}
-
 fn find_root_lockfile_for_cwd() -> CliResult<PathBuf> {
     debugln!("executing; find_root_lockfile_for_cwd;");
     let cwd = match env::current_dir() {
         Ok(dir) => dir,
-        Err(..) => return Err(String::from("Couldn't determine the current working directory"))
+        Err(e)  => return Err(CliError::Generic(format!("Couldn't determine the current working directory with error: {}", e.description())))
     };
 
     find_project_lockfile(&cwd, "Cargo.lock")
@@ -176,18 +155,8 @@ fn find_project_lockfile(pwd: &Path, file: &str) -> CliResult<PathBuf> {
         }
     }
 
-    Err(format!("Could not find `{}` in `{}` or any parent directory",
-                      file, pwd.display()))
+    Err(CliError::Generic(format!("Could not find `{}` in `{}` or any parent directory",
+                      file, pwd.display())))
 }
 
-fn parse_table(table: Table) -> CliResult<Lockfile> {
-    debugln!("executing; parse_table");
-    let mut lockfile = Lockfile::new();
-
-    try!(lockfile.get_root_deps(&table));
-
-    try!(lockfile.get_non_root_deps(&table));
-
-    Ok(lockfile)
-}
 

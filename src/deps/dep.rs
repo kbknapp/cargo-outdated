@@ -1,5 +1,3 @@
-use semver::Version;
-
 pub struct Dep {
     pub name: String,
     pub raw_ver: Option<String>,

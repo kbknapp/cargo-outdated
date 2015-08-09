@@ -12,6 +12,24 @@ macro_rules! werr(
     })
 );
 
+macro_rules! verbose(
+    ($cfg:ident, $($arg:tt)*) => ({
+        if $cfg.verbose {
+            use std::io::{Write, stdout};
+            write!(&mut stdout(), $($arg)*).ok();
+        }
+    })
+);
+
+macro_rules! verboseln(
+    ($cfg:ident, $($arg:tt)*) => ({
+        if $cfg.verbose {
+            use std::io::{Write, stdout};
+            writeln!(&mut stdout(), $($arg)*).ok();
+        }
+    })
+);
+
 #[cfg(feature = "debug")]
 macro_rules! debugln {
     ($fmt:expr) => (println!(concat!("**DEBUG** ", $fmt)));

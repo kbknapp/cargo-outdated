@@ -7,6 +7,14 @@ authors = ["Kevin K. <kbknapp@gmail.com>"]
 clap = "*"
 toml = "*"
 semver = "*"
+tabwriter = "*"
+tempdir = "*"
+
+[dependencies.ansi_term]
+version = "*"
+optional = true
 
 [features]
+default = ["color"]
+color = ["ansi_term"]
 debug = []
