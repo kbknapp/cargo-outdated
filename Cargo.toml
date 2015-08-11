@@ -4,14 +4,14 @@ version = "0.1.0"
 authors = ["Kevin K. <kbknapp@gmail.com>"]
 
 [dependencies]
-clap = "*"
-toml = "*"
-semver = "*"
-tabwriter = "*"
-tempdir = "*"
+clap = "1.1"
+toml = "0.1"
+semver = "0.1"
+tabwriter = "0.1"
+tempdir = "0.3"
 
 [dependencies.ansi_term]
-version = "*"
+version = "0.6"
 optional = true
 
 [features]
