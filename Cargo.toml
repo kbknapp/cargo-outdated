@@ -18,3 +18,4 @@ optional = true
 default = ["color"]
 color = ["ansi_term"]
 debug = []
+unstable = []
