@@ -1,4 +1,5 @@
 # cargo-outdated
+Linux: [![Build Status](https://travis-ci.org/kbknapp/cargo-outdated.svg?branch=master)](https://travis-ci.org/kbknapp/cargo-outdated)
 A cargo subcommand for displaying when Rust dependencies are out of date
 
 ## About
