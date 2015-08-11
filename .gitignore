@@ -12,3 +12,6 @@
 
 # Temp files
 .*~
+
+# Test files
+*.test
