@@ -152,12 +152,14 @@ impl Lockfile {
         let cwd = env::current_dir().unwrap();
         debugln!("executing; cargo update");
         env::set_current_dir(tmp.path()).unwrap();
-        process::Command::new("cargo")
+        if let Err(e) = process::Command::new("cargo")
                         .arg("update")
                         .arg("--manifest-path")
                         .arg(tmp_manifest.to_str().unwrap())
-                        .output()
-                        .unwrap();
+                        .output() {
+
+            return Err(CliError::Generic(format!("Failed to run 'cargo update' with error '{}'", e.description())));
+        }
         verboseln!(cfg, "{}", Format::Good("Done"));
 
         verbose!(cfg, "Parsing the results...");
@@ -168,14 +170,15 @@ impl Lockfile {
         debugln!("parsing semver results");
         for (d_name, d) in self.deps.iter() {
             debugln!("iter; name={}; ver={}", d_name, d.ver);
-            let semver_dep = updated_lf.deps.get(d_name).unwrap();
-            if semver_dep.ver != d.ver {
-                res.insert(d_name.to_owned(), Dep {
-                    name: d_name.to_owned(),
-                    project_ver: d.ver.clone(),
-                    semver_ver: Some(semver_dep.ver.clone()),
-                    latest_ver: None
-                });
+            if let Some(semver_dep) = updated_lf.deps.get(d_name) {
+                if semver_dep.ver != d.ver {
+                    res.insert(d_name.to_owned(), Dep {
+                        name: d_name.to_owned(),
+                        project_ver: d.ver.clone(),
+                        semver_ver: Some(semver_dep.ver.clone()),
+                        latest_ver: None
+                    });
+                }
             }
         }
         verboseln!(cfg, "{}", Format::Good("Done"));
@@ -221,12 +224,14 @@ impl Lockfile {
         verboseln!(cfg, "{}", Format::Good("Done"));
 
         verbose!(cfg, "Checking for updates...");
-        process::Command::new("cargo")
+        if let Err(e) = process::Command::new("cargo")
                         .arg("update")
                         .arg("--manifest-path")
                         .arg(tmp_manifest.to_str().unwrap())
-                        .output()
-                        .unwrap();
+                        .output() {
+
+            return Err(CliError::Generic(format!("Failed to run 'cargo update' with error '{}'", e.description())));
+        }
         verboseln!(cfg, "{}", Format::Good("Done"));
 
         verbose!(cfg, "Parsing the results...");
@@ -234,10 +239,11 @@ impl Lockfile {
         try!(updated_lf.parse_deps_to_depth(0));
         for (d_name, d) in self.deps.iter() {
             debugln!("iter; name={}", d_name);
-            let latest_dep = updated_lf.deps.get(d_name).unwrap();
-            if latest_dep.ver != d.ver {
-                if let Some(d) = res.get_mut(&latest_dep.name) {
-                    d.latest_ver = Some(latest_dep.ver.clone());
+            if let Some(latest_dep) = updated_lf.deps.get(d_name) {
+                if latest_dep.ver != d.ver {
+                    if let Some(d) = res.get_mut(&latest_dep.name) {
+                        d.latest_ver = Some(latest_dep.ver.clone());
+                    }
                 }
             }
         }
@@ -373,9 +379,9 @@ impl Lockfile {
 
         for dep in self.deps.values() {
             debugln!("iter; name={}; ver=~{}", dep.name, dep.ver);
-            if dep.parent.is_none() {
-                write!(w, "{} = \"~{}\"\n", dep.name, dep.ver).unwrap();
-            }
+                if let Err(e) = write!(w, "{} = \"~{}\"\n", dep.name, dep.ver) {
+                    return Err(CliError::Generic(format!("Failed to write Cargo.toml with error '{}'", e.description())));
+                }
         }
 
         Ok(())
@@ -387,7 +393,9 @@ impl Lockfile {
         for dep in self.deps.values() {
             debugln!("iter; name={}; ver=*", dep.name);
             if dep.parent.is_none() {
-                write!(w, "{} = \"*\"\n", dep.name).unwrap();
+                if let Err(e) = write!(w, "{} = \"*\"\n", dep.name) {
+                    return Err(CliError::Generic(format!("Failed to write Cargo.toml with error '{}'", e.description())));
+                }
             }
         }
 
