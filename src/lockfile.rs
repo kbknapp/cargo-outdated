@@ -62,7 +62,7 @@ impl Lockfile {
                                             format!("-{}:{}", hiline + 1,
                                                     hicol + 1)
                                         } else {
-                                            "".to_string()
+                                            "".to_owned()
                                         },
                                         error.desc));
         }
@@ -155,7 +155,7 @@ impl Lockfile {
         if let Err(e) = process::Command::new("cargo")
                         .arg("update")
                         .arg("--manifest-path")
-                        .arg(tmp_manifest.to_str().unwrap())
+                        .arg(tmp_manifest.to_str().expect("failed to convert temp Cargo.toml path to string"))
                         .output() {
 
             return Err(CliError::Generic(format!("Failed to run 'cargo update' with error '{}'", e.description())));
@@ -227,7 +227,7 @@ impl Lockfile {
         if let Err(e) = process::Command::new("cargo")
                         .arg("update")
                         .arg("--manifest-path")
-                        .arg(tmp_manifest.to_str().unwrap())
+                        .arg(tmp_manifest.to_str().expect("failed to convert temp Cargo.toml path to string"))
                         .output() {
 
             return Err(CliError::Generic(format!("Failed to run 'cargo update' with error '{}'", e.description())));
@@ -261,7 +261,8 @@ impl Lockfile {
                 }
                 let mut ret = HashMap::new();
                 for dep in safe.into_iter() {
-                    ret.insert(dep.to_string(), res.remove(&**dep).unwrap());
+                    // Needs .to_string() becuase to_owned() only gets a &str
+                    ret.insert(dep.to_string(), res.remove(&**dep).expect("failed to get dependency from results set"));
                 }
                 return Ok(Some(ret))
             }
@@ -285,11 +286,11 @@ impl Lockfile {
             match self.toml.get("package") {
                 Some(&Value::Array(ref tables)) => {
                     for table in tables {
-                        let name = table.lookup("name").unwrap().as_str().unwrap();
+                        let name = table.lookup("name").expect("no 'name' field in Cargo.lock [package] table").as_str().expect("'name' field of [package] table in Cargo.lock was not a valid string");
                         if !self.deps.contains_key(name) {
                             continue
                         }
-                        let ver = table.lookup("version").unwrap().as_str().unwrap();
+                        let ver = table.lookup("version").expect("no 'version' field in Cargo.lock [package] table").as_str().expect("'version' field of [package] table in Cargo.lock was not a valid string");
                         let mut next_level = vec![];
                         if let Some(existing_dep) = self.deps.get_mut(name) {
                             if existing_dep.ver != ver {
@@ -319,7 +320,7 @@ impl Lockfile {
                             }
                         }
                         for child in next_level.into_iter() {
-                            self.deps.insert(format!("{}->{}", child.parent.as_ref().unwrap().clone(), child.name.clone()), child);
+                            self.deps.insert(format!("{}->{}", child.parent.as_ref().expect("child dependency has no parent node").clone(), child.name.clone()), child);
                         }
                     }
                     depth -= 1;

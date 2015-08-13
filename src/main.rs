@@ -1,3 +1,6 @@
+#![cfg_attr(feature="lints", feature(plugin))]
+#![cfg_attr(feature="lints", plugin(clippy))]
+
 #[macro_use]
 extern crate clap;
 extern crate toml;

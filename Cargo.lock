@@ -4,6 +4,7 @@ version = "0.1.0"
 dependencies = [
  "ansi_term 0.6.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "clap 1.1.6 (registry+https://github.com/rust-lang/crates.io-index)",
+ "clippy 0.0.11 (git+https://github.com/Manishearth/rust-clippy)",
  "semver 0.1.20 (registry+https://github.com/rust-lang/crates.io-index)",
  "tabwriter 0.1.23 (registry+https://github.com/rust-lang/crates.io-index)",
  "tempdir 0.3.4 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -32,6 +33,11 @@ dependencies = [
  "ansi_term 0.6.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "strsim 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
+
+[[package]]
+name = "clippy"
+version = "0.0.11"
+source = "git+https://github.com/Manishearth/rust-clippy#dbd396db9179d99a219726e4dcfb7875c6749390"
 
 [[package]]
 name = "libc"

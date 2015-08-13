@@ -14,8 +14,13 @@ tempdir = "0.3"
 version = "0.6"
 optional = true
 
+[dependencies.clippy]
+git = "https://github.com/Manishearth/rust-clippy"
+optional = true
+
 [features]
 default = ["color"]
 color = ["ansi_term"]
 debug = []
 unstable = []
+lints = ["clippy", "unstable"]
