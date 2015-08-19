@@ -4,7 +4,7 @@ version = "0.1.0"
 authors = ["Kevin K. <kbknapp@gmail.com>"]
 
 [dependencies]
-clap = "1.1"
+clap = "~1.2"
 toml = "0.1"
 semver = "0.1"
 tabwriter = "0.1"

@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::io::{Read, Write};
+use std::io::{self, Read, Write};
 use std::env;
 use std::error::Error;
 use std::fs::{self, File};
@@ -148,10 +148,12 @@ impl Lockfile {
             s
         });
 
-        verbose!(cfg, "Checking for updates...");
         let cwd = env::current_dir().unwrap();
         debugln!("executing; cargo update");
         env::set_current_dir(tmp.path()).unwrap();
+        print!("Checking for SemVer compatible updates...");
+        let mut out = io::stdout();
+        out.flush().ok().expect("failed to flush stdout");
         if let Err(e) = process::Command::new("cargo")
                         .arg("update")
                         .arg("--manifest-path")
@@ -160,7 +162,7 @@ impl Lockfile {
 
             return Err(CliError::Generic(format!("Failed to run 'cargo update' with error '{}'", e.description())));
         }
-        verboseln!(cfg, "{}", Format::Good("Done"));
+        println!("{}", Format::Good("Done"));
 
         verbose!(cfg, "Parsing the results...");
         debugln!("creating new lockfile from tmp results");
@@ -223,7 +225,8 @@ impl Lockfile {
         }
         verboseln!(cfg, "{}", Format::Good("Done"));
 
-        verbose!(cfg, "Checking for updates...");
+        print!("Checking for the latest updates...");
+        out.flush().ok().expect("failed to flush stdout");
         if let Err(e) = process::Command::new("cargo")
                         .arg("update")
                         .arg("--manifest-path")
@@ -232,7 +235,7 @@ impl Lockfile {
 
             return Err(CliError::Generic(format!("Failed to run 'cargo update' with error '{}'", e.description())));
         }
-        verboseln!(cfg, "{}", Format::Good("Done"));
+        println!("{}", Format::Good("Done"));
 
         verbose!(cfg, "Parsing the results...");
         let mut updated_lf = try!(Lockfile::from_file(&tmp_lockfile));

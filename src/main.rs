@@ -22,7 +22,7 @@ use std::io::{Write, stdout};
 #[cfg(feature="debug")]
 use std::env;
 
-use clap::{App, Arg, SubCommand};
+use clap::{App, Arg, SubCommand, AppSettings};
 use tabwriter::TabWriter;
 
 use config::Config;
@@ -42,7 +42,8 @@ fn main() {
         // subcommand for cargo
         .bin_name("cargo")
         // Global version uses the version we supplied (Cargo.toml) for all subcommands as well
-        .global_version(true)
+        .settings(&[AppSettings::GlobalVersion,
+                    AppSettings::SubcommandRequired])
         // We use a subcommand because parsed after `cargo` is sent to the third party plugin
         // which will be interpreted as a subcommand/positional arg by clap
         .subcommand(SubCommand::with_name("outdated")
