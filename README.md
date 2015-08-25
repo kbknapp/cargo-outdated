@@ -75,3 +75,6 @@ OPTIONS:
 ## License
 
 `cargo-outdated` is released under the terms of either the MIT or Apache 2.0 license. See the LICENSE-MIT or LICENSE-APACHE file for the details.
+
+## Dependencies Tree
+![cargo-outdated dependencies](cargo-outdated.png)
