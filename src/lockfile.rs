@@ -125,7 +125,7 @@ impl Lockfile {
         verboseln!(cfg, "{}", Format::Good("Done"));
 
         debugln!("\n{}\n", {
-            let mut f = File::open(&tmp_manifest).ok().unwrap();
+            let mut f = File::open(&tmp_manifest).unwrap_or_else( |e| {panic!("cannot open file: {}", e)} );
 
             let mut s = String::new();
             f.read_to_string(&mut s).ok();
@@ -141,19 +141,19 @@ impl Lockfile {
         }
 
         debugln!("\n{}\n", {
-            let mut f = File::open(&tmp_lockfile).ok().unwrap();
+            let mut f = File::open(&tmp_lockfile).unwrap_or_else( |e| {panic!("cannot open file: {}", e)} );
 
             let mut s = String::new();
             f.read_to_string(&mut s).ok();
             s
         });
 
-        let cwd = env::current_dir().unwrap();
+        let cwd = env::current_dir().unwrap_or_else( |e| {panic!("current working dir opening error: {}", e)} );
         debugln!("executing; cargo update");
-        env::set_current_dir(tmp.path()).unwrap();
+        env::set_current_dir(tmp.path()).unwrap_or_else( |e| {panic!("cannot set current dir: {}", e)} );
         print!("Checking for SemVer compatible updates...");
         let mut out = io::stdout();
-        out.flush().ok().expect("failed to flush stdout");
+        out.flush().unwrap_or_else( |e| {panic!("failed to flush stdout: {}", e)} );
         if let Err(e) = process::Command::new("cargo")
                         .arg("update")
                         .arg("--manifest-path")
@@ -252,7 +252,7 @@ impl Lockfile {
         }
         verboseln!(cfg, "{}", Format::Good("Done"));
 
-        env::set_current_dir(&cwd).unwrap();
+        env::set_current_dir(&cwd).unwrap_or_else( |e| {panic!("cannot set current dir: {}", e)} );
 
         if !res.is_empty() {
             if let Some(ref dep_v) = cfg.to_update {
