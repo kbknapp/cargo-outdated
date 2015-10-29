@@ -158,7 +158,8 @@ impl Lockfile {
                         .arg("update")
                         .arg("--manifest-path")
                         .arg(tmp_manifest.to_str().expect("failed to convert temp Cargo.toml path to string"))
-                        .output() {
+                        .output()
+                        .and_then(|v| if v.status.success() { Ok(v) } else { Err(io::Error::new(io::ErrorKind::Other, "did not exit successfully")) }) {
 
             return Err(CliError::Generic(format!("Failed to run 'cargo update' with error '{}'", e.description())));
         }
@@ -231,7 +232,8 @@ impl Lockfile {
                         .arg("update")
                         .arg("--manifest-path")
                         .arg(tmp_manifest.to_str().expect("failed to convert temp Cargo.toml path to string"))
-                        .output() {
+                        .output()
+                        .and_then(|v| if v.status.success() { Ok(v) } else { Err(io::Error::new(io::ErrorKind::Other, "did not exit successfully")) }) {
 
             return Err(CliError::Generic(format!("Failed to run 'cargo update' with error '{}'", e.description())));
         }

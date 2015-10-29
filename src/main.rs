@@ -73,21 +73,25 @@ fn execute(cfg: Config) -> CliResult<()> {
     let mut lf = try!(Lockfile::new());
     verboseln!(cfg, "{}", Format::Good("Done"));
 
-    if let Ok(Some(res)) = lf.get_updates(&cfg) {
-        println!("The following dependencies have newer versions available:\n");
-        let mut tw = TabWriter::new(vec![]);
-        write!(&mut tw, "\tName\tProject Ver\tSemVer Compat\tLatest Ver\n").unwrap_or_else(|e| {panic!("write! error: {}", e)});
-        for (d_name, d) in res.iter() {
-            write!(&mut tw, "\t{}\t   {}\t   {}\t  {}\n", d_name, d.project_ver, d.semver_ver.as_ref().unwrap_or(&String::from("  --  ")), d.latest_ver.as_ref().unwrap_or(&String::from("  --  "))).unwrap();
-        }
-        tw.flush().unwrap_or_else(|e| {panic!("failed to flush TabWriter: {}", e)});
-        write!(stdout(), "{}", String::from_utf8(tw.unwrap()).unwrap_or_else(|e| {panic!("from_utf8 error: {}", e)})
-              ).unwrap_or_else(|e| {panic!("write! error: {}", e)})
-    } else {
-        println!("All dependencies are up to date, yay!")
+    match lf.get_updates(&cfg) {
+        Ok(Some(res)) => {
+            println!("The following dependencies have newer versions available:\n");
+            let mut tw = TabWriter::new(vec![]);
+            write!(&mut tw, "\tName\tProject Ver\tSemVer Compat\tLatest Ver\n").unwrap_or_else(|e| {panic!("write! error: {}", e)});
+            for (d_name, d) in res.iter() {
+                write!(&mut tw, "\t{}\t   {}\t   {}\t  {}\n", d_name, d.project_ver, d.semver_ver.as_ref().unwrap_or(&String::from("  --  ")), d.latest_ver.as_ref().unwrap_or(&String::from("  --  "))).unwrap();
+            }
+            tw.flush().unwrap_or_else(|e| {panic!("failed to flush TabWriter: {}", e)});
+            write!(stdout(), "{}", String::from_utf8(tw.unwrap()).unwrap_or_else(|e| {panic!("from_utf8 error: {}", e)})
+                  ).unwrap_or_else(|e| {panic!("write! error: {}", e)});
+            Ok(())
+        },
+        Ok(None) => {
+            println!("All dependencies are up to date, yay!");
+            Ok(())
+        },
+        Err(e) => Err(e),
     }
-
-    Ok(())
 }
 
 
