@@ -172,7 +172,7 @@ impl Lockfile {
         debugln!("parsing semver results");
         for (d_name, d) in self.deps.iter() {
             debugln!("iter; name={}; ver={}", d_name, d.ver);
-            if let Some(semver_dep) = updated_lf.deps.get(d_name) {
+            if let Some(semver_dep) = updated_lf.deps.get(&d.name) {
                 if semver_dep.ver != d.ver {
                     res.insert(d_name.to_owned(), Dep {
                         name: d_name.to_owned(),
@@ -242,10 +242,22 @@ impl Lockfile {
         try!(updated_lf.parse_deps_to_depth(0));
         for (d_name, d) in self.deps.iter() {
             debugln!("iter; name={}", d_name);
-            if let Some(latest_dep) = updated_lf.deps.get(d_name) {
+            if let Some(latest_dep) = updated_lf.deps.get(&d.name) {
                 if latest_dep.ver != d.ver {
-                    if let Some(d) = res.get_mut(&latest_dep.name) {
+                    let exists = if let Some(d) = res.get_mut(d_name) {
                         d.latest_ver = Some(latest_dep.ver.clone());
+                        true
+                    } else {
+                        false
+                    };
+
+                    if !exists {
+                        res.insert(d_name.to_owned(), Dep {
+                            name: d_name.to_owned(),
+                            project_ver: d.ver.clone(),
+                            semver_ver: None,
+                            latest_ver: Some(latest_dep.ver.clone())
+                        });
                     }
                 }
             }
@@ -377,11 +389,15 @@ impl Lockfile {
         Ok(())
     }
 
+    fn unique_deps(&self) -> HashMap<String, RawDep> {
+        self.deps.iter().map(|(_, ref dep)| (dep.name.clone(), (**dep).clone())).collect()
+    }
+
     pub fn write_semver_manifest<W>(&self, w: &mut W) -> CliResult<()> where W: Write {
         debugln!("executing; write_semver_manifest;");
         try!(self.write_manifest_pretext(w));
 
-        for dep in self.deps.values() {
+        for dep in self.unique_deps().values() {
             debugln!("iter; name={}; ver=~{}", dep.name, dep.ver);
                 if let Err(e) = write!(w, "{} = \"~{}\"\n", dep.name, dep.ver) {
                     return Err(CliError::Generic(format!("Failed to write Cargo.toml with error '{}'", e.description())));
@@ -394,12 +410,10 @@ impl Lockfile {
         debugln!("executing; write_latest_manifest;");
         try!(self.write_manifest_pretext(w));
 
-        for dep in self.deps.values() {
+        for dep in self.unique_deps().values() {
             debugln!("iter; name={}; ver=*", dep.name);
-            if dep.parent.is_none() {
-                if let Err(e) = write!(w, "{} = \"*\"\n", dep.name) {
-                    return Err(CliError::Generic(format!("Failed to write Cargo.toml with error '{}'", e.description())));
-                }
+            if let Err(e) = write!(w, "{} = \"*\"\n", dep.name) {
+                return Err(CliError::Generic(format!("Failed to write Cargo.toml with error '{}'", e.description())));
             }
         }
 
