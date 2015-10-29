@@ -15,3 +15,7 @@
 
 # Test files
 *.test
+
+# Backup Files
+*.orig
+*.bk

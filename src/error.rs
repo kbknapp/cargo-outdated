@@ -12,7 +12,7 @@ pub enum CliError {
     TomlTableRoot,
     NoRootDeps,
     NoNonRootDeps,
-    Unknown
+    Unknown,
 }
 
 // Copies clog::error::Error;
@@ -49,23 +49,23 @@ impl Display for CliError {
 impl Error for CliError {
     fn description<'a>(&'a self) -> &'a str {
         match *self {
-            CliError::Generic(ref d)  => &*d,
+            CliError::Generic(ref d) => &*d,
             CliError::FileOpen(ref d) => &*d,
-            CliError::TomlTableRoot   => "couldn't find '[root]' table in Cargo.lock",
-            CliError::NoRootDeps      => "No root dependencies",
-            CliError::NoNonRootDeps   => "No non root dependencies",
-            CliError::Unknown         => "An unknown fatal error has occurred, please consider filing a bug-report!"
+            CliError::TomlTableRoot => "couldn't find '[root]' table in Cargo.lock",
+            CliError::NoRootDeps => "No root dependencies",
+            CliError::NoNonRootDeps => "No non root dependencies",
+            CliError::Unknown => "An unknown fatal error has occurred, please consider filing a bug-report!",
         }
     }
 
     fn cause(&self) -> Option<&Error> {
         match *self {
-            CliError::Generic(..)        => None,
-            CliError::FileOpen(..)       => None,
-            CliError::Unknown            => None,
-            CliError::NoRootDeps         => None,
-            CliError::NoNonRootDeps      => None,
-            CliError::TomlTableRoot      => None,
+            CliError::Generic(..) => None,
+            CliError::FileOpen(..) => None,
+            CliError::Unknown => None,
+            CliError::NoRootDeps => None,
+            CliError::NoNonRootDeps => None,
+            CliError::TomlTableRoot => None,
         }
     }
 }

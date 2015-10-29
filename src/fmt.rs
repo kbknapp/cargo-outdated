@@ -1,15 +1,15 @@
 use std::fmt;
 
 #[cfg(all(feature = "color", not(target_os = "windows")))]
-use ansi_term::Colour::{Red, Green, Yellow};
+use ansi_term::Colour::{Green, Red, Yellow};
 #[cfg(all(feature = "color", not(target_os = "windows")))]
 use ansi_term::ANSIString;
 
 #[allow(dead_code)]
 pub enum Format<T> {
-     Error(T),
-     Warning(T),
-     Good(T),
+    Error(T),
+    Warning(T),
+    Good(T),
 }
 
 #[cfg(all(feature = "color", not(target_os = "windows")))]
