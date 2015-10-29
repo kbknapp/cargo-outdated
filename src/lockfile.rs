@@ -323,6 +323,9 @@ impl Lockfile {
                                             Ok(val) => val,
                                             Err(e)  => return Err(CliError::Generic(e))
                                         };
+                                        if !child.source.starts_with("(registry+") {
+                                            continue
+                                        }
                                         child.parent = Some(name.to_owned());
                                         children.push(child.name.clone());
                                         if all_deps || depth > 1 {
@@ -369,7 +372,9 @@ impl Lockfile {
                         Ok(val) => val,
                         Err(e)  => return Err(CliError::Generic(e))
                     };
-                    self.deps.insert(raw_dep.name.clone(), raw_dep);
+                    if raw_dep.source.starts_with("(registry+") {
+                        self.deps.insert(raw_dep.name.clone(), raw_dep);
+                    }
                 }
             },
             Some(_) => unreachable!(),
