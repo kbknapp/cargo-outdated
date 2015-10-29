@@ -1,9 +1,10 @@
 use std::str::FromStr;
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct RawDep {
     pub name: String,
     pub ver: String,
+    pub source: String,
     pub children: Option<Vec<String>>,
     pub parent: Option<String>
 }
@@ -18,6 +19,7 @@ impl FromStr for RawDep {
        Ok(RawDep {
            name: raw_dep_vec[0].to_owned(),
            ver: raw_dep_vec[1].to_owned(),
+           source: raw_dep_vec.get(2).map(|v| (*v).to_owned()).unwrap_or(String::new()),
            children: None,
            parent: None
        })
