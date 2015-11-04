@@ -1,3 +1,17 @@
+<a name="v0.1.1"></a>
+### v0.1.1 (2015-11-04)
+
+
+#### Documentation
+
+*   adds crate level docs ([8ba28c73](https://github.com/kbknapp/cargo-outdated/commit/8ba28c73e084bf0535e0df72653c529886d025a5))
+
+#### Improvements
+
+*   various fixes from clippy run ([b8b633fc](https://github.com/kbknapp/cargo-outdated/commit/b8b633fc148b8be38fec8a8efc73d30bc2917716))
+
+
+
 <a name="v0.1.0"></a>
 ## v0.1.0 Initial Implementation (2015-08-11)
 
