@@ -9,6 +9,37 @@ A cargo subcommand for displaying when Rust dependencies are out of date
 
 `cargo-outdated` is a very early proof-of-concept for displaying when dependencies have newer versions available.
 
+## Demo
+
+Once installed (see below) running `cargo outdated` in a project directory looks like the following:
+
+```
+$ cargo outdated
+Checking for SemVer compatible updates...Done
+Checking for the latest updates...Done
+The following dependencies have newer versions available:
+
+    Name                 Project Ver  SemVer Compat  Latest Ver
+    regex->regex-syntax     0.2.1        0.2.2         0.2.2
+    regex->memchr           0.1.5        0.1.6         0.1.6
+    clap                    1.2.3        1.2.5         1.4.7
+    tabwriter               0.1.23       0.1.24        0.1.24
+    clippy                  0.0.11       0.0.22        0.0.22
+    clap->ansi_term         0.6.3          --          0.7.0
+    regex->aho-corasick     0.3.0        0.3.4         0.4.0
+    ansi_term               0.6.3          --          0.7.0
+```
+
+## Installing
+
+`cargo-outdated` can be installed with `cargo install`
+
+```
+$ cargo install cargo-outdated
+```
+
+This may require a nightly version of `cargo` if you get an error about the `install` command not being found. You may also compile and install the traditional way by followin the instructions below.
+
 ## Compiling
 
 Follow these instructions to compile `cargo-outdated`, then skip down to Installation.
