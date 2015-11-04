@@ -107,6 +107,7 @@ impl Lockfile {
                                       pwd.display())))
     }
 
+    #[cfg_attr(feature = "lints", allow(str_to_string))]
     pub fn get_updates(&mut self, cfg: &Config) -> CliResult<Option<HashMap<String, Dep>>> {
         try!(self.parse_deps_to_depth(cfg.depth));
 
@@ -326,7 +327,7 @@ impl Lockfile {
     }
 
 
-    fn parse_deps_to_depth<'a>(&'a mut self, mut depth: i32) -> CliResult<()> {
+    fn parse_deps_to_depth(&mut self, mut depth: i32) -> CliResult<()> {
         debugln!("executing; parse_deps_to_depth; depth={}", depth);
         let mut all_deps = depth == 0;
 

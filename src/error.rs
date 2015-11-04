@@ -47,7 +47,7 @@ impl Display for CliError {
 }
 
 impl Error for CliError {
-    fn description<'a>(&'a self) -> &'a str {
+    fn description(&self) -> &str {
         match *self {
             CliError::Generic(ref d) => &*d,
             CliError::FileOpen(ref d) => &*d,
