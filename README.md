@@ -9,6 +9,16 @@ A cargo subcommand for displaying when Rust dependencies are out of date
 
 `cargo-outdated` is a very early proof-of-concept for displaying when dependencies have newer versions available.
 
+## Installing
+
+`cargo-outdated` can be installed with `cargo install`
+
+```
+$ cargo install cargo-outdated
+```
+
+This may require a nightly version of `cargo` if you get an error about the `install` command not being found. You may also compile and install the traditional way by followin the instructions below.
+
 ## Compiling
 
 Follow these instructions to compile `cargo-outdated`, then skip down to Installation.
