@@ -1,9 +1,9 @@
 [root]
 name = "cargo-outdated"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "ansi_term 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "clap 1.5.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "clap 1.5.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "clippy 0.0.23 (registry+https://github.com/rust-lang/crates.io-index)",
  "semver 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "tabwriter 0.1.24 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -32,7 +32,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "clap"
-version = "1.5.1"
+version = "1.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "ansi_term 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",

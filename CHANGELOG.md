@@ -1,3 +1,14 @@
+<a name="v0.1.3"></a>
+## v0.1.3 (2015-11-14)
+
+
+#### Documentation
+
+*   adds demo ([c2192aac](https://github.com/kbknapp/cargo-outdated/commit/c2192aac903e764a43fc103251e56ce50b89a8eb))
+*   updates readme with cargo install instructions ([e936a454](https://github.com/kbknapp/cargo-outdated/commit/e936a45443fc02ab65be15d6a872609a95f7dc00))
+
+
+
 <a name="v0.1.1"></a>
 ### v0.1.1 (2015-11-04)
 
