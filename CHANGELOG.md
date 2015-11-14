@@ -7,7 +7,9 @@
 *   adds demo ([c2192aac](https://github.com/kbknapp/cargo-outdated/commit/c2192aac903e764a43fc103251e56ce50b89a8eb))
 *   updates readme with cargo install instructions ([e936a454](https://github.com/kbknapp/cargo-outdated/commit/e936a45443fc02ab65be15d6a872609a95f7dc00))
 
+#### Bug Fixes
 
+*   fixes build error on windows due to upstream dep ([af4e1a70](https://github.com/kbknapp/cargo-outdated/commit/af4e1a704a70d5524e76c9ad6fd320cd576c4a2c))
 
 <a name="v0.1.1"></a>
 ### v0.1.1 (2015-11-04)
