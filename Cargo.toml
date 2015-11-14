@@ -1,6 +1,6 @@
 [package]
 name = "cargo-outdated"
-version = "0.1.2"
+version = "0.1.3"
 authors = ["Kevin K. <kbknapp@gmail.com>"]
 exclude = ["*.png"]
 description = "Cargo subcommand for displaying when dependencies are out of date"
