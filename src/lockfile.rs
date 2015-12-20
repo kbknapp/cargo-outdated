@@ -209,26 +209,6 @@ impl Lockfile {
         }
         verboseln!(cfg, "{}", Format::Good("Done"));
 
-        verbose!(cfg, "Cleaning up temp semver files...");
-        debugln!("Removing temp Cargo.lock");
-        match fs::remove_file(&tmp_lockfile) {
-            Ok(..) => (),
-            Err(e) => {
-                debugln!("deleting temp Cargo.toml failed with error: {}", e);
-                return Err(CliError::Generic(e.description().to_owned()));
-            }
-        }
-
-        debugln!("Removing temp Cargo.toml");
-        match fs::remove_file(&tmp_manifest) {
-            Ok(f) => f,
-            Err(e) => {
-                debugln!("deleting temp Cargo.lock failed with error: {}", e);
-                return Err(CliError::Generic(e.description().to_owned()));
-            }
-        }
-        verboseln!(cfg, "{}", Format::Good("Done"));
-
         verbose!(cfg, "Creating temp space for latest versions...");
         let mut mf = match File::create(&tmp_manifest) {
             Ok(f) => f,
