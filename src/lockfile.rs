@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::io::{self, Read, Write};
 use std::env;
 use std::error::Error;
@@ -108,7 +108,7 @@ impl Lockfile {
     }
 
     #[cfg_attr(feature = "lints", allow(str_to_string))]
-    pub fn get_updates(&mut self, cfg: &Config) -> CliResult<Option<HashMap<String, Dep>>> {
+    pub fn get_updates(&mut self, cfg: &Config) -> CliResult<Option<BTreeMap<String, Dep>>> {
         try!(self.parse_deps_to_depth(cfg.depth));
 
         // try!(self.get_non_root_deps(self.toml));
@@ -191,7 +191,7 @@ impl Lockfile {
         debugln!("creating new lockfile from tmp results");
         let mut updated_lf = try!(Lockfile::from_file(&tmp_lockfile));
         try!(updated_lf.parse_deps_to_depth(0));
-        let mut res = HashMap::new();
+        let mut res = BTreeMap::new();
         debugln!("parsing semver results");
         for (d_name, d) in self.deps.iter() {
             debugln!("iter; name={}; ver={}", d_name, d.ver);
@@ -289,7 +289,7 @@ impl Lockfile {
                         safe.push(dep);
                     }
                 }
-                let mut ret = HashMap::new();
+                let mut ret = BTreeMap::new();
                 for dep in safe.into_iter() {
                     // Needs .to_string() becuase to_owned() only gets a &str
                     ret.insert(dep.to_string(),
