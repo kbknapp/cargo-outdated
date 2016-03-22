@@ -13,13 +13,13 @@ keywords = ["cargo", "subcommand", "dependencies", "cargo-subcommand", "deps"]
 name = "cargo-outdated"
 
 [dependencies]
-clap = "~1.5"
+clap = "~2.2.1"
 toml = "0.1"
 semver = "0.2"
 tabwriter = "0.1"
 tempdir = "0.3"
 ansi_term = {version = "0.7", optional = true}
-clippy = {version = "~0.0", optional = true}
+clippy = {version = "=0.0.55", optional = true}
 
 [features]
 default = ["color"]
@@ -28,3 +28,4 @@ debug = []
 nightly = []
 unstable = ["lints"]
 lints = ["clippy", "nightly"]
+travis = ["nightly", "lints"]
