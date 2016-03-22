@@ -47,6 +47,7 @@ impl Display for CliError {
 }
 
 impl Error for CliError {
+    #[cfg_attr(feature = "lints", allow(match_same_arms))]
     fn description(&self) -> &str {
         match *self {
             CliError::Generic(ref d) => &*d,
@@ -59,13 +60,6 @@ impl Error for CliError {
     }
 
     fn cause(&self) -> Option<&Error> {
-        match *self {
-            CliError::Generic(..) => None,
-            CliError::FileOpen(..) => None,
-            CliError::Unknown => None,
-            CliError::NoRootDeps => None,
-            CliError::NoNonRootDeps => None,
-            CliError::TomlTableRoot => None,
-        }
+        None
     }
 }

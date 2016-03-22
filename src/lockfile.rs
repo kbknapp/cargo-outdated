@@ -44,17 +44,16 @@ impl Lockfile {
         }
 
         let mut parser = toml::Parser::new(&s);
-        match parser.parse() {
-            Some(toml) => return Ok(Lockfile {
+        if let Some(toml) = parser.parse() {
+            return Ok(Lockfile {
                 deps: HashMap::new(),
                 toml: Box::new(toml),
                 proj_lockfile_path: p.as_ref().to_path_buf(),
-            }),
-            None => {}
+            });
         }
 
         // On err
-        let mut error_str = format!("could not parse input as TOML\n");
+        let mut error_str = String::from("could not parse input as TOML\n");
         for error in parser.errors.iter() {
             let (loline, locol) = parser.to_linecol(error.lo);
             let (hiline, hicol) = parser.to_linecol(error.hi);
@@ -107,7 +106,7 @@ impl Lockfile {
                                       pwd.display())))
     }
 
-    #[cfg_attr(feature = "lints", allow(str_to_string))]
+    #[cfg_attr(feature = "lints", allow(cyclomatic_complexity))]
     pub fn get_updates(&mut self, cfg: &Config) -> CliResult<Option<BTreeMap<String, Dep>>> {
         try!(self.parse_deps_to_depth(cfg.depth));
 
@@ -230,7 +229,7 @@ impl Lockfile {
         verboseln!(cfg, "{}", Format::Good("Done"));
 
         print!("Checking for the latest updates...");
-        out.flush().ok().expect("failed to flush stdout");
+        out.flush().expect("failed to flush stdout");
         if let Err(e) =
                process::Command::new("cargo")
                    .arg("update")
@@ -281,7 +280,10 @@ impl Lockfile {
 
         env::set_current_dir(&cwd).unwrap_or_else(|e| panic!("cannot set current dir: {}", e));
 
-        if !res.is_empty() {
+        if res.is_empty() {
+            debugln!("returning; res=Ok(None)");
+            Ok(None)
+        } else {
             if let Some(ref dep_v) = cfg.to_update {
                 let mut safe = vec![];
                 for dep in dep_v {
@@ -291,8 +293,7 @@ impl Lockfile {
                 }
                 let mut ret = BTreeMap::new();
                 for dep in safe.into_iter() {
-                    // Needs .to_string() becuase to_owned() only gets a &str
-                    ret.insert(dep.to_string(),
+                    ret.insert((*dep).to_owned(),
                                res.remove(&**dep)
                                   .expect("failed to get dependency from results set"));
                 }
@@ -300,9 +301,6 @@ impl Lockfile {
             }
             debugln!("returning; res={:#?}", res);
             Ok(Some(res))
-        } else {
-            debugln!("returning; res=Ok(None)");
-            Ok(None)
         }
     }
 

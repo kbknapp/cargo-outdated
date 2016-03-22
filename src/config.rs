@@ -31,7 +31,7 @@ impl<'tu> Config<'tu> {
         };
 
         Config {
-            to_update: m.values_of("PKG"),
+            to_update: m.values_of("PKG").map(|v| v.collect()),
             depth: depth,
             verbose: m.is_present("verbose"),
         }
