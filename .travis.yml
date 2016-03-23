@@ -1,8 +1,12 @@
 language: rust
 rust:
   - nightly
+  - nightly-2016-03-22
   - beta
   - stable
+matrix:
+  allow_failures:
+    - rust: nightly
 script:
   - |
     cargo build &&
