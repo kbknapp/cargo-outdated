@@ -199,6 +199,7 @@ impl Lockfile {
                     res.insert(d_name.to_owned(),
                                Dep {
                                    name: d_name.to_owned(),
+                                   source: d.source.clone(),
                                    project_ver: d.ver.clone(),
                                    semver_ver: Some(semver_dep.ver.clone()),
                                    latest_ver: None,
@@ -268,6 +269,7 @@ impl Lockfile {
                         res.insert(d_name.to_owned(),
                                    Dep {
                                        name: d_name.to_owned(),
+                                       source: d.source.clone(),
                                        project_ver: d.ver.clone(),
                                        semver_ver: None,
                                        latest_ver: Some(latest_dep.ver.clone()),
@@ -344,9 +346,6 @@ impl Lockfile {
                                             Ok(val) => val,
                                             Err(e) => return Err(CliError::Generic(e)),
                                         };
-                                        if !child.source.starts_with("(registry+") {
-                                            continue;
-                                        }
                                         child.parent = Some(name.to_owned());
                                         children.push(child.name.clone());
                                         if all_deps || depth > 1 {
@@ -402,9 +401,7 @@ impl Lockfile {
                         Ok(val) => val,
                         Err(e) => return Err(CliError::Generic(e)),
                     };
-                    if raw_dep.source.starts_with("(registry+") {
-                        self.deps.insert(raw_dep.name.clone(), raw_dep);
-                    }
+                    self.deps.insert(raw_dep.name.clone(), raw_dep);
                 }
             }
             Some(_) => unreachable!(),
@@ -441,6 +438,9 @@ impl Lockfile {
         try!(self.write_manifest_pretext(w));
 
         for dep in self.unique_deps().values() {
+            if !dep.source.starts_with("(registry+") {
+                continue;
+            }
             debugln!("iter; name={}; ver=~{}", dep.name, dep.ver);
             if let Err(e) = write!(w, "{} = \"~{}\"\n", dep.name, dep.ver) {
                 return Err(CliError::Generic(format!("Failed to write Cargo.toml with error '{}'",
@@ -457,6 +457,9 @@ impl Lockfile {
         try!(self.write_manifest_pretext(w));
 
         for dep in self.unique_deps().values() {
+            if !dep.source.starts_with("(registry+") {
+                continue;
+            }
             debugln!("iter; name={}; ver=*", dep.name);
             if let Err(e) = write!(w, "{} = \"*\"\n", dep.name) {
                 return Err(CliError::Generic(format!("Failed to write Cargo.toml with error '{}'",
