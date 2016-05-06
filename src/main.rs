@@ -105,6 +105,7 @@ mod fmt;
 use std::io::{Write, stdout};
 #[cfg(feature="debug")]
 use std::env;
+use std::process;
 
 use clap::{App, AppSettings, Arg, SubCommand};
 use tabwriter::TabWriter;
@@ -138,9 +139,11 @@ fn main() {
             .about("Displays information about project dependency versions")
             .args_from_usage(
                 "-p, --package [PKG]...    'Package to inspect for updates'
-                -v, --verbose             'Print verbose output'
-                -d, --depth [DEPTH]       'How deep in the dependency chain to search{n}\
-                                           (Defaults to all dependencies when omitted)'")
+                 -v, --verbose             'Print verbose output'
+                 -d, --depth [NUM]       'How deep in the dependency chain to search \
+                                            (Defaults to all dependencies when omitted)'")
+            .arg(Arg::from_usage("--exit-code [NUM]     'The exit code to return on new versions found'")
+                .default_value("0"))
     // We separate -R so we can addd a conflicting argument
             .arg(Arg::from_usage(
                 "-R, --root-deps-only  'Only check root dependencies (Equivilant to --depth=1)'")
@@ -149,13 +152,17 @@ fn main() {
 
     if let Some(m) = m.subcommand_matches("outdated") {
         let cfg = Config::from_matches(m);
-        if let Err(e) = execute(cfg) {
-            e.exit();
+        match execute(cfg) {
+            Ok(code) => {
+                debugln!("exit_code={}", code);
+                process::exit(code)
+            },
+            Err(e) => e.exit(),
         }
     }
 }
 
-fn execute(cfg: Config) -> CliResult<()> {
+fn execute(cfg: Config) -> CliResult<i32> {
     debugln!("executing; execute; cfg={:?}", cfg);
 
     verbose!(cfg, "Parsing {}...", Format::Warning("Cargo.lock"));
@@ -187,11 +194,11 @@ fn execute(cfg: Config) -> CliResult<()> {
                    String::from_utf8(tw.unwrap())
                        .unwrap_or_else(|e| panic!("from_utf8 error: {}", e)))
                 .unwrap_or_else(|e| panic!("write! error: {}", e));
-            Ok(())
+            Ok(cfg.exit_code)
         }
         Ok(None) => {
             println!("All dependencies are up to date, yay!");
-            Ok(())
+            Ok(0)
         }
         Err(e) => Err(e),
     }

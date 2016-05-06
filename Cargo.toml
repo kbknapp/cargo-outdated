@@ -1,6 +1,6 @@
 [package]
 name = "cargo-outdated"
-version = "0.1.3"
+version = "0.2.0"
 authors = ["Kevin K. <kbknapp@gmail.com>"]
 exclude = ["*.png"]
 description = "Cargo subcommand for displaying when dependencies are out of date"
@@ -13,13 +13,13 @@ keywords = ["cargo", "subcommand", "dependencies", "cargo-subcommand", "deps"]
 name = "cargo-outdated"
 
 [dependencies]
-clap = "~2.2.1"
+clap = "~2.4.0"
 toml = "0.1"
 semver = "0.2"
 tabwriter = "0.1"
 tempdir = "0.3"
 ansi_term = {version = "0.7", optional = true}
-clippy = {version = "=0.0.55", optional = true}
+clippy = {version = "=0.0.64", optional = true}
 
 [features]
 default = ["color"]
