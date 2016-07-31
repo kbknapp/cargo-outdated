@@ -29,3 +29,6 @@ nightly = []
 unstable = ["lints"]
 lints = ["clippy", "nightly"]
 travis = ["nightly", "lints"]
+
+[profile.release]
+lto = true
