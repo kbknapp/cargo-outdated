@@ -19,16 +19,13 @@ semver = "0.2"
 tabwriter = "0.1"
 tempdir = "0.3"
 ansi_term = {version = "0.7", optional = true}
-clippy = {version = "=0.0.64", optional = true}
 
 [features]
 default = ["color"]
 color = ["ansi_term"]
 debug = []
-nightly = []
-unstable = ["lints"]
-lints = ["clippy", "nightly"]
-travis = ["nightly", "lints"]
+lints = []
+travis = ["lints"]
 
 [profile.release]
 lto = true

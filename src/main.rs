@@ -71,19 +71,18 @@
 //! ## License
 //!
 //! `cargo-outdated` is released under the terms of the MIT license. See the LICENSE-MIT file for the details.
-#![cfg_attr(feature = "nightly", feature(plugin))]
-#![cfg_attr(feature = "lints", plugin(clippy))]
+
 #![cfg_attr(feature = "lints", allow(explicit_iter_loop))]
 #![cfg_attr(feature = "lints", allow(should_implement_trait))]
 #![cfg_attr(feature = "lints", deny(warnings))]
-#![cfg_attr(not(any(feature = "unstable", feature = "nightly")), deny(unstable_features))]
 #![deny(missing_docs,
         missing_debug_implementations,
         missing_copy_implementations,
         trivial_casts, trivial_numeric_casts,
         unsafe_code,
         unused_import_braces,
-        unused_qualifications)]
+        unused_qualifications,
+        unstable_features)]
 
 #[macro_use]
 extern crate clap;
