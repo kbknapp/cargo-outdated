@@ -37,10 +37,8 @@ impl Lockfile {
 
         let mut s = String::new();
         if let Err(e) = f.read_to_string(&mut s) {
-            return Err(CliError::Generic(format!(
-                        "Couldn't read the contents of Cargo.lock with error: {}",
-                        e.description()
-                    )));
+            return Err(CliError::Generic(format!("Couldn't read the contents of Cargo.lock with error: {}",
+                                                 e.description())));
         }
 
         let mut parser = toml::Parser::new(&s);
@@ -75,9 +73,10 @@ impl Lockfile {
         debugln!("executing; find_root_lockfile_for_cwd;");
         let cwd = match env::current_dir() {
             Ok(dir) => dir,
-            Err(e) => return Err(CliError::Generic(format!(
-                        "Couldn't determine the current working directory with error:\n\t{}",
-                        e.description()))),
+            Err(e) => {
+                return Err(CliError::Generic(format!("Couldn't determine the current working directory with error:\n\t{}",
+                                                     e.description())))
+            }
         };
 
         Lockfile::find_project_lockfile(&cwd, "Cargo.lock")
@@ -134,7 +133,7 @@ impl Lockfile {
 
         debugln!("\n{}\n", {
             let mut f = File::open(&tmp_manifest)
-                            .unwrap_or_else(|e| panic!("cannot open file: {}", e));
+                .unwrap_or_else(|e| panic!("cannot open file: {}", e));
 
             let mut s = String::new();
             f.read_to_string(&mut s).ok();
@@ -151,7 +150,7 @@ impl Lockfile {
 
         debugln!("\n{}\n", {
             let mut f = File::open(&tmp_lockfile)
-                            .unwrap_or_else(|e| panic!("cannot open file: {}", e));
+                .unwrap_or_else(|e| panic!("cannot open file: {}", e));
 
             let mut s = String::new();
             f.read_to_string(&mut s).ok();
@@ -159,27 +158,26 @@ impl Lockfile {
         });
 
         let cwd = env::current_dir()
-                      .unwrap_or_else(|e| panic!("current working dir opening error: {}", e));
+            .unwrap_or_else(|e| panic!("current working dir opening error: {}", e));
         debugln!("executing; cargo update");
         env::set_current_dir(tmp.path())
             .unwrap_or_else(|e| panic!("cannot set current dir: {}", e));
         print!("Checking for SemVer compatible updates...");
         let mut out = io::stdout();
         out.flush().unwrap_or_else(|e| panic!("failed to flush stdout: {}", e));
-        if let Err(e) =
-               process::Command::new("cargo")
-                   .arg("update")
-                   .arg("--manifest-path")
-                   .arg(tmp_manifest.to_str()
-                                    .expect("failed to convert temp Cargo.toml path to string"))
-                   .output()
-                   .and_then(|v| {
-                       if v.status.success() {
-                           Ok(v)
-                       } else {
-                           Err(io::Error::new(io::ErrorKind::Other, "did not exit successfully"))
-                       }
-                   }) {
+        if let Err(e) = process::Command::new("cargo")
+            .arg("update")
+            .arg("--manifest-path")
+            .arg(tmp_manifest.to_str()
+                .expect("failed to convert temp Cargo.toml path to string"))
+            .output()
+            .and_then(|v| {
+                if v.status.success() {
+                    Ok(v)
+                } else {
+                    Err(io::Error::new(io::ErrorKind::Other, "did not exit successfully"))
+                }
+            }) {
 
             return Err(CliError::Generic(format!("Failed to run 'cargo update' with error '{}'",
                                                  e.description())));
@@ -231,20 +229,19 @@ impl Lockfile {
 
         print!("Checking for the latest updates...");
         out.flush().expect("failed to flush stdout");
-        if let Err(e) =
-               process::Command::new("cargo")
-                   .arg("update")
-                   .arg("--manifest-path")
-                   .arg(tmp_manifest.to_str()
-                                    .expect("failed to convert temp Cargo.toml path to string"))
-                   .output()
-                   .and_then(|v| {
-                       if v.status.success() {
-                           Ok(v)
-                       } else {
-                           Err(io::Error::new(io::ErrorKind::Other, "did not exit successfully"))
-                       }
-                   }) {
+        if let Err(e) = process::Command::new("cargo")
+            .arg("update")
+            .arg("--manifest-path")
+            .arg(tmp_manifest.to_str()
+                .expect("failed to convert temp Cargo.toml path to string"))
+            .output()
+            .and_then(|v| {
+                if v.status.success() {
+                    Ok(v)
+                } else {
+                    Err(io::Error::new(io::ErrorKind::Other, "did not exit successfully"))
+                }
+            }) {
 
             return Err(CliError::Generic(format!("Failed to run 'cargo update' with error '{}'",
                                                  e.description())));
@@ -297,7 +294,7 @@ impl Lockfile {
                 for dep in safe.into_iter() {
                     ret.insert((*dep).to_owned(),
                                res.remove(&**dep)
-                                  .expect("failed to get dependency from results set"));
+                                   .expect("failed to get dependency from results set"));
                 }
                 return Ok(Some(ret));
             }
@@ -319,17 +316,17 @@ impl Lockfile {
                 Some(&Value::Array(ref tables)) => {
                     for table in tables {
                         let name = table.lookup("name")
-                                        .expect("no 'name' field in Cargo.lock [package] table")
-                                        .as_str()
-                                        .expect("'name' field of [package] table in Cargo.lock was \
+                            .expect("no 'name' field in Cargo.lock [package] table")
+                            .as_str()
+                            .expect("'name' field of [package] table in Cargo.lock was \
                                              not a valid string");
                         if !self.deps.contains_key(name) {
                             continue;
                         }
                         let ver = table.lookup("version")
-                                       .expect("no 'version' field in Cargo.lock [package] table")
-                                       .as_str()
-                                       .expect("'version' field of [package] table in Cargo.lock \
+                            .expect("no 'version' field in Cargo.lock [package] table")
+                            .as_str()
+                            .expect("'version' field of [package] table in Cargo.lock \
                                                 was not a valid string");
                         let mut next_level = vec![];
                         if let Some(existing_dep) = self.deps.get_mut(name) {
@@ -363,9 +360,9 @@ impl Lockfile {
                             self.deps
                                 .insert(format!("{}->{}",
                                                 child.parent
-                                                     .as_ref()
-                                                     .expect("child dependency has no parent node")
-                                                     .clone(),
+                                                    .as_ref()
+                                                    .expect("child dependency has no parent node")
+                                                    .clone(),
                                                 child.name.clone()),
                                         child);
                         }

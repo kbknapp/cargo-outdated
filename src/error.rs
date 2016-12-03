@@ -59,7 +59,5 @@ impl Error for CliError {
         }
     }
 
-    fn cause(&self) -> Option<&Error> {
-        None
-    }
+    fn cause(&self) -> Option<&Error> { None }
 }

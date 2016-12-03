@@ -1,4 +1,3 @@
-//!
 //! A cargo subcommand for checking the latest version on crates.io of a particular dependency
 //!
 //! ## About
@@ -119,17 +118,16 @@ use fmt::Format;
 pub type CliResult<T> = Result<T, CliError>;
 
 fn main() {
-    debugln!("executing; cmd=cargo-outdated; args={:?}",
-             env::args().collect::<Vec<_>>());
+    debugln!("main:args={:?}", env::args().collect::<Vec<_>>());
     let m = App::new("cargo-outdated")
         .author("Kevin K. <kbknapp@gmail.com>")
         .about("Displays information about project dependency versions")
-        .version(&*format!("v{}", crate_version!()))
-    // We have to lie about our binary name since this will be a third party
-    // subcommand for cargo
+        .version(concat!("v", crate_version!()))
+        // We have to lie about our binary name since this will be a third party
+        // subcommand for cargo
         .bin_name("cargo")
-    // Global version uses the version we supplied (Cargo.toml) for all subcommands
-    // as well
+        // Global version uses the version we supplied (Cargo.toml) for all subcommands
+        // as well
         .settings(&[AppSettings::GlobalVersion,
                     AppSettings::SubcommandRequired])
     // We use a subcommand because parsed after `cargo` is sent to the third party
@@ -156,7 +154,7 @@ fn main() {
             Ok(code) => {
                 debugln!("exit_code={}", code);
                 process::exit(code)
-            },
+            }
             Err(e) => e.exit(),
         }
     }

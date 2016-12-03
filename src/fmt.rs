@@ -21,14 +21,11 @@ impl<T: AsRef<str>> Format<T> {
             Format::Good(ref e) => Green.paint(e.as_ref()),
         }
     }
-
 }
 
 #[cfg(all(feature = "color", not(target_os = "windows")))]
 impl<T: AsRef<str>> fmt::Display for Format<T> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", &self.format())
-    }
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result { write!(f, "{}", &self.format()) }
 }
 
 #[cfg(any(not(feature = "color"), target_os = "windows"))]
@@ -44,7 +41,5 @@ impl<T: fmt::Display> Format<T> {
 
 #[cfg(any(not(feature = "color"), target_os = "windows"))]
 impl<T: fmt::Display> fmt::Display for Format<T> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", &self.format())
-    }
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result { write!(f, "{}", &self.format()) }
 }

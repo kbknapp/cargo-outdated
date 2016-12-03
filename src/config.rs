@@ -24,11 +24,7 @@ impl<'tu> Config<'tu> {
                     }
                 }
             }
-            None => if m.is_present("root-deps-only") {
-                1
-            } else {
-                0
-            },
+            None => if m.is_present("root-deps-only") { 1 } else { 0 },
         };
 
         Config {
