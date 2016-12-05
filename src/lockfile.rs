@@ -3,7 +3,7 @@ use std::io::{self, Read, Write};
 use std::env;
 use std::error::Error;
 use std::fs::{self, File};
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::process;
 
 use toml::{self, Table, Value};
@@ -11,25 +11,24 @@ use tempdir::TempDir;
 
 use deps::RawDep;
 use deps::Dep;
-use error::CliError;
+use error::{CliError, CliResult};
 use config::Config;
 use fmt::Format;
 
-use CliResult;
 
 pub struct Lockfile {
     pub deps: HashMap<String, RawDep>,
     toml: Box<Table>,
-    proj_lockfile_path: PathBuf,
 }
 
 impl Lockfile {
-    pub fn new() -> CliResult<Self> {
-        Lockfile::from_file(try!(Lockfile::find_root_lockfile_for_cwd()))
+    pub fn from_config(cfg: &Config) -> CliResult<Self> {
+        debugln!("Lockfile:from_config");
+        Lockfile::from_file(&cfg.lockfile)
     }
 
     pub fn from_file<P: AsRef<Path>>(p: P) -> CliResult<Self> {
-        debugln!("executing; from_file; file={:?}", p.as_ref());
+        debugln!("Lockfile:from_file:file={:?}", p.as_ref());
         let mut f = match File::open(p.as_ref()) {
             Ok(f) => f,
             Err(e) => return Err(CliError::FileOpen(e.description().to_owned())),
@@ -37,7 +36,7 @@ impl Lockfile {
 
         let mut s = String::new();
         if let Err(e) = f.read_to_string(&mut s) {
-            return Err(CliError::Generic(format!("Couldn't read the contents of Cargo.lock with error: {}",
+            return Err(CliError::Generic(format!("Couldn't read the contents of the lockfile with error: {}",
                                                  e.description())));
         }
 
@@ -46,7 +45,6 @@ impl Lockfile {
             return Ok(Lockfile {
                 deps: HashMap::new(),
                 toml: Box::new(toml),
-                proj_lockfile_path: p.as_ref().to_path_buf(),
             });
         }
 
@@ -69,44 +67,9 @@ impl Lockfile {
         Err(CliError::Generic(error_str))
     }
 
-    fn find_root_lockfile_for_cwd() -> CliResult<PathBuf> {
-        debugln!("executing; find_root_lockfile_for_cwd;");
-        let cwd = match env::current_dir() {
-            Ok(dir) => dir,
-            Err(e) => {
-                return Err(CliError::Generic(format!("Couldn't determine the current working directory with error:\n\t{}",
-                                                     e.description())))
-            }
-        };
-
-        Lockfile::find_project_lockfile(&cwd, "Cargo.lock")
-    }
-
-    fn find_project_lockfile(pwd: &Path, file: &str) -> CliResult<PathBuf> {
-        debugln!("executing; find_project_lockfile; pwd={:?}; file={}",
-                 pwd,
-                 file);
-        let mut current = pwd;
-
-        loop {
-            let manifest = current.join(file);
-            if fs::metadata(&manifest).is_ok() {
-                return Ok(manifest);
-            }
-
-            match current.parent() {
-                Some(p) => current = p,
-                None => break,
-            }
-        }
-
-        Err(CliError::Generic(format!("Could not find `{}` in `{}` or any parent directory",
-                                      file,
-                                      pwd.display())))
-    }
-
     #[cfg_attr(feature = "lints", allow(cyclomatic_complexity))]
     pub fn get_updates(&mut self, cfg: &Config) -> CliResult<Option<BTreeMap<String, Dep>>> {
+        debugln!("Lockfile:get_updates");
         try!(self.parse_deps_to_depth(cfg.depth));
 
         // try!(self.get_non_root_deps(self.toml));
@@ -116,31 +79,22 @@ impl Lockfile {
         };
 
         verbose!(cfg, "Setting up temp space...");
-        let tmp_manifest = tmp.path().join("Cargo.toml");
-        let tmp_lockfile = tmp.path().join("Cargo.lock");
+        let tmp_manifest = tmp.path().join(&cfg.manifest.file_name().unwrap());
+        let tmp_lockfile = tmp.path().join(&cfg.lockfile.file_name().unwrap());
 
         let mut mf = match File::create(&tmp_manifest) {
             Ok(f) => f,
             Err(e) => {
-                debugln!("temp Cargo.toml failed with error: {}", e);
+                debugln!("Lockfile:get_updates:creating temp manifest failed: {}", e);
                 return Err(CliError::Generic(e.description().to_owned()));
             }
         };
 
-        debugln!("temp Cargo.toml created");
+        debugln!("Lockfile:get_updates:temp manifest created");
         try!(self.write_semver_manifest(&mut mf));
         verboseln!(cfg, "{}", Format::Good("Done"));
 
-        debugln!("\n{}\n", {
-            let mut f = File::open(&tmp_manifest)
-                .unwrap_or_else(|e| panic!("cannot open file: {}", e));
-
-            let mut s = String::new();
-            f.read_to_string(&mut s).ok();
-            s
-        });
-
-        match fs::copy(&self.proj_lockfile_path, &tmp_lockfile) {
+        match fs::copy(&cfg.lockfile, &tmp_lockfile) {
             Ok(..) => (),
             Err(e) => {
                 debugln!("temp Cargo.lock failed with error: {}", e);
@@ -218,7 +172,7 @@ impl Lockfile {
 
         try!(self.write_latest_manifest(&mut mf));
 
-        match fs::copy(&self.proj_lockfile_path, &tmp_lockfile) {
+        match fs::copy(&cfg.lockfile, &tmp_lockfile) {
             Ok(..) => (),
             Err(e) => {
                 debugln!("temp Cargo.lock failed with error: {}", e);
@@ -303,8 +257,7 @@ impl Lockfile {
         }
     }
 
-
-    fn parse_deps_to_depth(&mut self, mut depth: i32) -> CliResult<()> {
+    fn parse_deps_to_depth(&mut self, mut depth: u32) -> CliResult<()> {
         debugln!("executing; parse_deps_to_depth; depth={}", depth);
         let mut all_deps = depth == 0;
 
@@ -367,8 +320,8 @@ impl Lockfile {
                                         child);
                         }
                     }
-                    depth -= 1;
-                    if depth == 1 || depth < 0 {
+                    depth = if depth > 0 { depth - 1 } else { break; };
+                    if depth == 1 {
                         all_deps = false;
                     }
                 }
@@ -450,16 +403,16 @@ impl Lockfile {
     pub fn write_latest_manifest<W>(&self, w: &mut W) -> CliResult<()>
         where W: Write
     {
-        debugln!("executing; write_latest_manifest;");
+        debugln!("write_latest_manifest;");
         try!(self.write_manifest_pretext(w));
 
         for dep in self.unique_deps().values() {
             if !dep.source.starts_with("(registry+") {
                 continue;
             }
-            debugln!("iter; name={}; ver=*", dep.name);
+            debugln!("write_latest_manifest:iter:ver=*,name={}", dep.name);
             if let Err(e) = write!(w, "{} = \"*\"\n", dep.name) {
-                return Err(CliError::Generic(format!("Failed to write Cargo.toml with error '{}'",
+                return Err(CliError::Generic(format!("Failed to write manifest with error: '{}'",
                                                      e.description())));
             }
         }

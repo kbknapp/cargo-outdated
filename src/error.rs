@@ -1,8 +1,12 @@
 use std::error::Error;
 use std::fmt::{Display, Formatter};
 use std::fmt::Result as FmtResult;
+use std::io;
 
 use fmt::Format;
+
+/// Convenience type to return a result or a `CliError`
+pub type CliResult<T> = Result<T, CliError>;
 
 #[derive(Debug)]
 #[allow(dead_code)]
@@ -13,6 +17,7 @@ pub enum CliError {
     NoRootDeps,
     NoNonRootDeps,
     Unknown,
+    Io(String),
 }
 
 // Copies clog::error::Error;
@@ -56,8 +61,13 @@ impl Error for CliError {
             CliError::NoRootDeps => "No root dependencies",
             CliError::NoNonRootDeps => "No non root dependencies",
             CliError::Unknown => "An unknown fatal error has occurred, please consider filing a bug-report!",
+            CliError::Io(ref d) => &*d,
         }
     }
 
     fn cause(&self) -> Option<&Error> { None }
+}
+
+impl From<io::Error> for CliError {
+    fn from(e: io::Error) -> Self { CliError::Io(e.description().to_string()) }
 }

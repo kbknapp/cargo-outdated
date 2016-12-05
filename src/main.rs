@@ -62,9 +62,11 @@
 //!     -v, --verbose           Print verbose output
 //!
 //! OPTIONS:
-//!     -d, --depth <DEPTH>       How deep in the dependency chain to search
-//!                               (Defaults to all dependencies when omitted)
-//!     -p, --package <PKG>...    Package to inspect for updates
+//!     -d, --depth <NUM>             How deep in the dependency chain to search (Defaults to all dependencies when omitted)
+//!         --exit-code <NUM>         The exit code to return on new versions found [default: 0]
+//!     -l, --lockfile-path <PATH>    An absolute path to the Cargo.lock to use (Defaults to Cargo.lock in project root)
+//!     -m, --manifest-path <PATH>    An absolute path to the Cargo.toml to use (Defaults to Cargo.toml in project root)
+//!     -p, --package <PKG>...        Package to inspect for updates
 //! ```
 //!
 //! ## License
@@ -100,22 +102,21 @@ mod lockfile;
 mod deps;
 mod error;
 mod fmt;
+mod util;
 
 use std::io::{Write, stdout};
+use std::path::Path;
 #[cfg(feature="debug")]
 use std::env;
 use std::process;
 
-use clap::{App, AppSettings, Arg, SubCommand};
+use clap::{App, AppSettings, Arg, SubCommand, ArgMatches};
 use tabwriter::TabWriter;
 
 use config::Config;
 use lockfile::Lockfile;
-use error::CliError;
+use error::CliResult;
 use fmt::Format;
-
-/// Convenience type to return a result or a `CliError`
-pub type CliResult<T> = Result<T, CliError>;
 
 fn main() {
     debugln!("main:args={:?}", env::args().collect::<Vec<_>>());
@@ -130,29 +131,34 @@ fn main() {
         // as well
         .settings(&[AppSettings::GlobalVersion,
                     AppSettings::SubcommandRequired])
-    // We use a subcommand because parsed after `cargo` is sent to the third party
-    // plugin
-    // which will be interpreted as a subcommand/positional arg by clap
+        // We use a subcommand because parsed after `cargo` is sent to the third party
+        // plugin
+        // which will be interpreted as a subcommand/positional arg by clap
         .subcommand(SubCommand::with_name("outdated")
             .about("Displays information about project dependency versions")
             .args_from_usage(
-                "-p, --package [PKG]...    'Package to inspect for updates'
-                 -v, --verbose             'Print verbose output'
-                 -d, --depth [NUM]       'How deep in the dependency chain to search \
+                "-p, --package [PKG]...     'Package to inspect for updates'
+                 -v, --verbose              'Print verbose output'
+                 -d, --depth [NUM]          'How deep in the dependency chain to search \
                                             (Defaults to all dependencies when omitted)'")
-            .arg(Arg::from_usage("--exit-code [NUM]     'The exit code to return on new versions found'")
-                .default_value("0"))
-    // We separate -R so we can addd a conflicting argument
-            .arg(Arg::from_usage(
-                "-R, --root-deps-only  'Only check root dependencies (Equivilant to --depth=1)'")
-                .conflicts_with("DEPTH")))
+            .args(&[
+                Arg::from_usage("--exit-code [NUM]     'The exit code to return on new versions found'")
+                    .default_value("0"),
+                Arg::from_usage(
+                    "-R, --root-deps-only  'Only check root dependencies (Equivilant to --depth=1)'")
+                    .conflicts_with("depth"),
+                Arg::from_usage("-m, --manifest-path [PATH] 'An absolute path to the Cargo.toml file to use \
+                                                             (Defaults to Cargo.toml in project root)'")
+                    .validator(is_file),
+                Arg::from_usage("-l, --lockfile-path [PATH] 'An absolute path to the Cargo.lock to use \
+                                                             (Defaults to Cargo.lock in project root)'")
+                    .validator(is_file)]))
         .get_matches();
 
     if let Some(m) = m.subcommand_matches("outdated") {
-        let cfg = Config::from_matches(m);
-        match execute(cfg) {
+        match execute(m) {
             Ok(code) => {
-                debugln!("exit_code={}", code);
+                debugln!("main:exit_code={}", code);
                 process::exit(code)
             }
             Err(e) => e.exit(),
@@ -160,11 +166,13 @@ fn main() {
     }
 }
 
-fn execute(cfg: Config) -> CliResult<i32> {
-    debugln!("executing; execute; cfg={:?}", cfg);
+fn execute(m: &ArgMatches) -> CliResult<i32> {
+    debugln!("execute:m={:#?}", m);
+    let cfg = try!(Config::from_matches(m));
 
-    verbose!(cfg, "Parsing {}...", Format::Warning("Cargo.lock"));
-    let mut lf = try!(Lockfile::new());
+    verbose!(cfg, "Parsing {}...", Format::Warning(cfg.lockfile.to_string_lossy()));
+
+    let mut lf = try!(Lockfile::from_config(&cfg));
     verboseln!(cfg, "{}", Format::Good("Done"));
 
     match lf.get_updates(&cfg) {
@@ -200,4 +208,12 @@ fn execute(cfg: Config) -> CliResult<i32> {
         }
         Err(e) => Err(e),
     }
+}
+
+fn is_file(s: String) -> Result<(), String> {
+    let p = Path::new(&*s);
+    if p.file_name().is_none() {
+        return Err(format!("'{}' doesn't appear to be a valid file name", &*s));
+    }
+    Ok(())
 }
