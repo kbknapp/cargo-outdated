@@ -1,3 +1,21 @@
+<a name="v0.3.0"></a>
+## v0.3.0 (2016-12-05)
+
+
+#### Features
+
+*   adds a --manifest-path and --lockfile-path to allow use with other projects ([5f886d27](https://github.com/kbknapp/cargo-outdated/commit/5f886d27d3fefbc0b7fec9ffef651c137f58420d), closes [#29](https://github.com/kbknapp/cargo-outdated/issues/29))
+
+<a name="v0.2.0"></a>
+## v0.2.0
+
+* **Exit Codes:**  adds feature for custom exit code on new vers ([61c8bb9b](https://github.com/kbknapp/cargo-outdated/commit/61c8bb9b52af8745fd16fad646bc2f4dcce336c7), closes [#23](https://github.com/kbknapp/cargo-outdated/issues/23))
+
+#### Improvements
+
+*   sort output ([b137e050](https://github.com/kbknapp/cargo-outdated/commit/b137e050ffb861f7ff725324be5cdb527d724a49))
+
+
 <a name="v0.1.3"></a>
 ## v0.1.3 (2015-11-14)
 

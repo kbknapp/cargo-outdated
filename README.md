@@ -7,7 +7,7 @@ A cargo subcommand for displaying when Rust dependencies are out of date
 
 ## About
 
-`cargo-outdated` is a very early proof-of-concept for displaying when dependencies have newer versions available.
+`cargo-outdated` is for displaying when dependencies have newer versions available.
 
 ## Demo
 
@@ -37,8 +37,6 @@ The following dependencies have newer versions available:
 ```
 $ cargo install cargo-outdated
 ```
-
-This may require a nightly version of `cargo` if you get an error about the `install` command not being found. You may also compile and install the traditional way by followin the instructions below.
 
 ## Compiling
 
@@ -88,6 +86,9 @@ Otherwise, ensure you have the `cargo-outdated` binary in the directory which yo
 There are a few options for using `cargo-outdated` which should be somewhat self explanitory.
 
 ```
+cargo-outdated v0.3.0
+Displays information about project dependency versions
+
 USAGE:
     cargo outdated [FLAGS] [OPTIONS]
 
@@ -98,9 +99,11 @@ FLAGS:
     -v, --verbose           Print verbose output
 
 OPTIONS:
-    -d, --depth <DEPTH>       How deep in the dependency chain to search
-                              (Defaults to all dependencies when omitted)
-    -p, --package <PKG>...    Package to inspect for updates
+    -d, --depth <NUM>             How deep in the dependency chain to search (Defaults to all dependencies when omitted)
+        --exit-code <NUM>         The exit code to return on new versions found [default: 0]
+    -l, --lockfile-path <PATH>    An absolute path to the Cargo.lock to use (Defaults to Cargo.lock in project root)
+    -m, --manifest-path <PATH>    An absolute path to the Cargo.toml file to use (Defaults to Cargo.toml in project root)
+    -p, --package <PKG>...        Package to inspect for updates
 ```
 
 ## License
