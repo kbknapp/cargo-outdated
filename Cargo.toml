@@ -15,7 +15,6 @@ name = "cargo-outdated"
 [dependencies]
 clap = "~2.19.1"
 toml = "~0.2.1"
-semver = "~0.5.1"
 tabwriter = "~0.1"
 tempdir = "~0.3.5"
 ansi_term = {version = "0.9", optional = true}

@@ -89,7 +89,6 @@
 #[macro_use]
 extern crate clap;
 extern crate toml;
-extern crate semver;
 extern crate tempdir;
 #[cfg(feature = "color")]
 extern crate ansi_term;

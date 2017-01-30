@@ -391,8 +391,8 @@ impl Lockfile {
             if !dep.source.starts_with("(registry+") {
                 continue;
             }
-            debugln!("iter; name={}; ver=~{}", dep.name, dep.ver);
-            if let Err(e) = write!(w, "{} = \"~{}\"\n", dep.name, dep.ver) {
+            debugln!("iter; name={}; ver={}", dep.name, dep.ver);
+            if let Err(e) = write!(w, "{} = \"{}\"\n", dep.name, dep.ver) {
                 return Err(CliError::Generic(format!("Failed to write Cargo.toml with error '{}'",
                                                      e.description())));
             }
