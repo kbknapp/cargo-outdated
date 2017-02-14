@@ -180,10 +180,10 @@ fn execute(m: &ArgMatches) -> CliResult<i32> {
             let mut tw = TabWriter::new(vec![]);
             write!(&mut tw, "\tName\tProject Ver\tSemVer Compat\tLatest Ver\n")
                 .unwrap_or_else(|e| panic!("write! error: {}", e));
-            for (d_name, d) in res.iter() {
+            for d in res.values() {
                 write!(&mut tw,
                        "\t{}\t   {}\t   {}\t  {}\n",
-                       d_name,
+                       d.name,
                        d.project_ver,
                        d.semver_ver
                         .as_ref()

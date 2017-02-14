@@ -9,6 +9,15 @@ pub struct RawDep {
     pub parent: Option<String>,
 }
 
+impl RawDep {
+    pub fn label(&self) -> String {
+        match self.parent {
+            Some(ref parent) => format!("{}->{}", parent, self.name),
+            None => self.name.clone()
+        }
+    }
+}
+
 impl FromStr for RawDep {
     type Err = String;
     fn from_str(s: &str) -> Result<Self, <Self as FromStr>::Err> {
