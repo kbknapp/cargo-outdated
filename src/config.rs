@@ -9,6 +9,7 @@ use error::CliResult;
 #[derive(Debug)]
 pub struct Config<'tu> {
     pub to_update: Option<Vec<&'tu str>>,
+    pub root: Option<&'tu str>,
     pub depth: u32,
     pub verbose: bool,
     pub exit_code: i32,
@@ -36,6 +37,7 @@ impl<'tu> Config<'tu> {
 
         let cfg = Config {
             to_update: m.values_of("package").map(|v| v.collect()),
+            root: m.value_of("root"),
             depth: depth,
             verbose: m.is_present("verbose"),
             exit_code: {

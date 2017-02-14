@@ -67,6 +67,7 @@
 //!     -l, --lockfile-path <PATH>    An absolute path to the Cargo.lock to use (Defaults to Cargo.lock in project root)
 //!     -m, --manifest-path <PATH>    An absolute path to the Cargo.toml to use (Defaults to Cargo.toml in project root)
 //!     -p, --package <PKG>...        Package to inspect for updates
+//!     -r, --root <ROOT>             Package to treat as the root package
 //! ```
 //!
 //! ## License
@@ -137,6 +138,7 @@ fn main() {
             .about("Displays information about project dependency versions")
             .args_from_usage(
                 "-p, --package [PKG]...     'Package to inspect for updates'
+                 -r, --root [ROOT]         'Package to treat as the root package'
                  -v, --verbose              'Print verbose output'
                  -d, --depth [NUM]          'How deep in the dependency chain to search \
                                             (Defaults to all dependencies when omitted)'")
