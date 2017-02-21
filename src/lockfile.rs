@@ -150,7 +150,7 @@ impl Lockfile {
                 if semver_dep.ver != d.ver {
                     res.insert(d_name.to_owned(),
                                Dep {
-                                   name: d_name.to_owned(),
+                                   name: d.label(),
                                    source: d.source.clone(),
                                    project_ver: d.ver.clone(),
                                    semver_ver: Some(semver_dep.ver.clone()),
@@ -219,7 +219,7 @@ impl Lockfile {
                     if !exists {
                         res.insert(d_name.to_owned(),
                                    Dep {
-                                       name: d_name.to_owned(),
+                                       name: d.label(),
                                        source: d.source.clone(),
                                        project_ver: d.ver.clone(),
                                        semver_ver: None,
@@ -310,14 +310,7 @@ impl Lockfile {
                             }
                         }
                         for child in next_level.into_iter() {
-                            self.deps
-                                .insert(format!("{}->{}",
-                                                child.parent
-                                                    .as_ref()
-                                                    .expect("child dependency has no parent node")
-                                                    .clone(),
-                                                child.name.clone()),
-                                        child);
+                            self.deps.insert(child.name.clone(), child);
                         }
                     }
                     depth = if depth > 0 { depth - 1 } else { break; };
