@@ -70,7 +70,7 @@ impl Lockfile {
     #[cfg_attr(feature = "lints", allow(cyclomatic_complexity))]
     pub fn get_updates(&mut self, cfg: &Config) -> CliResult<Option<BTreeMap<String, Dep>>> {
         debugln!("Lockfile:get_updates");
-        try!(self.parse_deps_to_depth(cfg.depth));
+        try!(self.parse_deps_to_depth(cfg.root, cfg.depth));
 
         // try!(self.get_non_root_deps(self.toml));
         let tmp = match TempDir::new("cargo-outdated") {
@@ -141,7 +141,7 @@ impl Lockfile {
         verbose!(cfg, "Parsing the results...");
         debugln!("creating new lockfile from tmp results");
         let mut updated_lf = try!(Lockfile::from_file(&tmp_lockfile));
-        try!(updated_lf.parse_deps_to_depth(0));
+        try!(updated_lf.parse_deps_to_depth(None, 0));
         let mut res = BTreeMap::new();
         debugln!("parsing semver results");
         for (d_name, d) in self.deps.iter() {
@@ -204,7 +204,7 @@ impl Lockfile {
 
         verbose!(cfg, "Parsing the results...");
         let mut updated_lf = try!(Lockfile::from_file(&tmp_lockfile));
-        try!(updated_lf.parse_deps_to_depth(0));
+        try!(updated_lf.parse_deps_to_depth(None, 0));
         for (d_name, d) in self.deps.iter() {
             debugln!("iter; name={}", d_name);
             if let Some(latest_dep) = updated_lf.deps.get(&d.name) {
@@ -257,11 +257,11 @@ impl Lockfile {
         }
     }
 
-    fn parse_deps_to_depth(&mut self, mut depth: u32) -> CliResult<()> {
+    fn parse_deps_to_depth(&mut self, root: Option<&str>, mut depth: u32) -> CliResult<()> {
         debugln!("executing; parse_deps_to_depth; depth={}", depth);
         let mut all_deps = depth == 0;
 
-        try!(self.parse_root_deps());
+        try!(self.parse_root_deps(root));
 
         while depth > 1 || all_deps {
             debugln!("iter; depth={};", depth);
@@ -327,11 +327,22 @@ impl Lockfile {
         Ok(())
     }
 
-    fn parse_root_deps(&mut self) -> CliResult<()> {
+    fn parse_root_deps(&mut self, root: Option<&str>) -> CliResult<()> {
         debugln!("executing; parse_root_deps;");
-        let root_table = match self.toml.get("root") {
-            Some(table) => table,
-            None => return Err(CliError::TomlTableRoot),
+        let root_table = if let Some(name) = root {
+            let tables = match self.toml.get("package") {
+                Some(&Value::Array(ref tables)) => tables,
+                _ => return Err(CliError::TomlTableRoot),
+            };
+            match tables.iter().find(|t| t.lookup("name").and_then(Value::as_str) == Some(name)) {
+                Some(table) => table,
+                _ => return Err(CliError::TomlTableRoot),
+            }
+        } else {
+            match self.toml.get("root") {
+                Some(table) => table,
+                None => return Err(CliError::TomlTableRoot),
+            }
         };
         match root_table.lookup("dependencies") {
             Some(&Value::Array(ref val)) => {
