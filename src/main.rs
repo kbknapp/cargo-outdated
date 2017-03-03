@@ -57,7 +57,7 @@
 //!
 //! FLAGS:
 //!     -h, --help              Prints help information
-//!     -R, --root-deps-only    Only check root dependencies (Equivilant to --depth=1)
+//!     -R, --root-deps-only    Only check root dependencies (Equivalent to --depth=1)
 //!     -V, --version           Prints version information
 //!     -v, --verbose           Print verbose output
 //!
@@ -146,7 +146,7 @@ fn main() {
                 Arg::from_usage("--exit-code [NUM]     'The exit code to return on new versions found'")
                     .default_value("0"),
                 Arg::from_usage(
-                    "-R, --root-deps-only  'Only check root dependencies (Equivilant to --depth=1)'")
+                    "-R, --root-deps-only  'Only check root dependencies (Equivalent to --depth=1)'")
                     .conflicts_with("depth"),
                 Arg::from_usage("-m, --manifest-path [PATH] 'An absolute path to the Cargo.toml file to use \
                                                              (Defaults to Cargo.toml in project root)'")
