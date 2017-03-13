@@ -94,7 +94,7 @@ USAGE:
 
 FLAGS:
     -h, --help              Prints help information
-    -R, --root-deps-only    Only check root dependencies (Equivilant to --depth=1)
+    -R, --root-deps-only    Only check root dependencies (Equivalent to --depth=1)
     -V, --version           Prints version information
     -v, --verbose           Print verbose output
 
