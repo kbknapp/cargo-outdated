@@ -198,7 +198,7 @@ fn execute(m: &ArgMatches) -> CliResult<i32> {
             tw.flush().unwrap_or_else(|e| panic!("failed to flush TabWriter: {}", e));
             write!(stdout(),
                    "{}",
-                   String::from_utf8(tw.unwrap())
+                   String::from_utf8(tw.into_inner().unwrap())
                        .unwrap_or_else(|e| panic!("from_utf8 error: {}", e)))
                 .unwrap_or_else(|e| panic!("write! error: {}", e));
             Ok(cfg.exit_code)
