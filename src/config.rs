@@ -10,7 +10,7 @@ use error::CliResult;
 pub struct Config<'tu> {
     pub to_update: Option<Vec<&'tu str>>,
     pub root: Option<&'tu str>,
-    pub depth: u32,
+    pub depth: i32,
     pub verbose: bool,
     pub exit_code: i32,
     pub manifest: PathBuf,
@@ -22,7 +22,7 @@ impl<'tu> Config<'tu> {
         debugln!("Config:from_matches");
         let depth = match m.value_of("depth") {
             Some(d_str) => {
-                match d_str.parse::<u32>() {
+                match d_str.parse::<i32>() {
                     Ok(num) => num,
                     Err(..) => {
                         wlnerr!("{} Couldn't parse '{}' as a valid depth (Valid depths are 0 (infinite) to ~4,000,000,000)",
@@ -32,7 +32,7 @@ impl<'tu> Config<'tu> {
                     }
                 }
             }
-            None => if m.is_present("root-deps-only") { 1 } else { 0 },
+            None => if m.is_present("root-deps-only") { 1 } else { -1 },
         };
 
         let cfg = Config {
