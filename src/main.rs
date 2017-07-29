@@ -105,6 +105,7 @@ use tabwriter::TabWriter;
 
 use config::Config;
 use error::{CliResult, CliError};
+use fmt::Format;
 
 fn main() {
     debugln!("main:args={:?}", env::args().collect::<Vec<_>>());
@@ -156,9 +157,11 @@ fn main() {
 }
 
 fn execute(m: &ArgMatches) -> CliResult<i32> {
+    debugln!("execute:m={:#?}", m);
     let cfg = try!(Config::from_matches(m));
 
     // parse original lockfile
+    verbose!(cfg, "Parsing {}...", Format::Warning(cfg.lockfile.to_string_lossy()));
     let dep_tree = {
         let mut parsed_lock = cargo_files::Lockfile::from_lockfile_path(&cfg.lockfile)?;
         if parsed_lock.package.is_none() {
@@ -171,6 +174,7 @@ fn execute(m: &ArgMatches) -> CliResult<i32> {
             .push(parsed_lock.root.clone());
         cargo_files::DependencyTree::from_lockfile(&mut parsed_lock, None, cfg.depth)
     };
+    verboseln!(cfg, "{}", Format::Good("Done"));
     // create a temp project in tmp
     let tmp_proj = cargo_ops::TempProject::new(&cfg.manifest, &cfg.lockfile)?;
     // write semver to the tmp Cargo.toml
@@ -178,6 +182,7 @@ fn execute(m: &ArgMatches) -> CliResult<i32> {
     // update it
     tmp_proj.cargo_update()?;
     // parse lockfile with semver compatible dependencies
+    verbose!(cfg, "Parsing semver compatible lockfile {}...", Format::Warning(tmp_proj.lockfile.to_string_lossy()));
     let dep_tree_compat = {
         let mut parsed_lock = cargo_files::Lockfile::from_lockfile_path(&tmp_proj.lockfile)?;
         parsed_lock
@@ -187,6 +192,7 @@ fn execute(m: &ArgMatches) -> CliResult<i32> {
             .push(parsed_lock.root.clone());
         cargo_files::DependencyTree::from_lockfile(&mut parsed_lock, None, -1)
     };
+    verboseln!(cfg, "{}", Format::Good("Done"));
     // merge them to the original tree
     dep_tree.merge_compatible_from(&dep_tree_compat);
     // rewrite the manifest with "*" semver dependencies
@@ -194,6 +200,7 @@ fn execute(m: &ArgMatches) -> CliResult<i32> {
     // update it
     tmp_proj.cargo_update()?;
     // parse lockfile with latest dependencies
+    verbose!(cfg, "Parsing latest lockfile {}...", Format::Warning(tmp_proj.lockfile.to_string_lossy()));
     let dep_tree_latest = {
         let mut parsed_lock = cargo_files::Lockfile::from_lockfile_path(&tmp_proj.lockfile)?;
         parsed_lock
@@ -203,6 +210,7 @@ fn execute(m: &ArgMatches) -> CliResult<i32> {
             .push(parsed_lock.root.clone());
         cargo_files::DependencyTree::from_lockfile(&mut parsed_lock, None, -1)
     };
+    verboseln!(cfg, "{}", Format::Good("Done"));
     // merge them to the original tree
     dep_tree.merge_latest_from(&dep_tree_latest);
 
