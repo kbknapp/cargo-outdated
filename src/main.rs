@@ -225,7 +225,7 @@ fn execute(m: &ArgMatches) -> CliResult<i32> {
     lines.sort();
     lines.dedup();
     for l in lines {
-        write!(&mut tw, "{}", l);
+        try!(write!(&mut tw, "{}", l));
     }
     tw.flush()
         .unwrap_or_else(|e| panic!("failed to flush TabWriter: {}", e));
