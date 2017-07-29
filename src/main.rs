@@ -172,7 +172,7 @@ fn execute(m: &ArgMatches) -> CliResult<i32> {
             .as_mut()
             .unwrap()
             .push(parsed_lock.root.clone());
-        cargo_files::DependencyTree::from_lockfile(&mut parsed_lock, None, cfg.depth)
+        cargo_files::DependencyTree::from_lockfile(&mut parsed_lock, cfg.root, cfg.depth)
     };
     verboseln!(cfg, "{}", Format::Good("Done"));
     // create a temp project in tmp
@@ -190,7 +190,7 @@ fn execute(m: &ArgMatches) -> CliResult<i32> {
             .as_mut()
             .unwrap()
             .push(parsed_lock.root.clone());
-        cargo_files::DependencyTree::from_lockfile(&mut parsed_lock, None, -1)
+        cargo_files::DependencyTree::from_lockfile(&mut parsed_lock, cfg.root, -1)
     };
     verboseln!(cfg, "{}", Format::Good("Done"));
     // merge them to the original tree
@@ -208,7 +208,7 @@ fn execute(m: &ArgMatches) -> CliResult<i32> {
             .as_mut()
             .unwrap()
             .push(parsed_lock.root.clone());
-        cargo_files::DependencyTree::from_lockfile(&mut parsed_lock, None, -1)
+        cargo_files::DependencyTree::from_lockfile(&mut parsed_lock, cfg.root, -1)
     };
     verboseln!(cfg, "{}", Format::Good("Done"));
     // merge them to the original tree
