@@ -375,6 +375,7 @@ impl Lockfile {
                       version = \"1.0.0\"\n\
                       [[bin]]\n\
                       name = \"test\"\n\
+                      path = \"test.rs\"\n\
                       [dependencies]\n")
             .unwrap();
 
