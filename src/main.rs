@@ -73,19 +73,6 @@
 //! ## License
 //!
 //! `cargo-outdated` is released under the terms of the MIT license. See the LICENSE-MIT file for the details.
-#![cfg_attr(feature = "nightly", feature(plugin))]
-#![cfg_attr(feature = "lints", plugin(clippy))]
-#![cfg_attr(feature = "lints", allow(explicit_iter_loop))]
-#![cfg_attr(feature = "lints", allow(should_implement_trait))]
-#![cfg_attr(feature = "lints", deny(warnings))]
-#![cfg_attr(not(any(feature = "unstable", feature = "nightly")), deny(unstable_features))]
-#![deny(missing_docs,
-        missing_debug_implementations,
-        missing_copy_implementations,
-        trivial_casts, trivial_numeric_casts,
-        unsafe_code,
-        unused_import_braces,
-        unused_qualifications)]
 
 #[macro_use]
 extern crate clap;
@@ -94,15 +81,18 @@ extern crate tempdir;
 #[cfg(feature = "color")]
 extern crate ansi_term;
 extern crate tabwriter;
+extern crate serde;
+#[macro_use]
+extern crate serde_derive;
 
 #[macro_use]
 mod macros;
 mod config;
-mod lockfile;
-mod deps;
 mod error;
 mod fmt;
 mod util;
+mod cargo_files;
+mod cargo_ops;
 
 use std::io::{Write, stdout};
 use std::path::Path;
@@ -114,8 +104,7 @@ use clap::{App, AppSettings, Arg, SubCommand, ArgMatches};
 use tabwriter::TabWriter;
 
 use config::Config;
-use lockfile::Lockfile;
-use error::CliResult;
+use error::{CliResult, CliError};
 use fmt::Format;
 
 fn main() {
@@ -171,44 +160,94 @@ fn execute(m: &ArgMatches) -> CliResult<i32> {
     debugln!("execute:m={:#?}", m);
     let cfg = try!(Config::from_matches(m));
 
-    verbose!(cfg, "Parsing {}...", Format::Warning(cfg.lockfile.to_string_lossy()));
-
-    let mut lf = try!(Lockfile::from_config(&cfg));
+    // parse original lockfile
+    verbose!(
+        cfg,
+        "Parsing {}...",
+        Format::Warning(cfg.lockfile.to_string_lossy())
+    );
+    let dep_tree_curr = {
+        let mut parsed_lock = cargo_files::Lockfile::from_lockfile_path(&cfg.lockfile)?;
+        if parsed_lock.package.is_none() {
+            return Err(CliError::NoRootDeps);
+        }
+        parsed_lock
+            .package
+            .as_mut()
+            .unwrap()
+            .push(parsed_lock.root.clone());
+        cargo_files::DependencyTree::from_lockfile(&mut parsed_lock, cfg.root, cfg.depth)
+    };
+    verboseln!(cfg, "{}", Format::Good("Done"));
+    // create a temp project in tmp
+    let tmp_proj = cargo_ops::TempProject::new(&cfg.manifest, &cfg.lockfile)?;
+    // write semver to the tmp Cargo.toml
+    tmp_proj.write_manifest_semver()?;
+    // update it
+    tmp_proj.cargo_update()?;
+    // parse lockfile with semver compatible dependencies
+    verbose!(
+        cfg,
+        "Parsing semver compatible lockfile {}...",
+        Format::Warning(tmp_proj.lockfile.to_string_lossy())
+    );
+    let dep_tree_compat = {
+        let mut parsed_lock = cargo_files::Lockfile::from_lockfile_path(&tmp_proj.lockfile)?;
+        parsed_lock
+            .package
+            .as_mut()
+            .unwrap()
+            .push(parsed_lock.root.clone());
+        cargo_files::DependencyTree::from_lockfile(&mut parsed_lock, cfg.root, -1)
+    };
+    verboseln!(cfg, "{}", Format::Good("Done"));
+    // rewrite the manifest with "*" semver dependencies
+    tmp_proj.write_manifest_latest()?;
+    // update it
+    tmp_proj.cargo_update()?;
+    // parse lockfile with latest dependencies
+    verbose!(
+        cfg,
+        "Parsing latest lockfile {}...",
+        Format::Warning(tmp_proj.lockfile.to_string_lossy())
+    );
+    let dep_tree_latest = {
+        let mut parsed_lock = cargo_files::Lockfile::from_lockfile_path(&tmp_proj.lockfile)?;
+        parsed_lock
+            .package
+            .as_mut()
+            .unwrap()
+            .push(parsed_lock.root.clone());
+        cargo_files::DependencyTree::from_lockfile(&mut parsed_lock, cfg.root, -1)
+    };
     verboseln!(cfg, "{}", Format::Good("Done"));
 
-    match lf.get_updates(&cfg) {
-        Ok(Some(res)) => {
-            println!("The following dependencies have newer versions available:\n");
-            let mut tw = TabWriter::new(vec![]);
-            write!(&mut tw, "\tName\tProject Ver\tSemVer Compat\tLatest Ver\n")
-                .unwrap_or_else(|e| panic!("write! error: {}", e));
-            for d in res.values() {
-                write!(&mut tw,
-                       "\t{}\t   {}\t   {}\t  {}\n",
-                       d.name,
-                       d.project_ver,
-                       d.semver_ver
-                        .as_ref()
-                        .unwrap_or(&String::from("  --  ")),
-                       d.latest_ver
-                        .as_ref()
-                        .unwrap_or(&String::from("  --  ")))
-                    .unwrap();
-            }
-            tw.flush().unwrap_or_else(|e| panic!("failed to flush TabWriter: {}", e));
-            write!(stdout(),
-                   "{}",
-                   String::from_utf8(tw.into_inner().unwrap())
-                       .unwrap_or_else(|e| panic!("from_utf8 error: {}", e)))
-                .unwrap_or_else(|e| panic!("write! error: {}", e));
-            Ok(cfg.exit_code)
-        }
-        Ok(None) => {
-            println!("All dependencies are up to date, yay!");
-            Ok(0)
-        }
-        Err(e) => Err(e),
+    let mut tw = TabWriter::new(vec![]);
+    write!(&mut tw, "Name\tProject Ver\tSemVer Compat\tLatest Ver\n")
+        .unwrap_or_else(|e| panic!("write! error: {}", e));
+    let lines = cargo_files::DependencyTree::print_list_to_vec(
+        &dep_tree_curr,
+        &dep_tree_compat,
+        &dep_tree_latest,
+        &cfg,
+    );
+    if lines.is_empty() {
+        println!("All dependencies are up to date, yay!");
+        return Ok(0);
     }
+    for l in lines {
+        try!(write!(&mut tw, "{}", l));
+    }
+    tw.flush()
+        .unwrap_or_else(|e| panic!("failed to flush TabWriter: {}", e));
+    write!(
+        stdout(),
+        "{}",
+        String::from_utf8(tw.into_inner().unwrap())
+            .unwrap_or_else(|e| panic!("from_utf8 error: {}", e))
+    ).unwrap_or_else(|e| panic!("write! error: {}", e));
+
+    Ok(cfg.exit_code)
 }
 
 fn is_file(s: String) -> Result<(), String> {

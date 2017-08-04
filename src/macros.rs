@@ -5,6 +5,7 @@ macro_rules! wlnerr(
     })
 );
 
+#[allow(unused_macros)]
 macro_rules! werr(
     ($($arg:tt)*) => ({
         use std::io::{Write, stderr};
@@ -48,6 +49,7 @@ macro_rules! debugln {
     ($fmt:expr, $($arg:tt)*) => ();
 }
 
+#[allow(unused_macros)]
 #[cfg(not(feature = "debug"))]
 macro_rules! debug {
     ($fmt:expr) => ();

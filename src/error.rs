@@ -55,13 +55,13 @@ impl Error for CliError {
     #[cfg_attr(feature = "lints", allow(match_same_arms))]
     fn description(&self) -> &str {
         match *self {
-            CliError::Generic(ref d) => &*d,
-            CliError::FileOpen(ref d) => &*d,
+            CliError::Generic(ref d) | CliError::FileOpen(ref d) | CliError::Io(ref d) => &*d,
             CliError::TomlTableRoot => "couldn't find '[root]' table in Cargo.lock",
             CliError::NoRootDeps => "No root dependencies",
             CliError::NoNonRootDeps => "No non root dependencies",
-            CliError::Unknown => "An unknown fatal error has occurred, please consider filing a bug-report!",
-            CliError::Io(ref d) => &*d,
+            CliError::Unknown => {
+                "An unknown fatal error has occurred, please consider filing a bug-report!"
+            }
         }
     }
 
