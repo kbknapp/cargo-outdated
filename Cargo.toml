@@ -1,6 +1,6 @@
 [package]
 name = "cargo-outdated"
-version = "0.3.0"
+version = "0.4.0"
 authors = ["Kevin K. <kbknapp@gmail.com>"]
 exclude = ["*.png"]
 description = "Cargo subcommand for displaying when dependencies are out of date"
@@ -13,7 +13,7 @@ keywords = ["cargo", "subcommand", "dependencies", "cargo-subcommand", "deps"]
 name = "cargo-outdated"
 
 [dependencies]
-clap = "~2.23.3"
+clap = "2.26.0"
 serde = "1.0.11"
 serde_derive = "1.0.11"
 toml = "~0.4.3"

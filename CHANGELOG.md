@@ -1,3 +1,17 @@
+<a name="v0.4.0"></a>
+## v0.4.0 (2017-08-04)
+
+
+#### Documentation
+
+*   Spelling ([6d309060](https://github.com/kbknapp/cargo-outdated/commit/6d3090601d03694838a848e044f157764d0271cb))
+
+#### Bug Fixes
+
+*   Set bin.path in the temp manifest ([a0231de5](https://github.com/kbknapp/cargo-outdated/commit/a0231de51428e5238dcab0d73cdce2d2443f8a7e), closes [#41](https://github.com/kbknapp/cargo-outdated/issues/41))
+
+
+
 <a name="v0.3.0"></a>
 ## v0.3.0 (2016-12-05)
 
