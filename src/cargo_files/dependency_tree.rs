@@ -90,14 +90,13 @@ impl DependencyTree {
         curr_is_root: bool,
         cfg: &Config,
     ) {
-        if !curr_is_root &&
-            (cfg.to_update.is_none() ||
-                cfg.to_update
-                    .as_ref()
-                    .unwrap()
-                    .contains(&curr.borrow().name.as_str()))
+        if cfg.to_update.is_none() ||
+            cfg.to_update
+                .as_ref()
+                .unwrap()
+                .contains(&curr.borrow().name.as_str())
         {
-            let name = if !parent.is_empty() {
+            let name = if !(curr_is_root || parent.is_empty()) {
                 format!("{}->{}", parent, curr.borrow().name)
             } else {
                 curr.borrow().name.clone()
