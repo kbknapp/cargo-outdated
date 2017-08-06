@@ -15,19 +15,17 @@ Once installed (see below) running `cargo outdated` in a project directory looks
 
 ```
 $ cargo outdated
-Checking for SemVer compatible updates...Done
-Checking for the latest updates...Done
-The following dependencies have newer versions available:
-
-    Name                 Project Ver  SemVer Compat  Latest Ver
-    regex->regex-syntax     0.2.1        0.2.2         0.2.2
-    regex->memchr           0.1.5        0.1.6         0.1.6
-    clap                    1.2.3        1.2.5         1.4.7
-    tabwriter               0.1.23       0.1.24        0.1.24
-    clippy                  0.0.11       0.0.22        0.0.22
-    clap->ansi_term         0.6.3          --          0.7.0
-    regex->aho-corasick     0.3.0        0.3.4         0.4.0
-    ansi_term               0.6.3          --          0.7.0
+Name             Project  Compat  Latest   Kind         Platform
+clap             2.20.0   2.20.5  2.26.0   Normal       ---
+clap->bitflags   0.7.0    ---     0.9.1    Normal       ---
+clap->libc       0.2.18   0.2.29  Removed  Normal       ---
+clap->term_size  0.2.1    0.2.3   0.3.0    Normal       ---
+clap->vec_map    0.6.0    ---     0.8.0    Normal       ---
+num_cpus         1.6.0    ---     1.6.2    Development  ---
+num_cpus->libc   0.2.18   0.2.29  0.2.29   Normal       ---
+pkg-config       0.3.8    0.3.9   0.3.9    Build        ---
+term             0.4.5    ---     0.4.6    Normal       ---
+term_size->libc  0.2.18   0.2.29  0.2.29   Normal       cfg(not(target_os = "windows"))
 ```
 
 ## Installing
@@ -86,24 +84,29 @@ Otherwise, ensure you have the `cargo-outdated` binary in the directory which yo
 There are a few options for using `cargo-outdated` which should be somewhat self explanitory.
 
 ```
-cargo-outdated v0.3.0
-Displays information about project dependency versions
-
 USAGE:
     cargo outdated [FLAGS] [OPTIONS]
-
 FLAGS:
-    -h, --help              Prints help information
-    -R, --root-deps-only    Only check root dependencies (Equivalent to --depth=1)
-    -V, --version           Prints version information
-    -v, --verbose           Print verbose output
-
+        --all-features           Check outdated packages with all features enabled
+        --frozen                 Require Cargo.lock and cache are up to date
+    -h, --help                   Prints help information
+        --locked                 Require Cargo.lock is up to date
+        --no-default-features    Do not include the `default` feature
+    -q, --quiet                  Coloring: auto, always, never
+    -R, --root-deps-only         Only check root dependencies (Equivalent to --depth=1)
+    -V, --version                Prints version information
+    -v, --verbose                Use verbose output
 OPTIONS:
-    -d, --depth <NUM>             How deep in the dependency chain to search (Defaults to all dependencies when omitted)
+        --color <color>           Coloring: auto, always, never [default: auto]
+                                  [values: auto, always, never]
+    -d, --depth <NUM>             How deep in the dependency chain to search
+                                  (Defaults to all dependencies when omitted)
         --exit-code <NUM>         The exit code to return on new versions found [default: 0]
-    -l, --lockfile-path <PATH>    An absolute path to the Cargo.lock to use (Defaults to Cargo.lock in project root)
-    -m, --manifest-path <PATH>    An absolute path to the Cargo.toml file to use (Defaults to Cargo.toml in project root)
-    -p, --package <PKG>...        Package to inspect for updates
+        --features <FEATURE>      Space-separated list of features
+    -m, --manifest-path <PATH>    An absolute path to the Cargo.toml file to use
+                                  (Defaults to Cargo.toml in project root)
+    -p, --packages <PKG>...       Package to inspect for updates
+    -r, --root <ROOT>             Package to treat as the root package
 ```
 
 ## License
