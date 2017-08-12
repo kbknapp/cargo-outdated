@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 use std::fs::{self, File};
-use std::io::{self, Read, Write};
+use std::io::{Read, Write};
 use std::process;
 use std::error::Error;
 use std::collections::HashSet;
@@ -9,7 +9,7 @@ use tempdir::TempDir;
 use toml::Value;
 use toml::value::Table;
 use cargo::core::{PackageId, Workspace};
-use cargo::util::{CargoError, CargoErrorKind, CargoResult, Config};
+use cargo::util::{CargoError, CargoErrorKind, CargoResult, Config, ProcessError};
 
 use super::{ElaborateWorkspace, Manifest};
 
@@ -76,24 +76,37 @@ impl<'tmp> TempProject<'tmp> {
     /// Run `cargo update` against the temporary project
     pub fn cargo_update(&mut self, config: &'tmp Config) -> CargoResult<()> {
         let root_manifest = String::from(self.workspace.root().to_string_lossy()) + "/Cargo.toml";
-        if let Err(e) = process::Command::new("cargo")
+        process::Command::new("cargo")
             .arg("update")
             .arg("--manifest-path")
             .arg(&root_manifest)
             .output()
+            .map_err(|e| {
+                CargoError::from_kind(CargoErrorKind::Msg(format!(
+                    "Failed to run 'cargo update' with error '{}'",
+                    e.description()
+                )))
+            })
             .and_then(|v| if v.status.success() {
                 Ok(v)
             } else {
-                Err(io::Error::new(
-                    io::ErrorKind::Other,
-                    "did not exit successfully",
+                let mut message = String::new();
+                if !v.stdout.is_empty() {
+                    message += "\nStdout:\n";
+                    message += &String::from_utf8_lossy(&v.stdout);
+                }
+                if !v.stderr.is_empty() {
+                    message += "\nStderr:\n";
+                    message += &String::from_utf8_lossy(&v.stderr);
+                }
+                Err(CargoError::from_kind(
+                    CargoErrorKind::ProcessErrorKind(ProcessError {
+                        desc: format!("`cargo update` did not exit successfully{}", message),
+                        exit: Some(v.status),
+                        output: Some(v),
+                    }),
                 ))
-            }) {
-            return Err(CargoError::from_kind(CargoErrorKind::Msg(format!(
-                "Failed to run 'cargo update' with error '{}'",
-                e.description()
-            ))));
-        }
+            })?;
         self.workspace = Workspace::new(Path::new(&root_manifest), config)?;
         Ok(())
     }
