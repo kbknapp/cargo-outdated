@@ -86,16 +86,16 @@ There are a few options for using `cargo-outdated` which should be somewhat self
 ```
 USAGE:
     cargo outdated [FLAGS] [OPTIONS]
+
 FLAGS:
         --all-features           Check outdated packages with all features enabled
-        --frozen                 Require Cargo.lock and cache are up to date
     -h, --help                   Prints help information
-        --locked                 Require Cargo.lock is up to date
         --no-default-features    Do not include the `default` feature
     -q, --quiet                  Coloring: auto, always, never
     -R, --root-deps-only         Only check root dependencies (Equivalent to --depth=1)
     -V, --version                Prints version information
     -v, --verbose                Use verbose output
+
 OPTIONS:
         --color <color>           Coloring: auto, always, never [default: auto]
                                   [values: auto, always, never]

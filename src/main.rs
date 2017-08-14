@@ -5,9 +5,7 @@
 ///
 /// FLAGS:
 ///         --all-features           Check outdated packages with all features enabled
-///         --frozen                 Require Cargo.lock and cache are up to date
 ///     -h, --help                   Prints help information
-///         --locked                 Require Cargo.lock is up to date
 ///         --no-default-features    Do not include the `default` feature
 ///     -q, --quiet                  Coloring: auto, always, never
 ///     -R, --root-deps-only         Only check root dependencies (Equivalent to --depth=1)
@@ -85,8 +83,8 @@ impl Options {
                 None
             },
             flag_verbose: m.occurrences_of("verbose") as u32,
-            flag_frozen: m.is_present("frozen"),
-            flag_locked: m.is_present("locked"),
+            flag_frozen: false,
+            flag_locked: false,
             flag_exit_code: m.value_of("exit-code")
                 .and_then(|v| v.parse().ok())
                 .unwrap_or_else(|| 0_i32),
@@ -231,16 +229,6 @@ fn main() {
                         .value_name("PATH")
                         .number_of_values(1)
                         .validator(is_file),
-                )
-                .arg(
-                    Arg::with_name("frozen")
-                        .long("frozen")
-                        .help("Require Cargo.lock and cache are up to date"),
-                )
-                .arg(
-                    Arg::with_name("locked")
-                        .long("locked")
-                        .help("Require Cargo.lock is up to date"),
                 ),
         )
         .get_matches();
