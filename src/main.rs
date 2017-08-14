@@ -285,7 +285,7 @@ pub fn execute(options: Options, config: &Config) -> CargoResult<i32> {
 
     verbose!(config, "Parsing...", "compat workspace");
     let mut compat_proj = TempProject::from_workspace(&ela_curr, config)?;
-    compat_proj.write_manifest_semver()?;
+    compat_proj.write_manifest_semver(config)?;
     verbose!(config, "Updating...", "compat workspace");
     compat_proj.cargo_update(config)?;
     verbose!(config, "Resolving...", "compat workspace");
@@ -293,7 +293,7 @@ pub fn execute(options: Options, config: &Config) -> CargoResult<i32> {
 
     verbose!(config, "Parsing...", "latest workspace");
     let mut latest_proj = TempProject::from_workspace(&ela_curr, config)?;
-    latest_proj.write_manifest_latest()?;
+    latest_proj.write_manifest_latest(config)?;
     verbose!(config, "Updating...", "latest workspace");
     latest_proj.cargo_update(config)?;
     verbose!(config, "Resolving...", "latest workspace");

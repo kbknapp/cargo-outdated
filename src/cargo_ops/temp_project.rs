@@ -1,15 +1,15 @@
 use std::path::{Path, PathBuf};
 use std::fs::{self, File};
 use std::io::{Read, Write};
-use std::process;
-use std::error::Error;
 use std::collections::HashSet;
 
 use tempdir::TempDir;
 use toml::Value;
 use toml::value::Table;
 use cargo::core::{PackageId, Workspace};
-use cargo::util::{CargoError, CargoErrorKind, CargoResult, Config, ProcessError};
+use cargo::core::shell::Verbosity;
+use cargo::util::{CargoError, CargoErrorKind, CargoResult, Config};
+use cargo::ops::{update_lockfile, UpdateOptions};
 
 use super::{ElaborateWorkspace, Manifest};
 
@@ -62,52 +62,26 @@ impl<'tmp> TempProject<'tmp> {
         }
         Self::write_manifest_semver_with_paths(&tmp_manifest_paths)?;
 
-        let root_manifest = PathBuf::from(
-            String::from(temp_dir.path().to_string_lossy()) + "/Cargo.toml",
-        );
+        let root_manifest = String::from(temp_dir.path().to_string_lossy()) + "/Cargo.toml";
         Ok(TempProject {
-            workspace: Workspace::new(&root_manifest, config)?,
+            workspace: Workspace::new(Path::new(&root_manifest), config)?,
             temp_dir: temp_dir,
             manifest_paths: tmp_manifest_paths,
         })
     }
 
-    // TODO: instead of process::Command, call cargo update internally
     /// Run `cargo update` against the temporary project
-    pub fn cargo_update(&mut self, config: &'tmp Config) -> CargoResult<()> {
-        let root_manifest = String::from(self.workspace.root().to_string_lossy()) + "/Cargo.toml";
-        process::Command::new("cargo")
-            .arg("update")
-            .arg("--manifest-path")
-            .arg(&root_manifest)
-            .output()
-            .map_err(|e| {
-                CargoError::from_kind(CargoErrorKind::Msg(format!(
-                    "Failed to run 'cargo update' with error '{}'",
-                    e.description()
-                )))
-            })
-            .and_then(|v| if v.status.success() {
-                Ok(v)
-            } else {
-                let mut message = String::new();
-                if !v.stdout.is_empty() {
-                    message += "\nStdout:\n";
-                    message += &String::from_utf8_lossy(&v.stdout);
-                }
-                if !v.stderr.is_empty() {
-                    message += "\nStderr:\n";
-                    message += &String::from_utf8_lossy(&v.stderr);
-                }
-                Err(CargoError::from_kind(
-                    CargoErrorKind::ProcessErrorKind(ProcessError {
-                        desc: format!("`cargo update` did not exit successfully{}", message),
-                        exit: Some(v.status),
-                        output: Some(v),
-                    }),
-                ))
-            })?;
-        self.workspace = Workspace::new(Path::new(&root_manifest), config)?;
+    pub fn cargo_update(&self, config: &'tmp Config) -> CargoResult<()> {
+        let verbosity = config.shell().get_verbose();
+        config.shell().set_verbosity(Verbosity::Quiet);
+        let update_opts = UpdateOptions {
+            aggressive: false,
+            precise: None,
+            to_update: &[],
+            config: config,
+        };
+        update_lockfile(&self.workspace, &update_opts)?;
+        config.shell().set_verbosity(verbosity);
         Ok(())
     }
 
@@ -119,11 +93,14 @@ impl<'tmp> TempProject<'tmp> {
     }
 
     /// Write manifests with SemVer requirements
-    pub fn write_manifest_semver(&self) -> CargoResult<()> {
-        Self::write_manifest_semver_with_paths(&self.manifest_paths)
+    pub fn write_manifest_semver(&mut self, config: &'tmp Config) -> CargoResult<()> {
+        Self::write_manifest_semver_with_paths(&self.manifest_paths)?;
+        let root_manifest = String::from(self.workspace.root().to_string_lossy()) + "/Cargo.toml";
+        self.workspace = Workspace::new(Path::new(&root_manifest), config)?;
+        Ok(())
     }
 
-    fn write_manifest_semver_with_paths(manifest_paths: &Vec<PathBuf>) -> CargoResult<()> {
+    fn write_manifest_semver_with_paths(manifest_paths: &[PathBuf]) -> CargoResult<()> {
         let bin = {
             let mut bin = Table::new();
             bin.insert("name".to_owned(), Value::String("test".to_owned()));
@@ -149,7 +126,7 @@ impl<'tmp> TempProject<'tmp> {
     }
 
     /// Write manifests with wildcard requirements
-    pub fn write_manifest_latest(&self) -> CargoResult<()> {
+    pub fn write_manifest_latest(&mut self, config: &'tmp Config) -> CargoResult<()> {
         let bin = {
             let mut bin = Table::new();
             bin.insert("name".to_owned(), Value::String("test".to_owned()));
@@ -202,6 +179,9 @@ impl<'tmp> TempProject<'tmp> {
             );
             Self::write_manifest(&manifest, manifest_path)?;
         }
+
+        let root_manifest = String::from(self.workspace.root().to_string_lossy()) + "/Cargo.toml";
+        self.workspace = Workspace::new(Path::new(&root_manifest), config)?;
         Ok(())
     }
 
