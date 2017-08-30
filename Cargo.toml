@@ -20,7 +20,6 @@ serde = "1.0.11"
 serde_derive = "1.0.11"
 tabwriter = "~1.0.3"
 tempdir = "~0.3.5"
-term = "0.4.6"
 toml = "~0.4.3"
 
 [features]

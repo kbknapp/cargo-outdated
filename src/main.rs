@@ -34,7 +34,6 @@ extern crate serde_derive;
 extern crate cargo;
 extern crate env_logger;
 extern crate semver;
-extern crate term;
 
 #[macro_use]
 mod macros;
