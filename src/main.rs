@@ -23,17 +23,17 @@
 ///                                   (Defaults to Cargo.toml in project root)
 ///     -p, --packages <PKG>...       Package to inspect for updates
 ///     -r, --root <ROOT>             Package to treat as the root package
+extern crate cargo;
 #[macro_use]
 extern crate clap;
-extern crate toml;
-extern crate tempdir;
-extern crate tabwriter;
+extern crate env_logger;
+extern crate semver;
 extern crate serde;
 #[macro_use]
 extern crate serde_derive;
-extern crate cargo;
-extern crate env_logger;
-extern crate semver;
+extern crate tabwriter;
+extern crate tempdir;
+extern crate toml;
 
 #[macro_use]
 mod macros;
@@ -262,33 +262,37 @@ pub fn execute(options: Options, config: &Config) -> CargoResult<i32> {
     debug!(config, format!("options: {:?}", options));
 
     verbose!(config, "Parsing...", "current workspace");
-    let curr_workspace = {
-        let curr_manifest =
-            find_root_manifest_for_wd(options.flag_manifest_path.clone(), config.cwd())?;
-        Workspace::new(&curr_manifest, config)?
-    };
+    // the Cargo.toml that we are actually working on
+    let curr_manifest =
+        find_root_manifest_for_wd(options.flag_manifest_path.clone(), config.cwd())?;
+    let curr_workspace = Workspace::new(&curr_manifest, config)?;
     verbose!(config, "Resolving...", "current workspace");
     let mut ela_curr = ElaborateWorkspace::from_workspace(&curr_workspace, &options)?;
 
     verbose!(config, "Parsing...", "compat workspace");
-    let mut compat_proj = TempProject::from_workspace(&ela_curr, config)?;
-    compat_proj.write_manifest_semver(config)?;
+    let compat_proj =
+        TempProject::from_workspace(&ela_curr, &curr_manifest.to_string_lossy(), &options)?;
+    compat_proj.write_manifest_semver()?;
     verbose!(config, "Updating...", "compat workspace");
-    compat_proj.cargo_update(config)?;
+    compat_proj.cargo_update()?;
     verbose!(config, "Resolving...", "compat workspace");
-    let ela_compat = ElaborateWorkspace::from_workspace(&compat_proj.workspace, &options)?;
+    let compat_workspace = compat_proj.workspace.borrow();
+    let ela_compat =
+        ElaborateWorkspace::from_workspace(compat_workspace.as_ref().unwrap(), &options)?;
 
     verbose!(config, "Parsing...", "latest workspace");
-    let mut latest_proj = TempProject::from_workspace(&ela_curr, config)?;
-    latest_proj.write_manifest_latest(config)?;
+    let latest_proj =
+        TempProject::from_workspace(&ela_curr, &curr_manifest.to_string_lossy(), &options)?;
+    latest_proj.write_manifest_latest()?;
     verbose!(config, "Updating...", "latest workspace");
-    latest_proj.cargo_update(config)?;
+    latest_proj.cargo_update()?;
     verbose!(config, "Resolving...", "latest workspace");
-    let ela_latest = ElaborateWorkspace::from_workspace(&latest_proj.workspace, &options)?;
+    let latest_workspace = latest_proj.workspace.borrow();
+    let ela_latest =
+        ElaborateWorkspace::from_workspace(latest_workspace.as_ref().unwrap(), &options)?;
 
     verbose!(config, "Resolving...", "package status");
-    ela_curr
-        .resolve_status(&ela_compat, &ela_latest, &options, config)?;
+    ela_curr.resolve_status(&ela_compat, &ela_latest, &options, config)?;
 
     let count = ela_curr.print_list(&options, config)?;
 
