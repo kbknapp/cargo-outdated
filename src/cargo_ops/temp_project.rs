@@ -307,7 +307,9 @@ fn manifest_paths(elab: &ElaborateWorkspace) -> CargoResult<Vec<PathBuf>> {
         if !members.contains(pkg_id) {
             let pkg = &elab.pkgs[pkg_id];
             let pkg_path = pkg.root().to_string_lossy();
-            if &pkg_path[..workspace_path.len()] == workspace_path {
+            if pkg_path.len() >= workspace_path.len() &&
+                &pkg_path[..workspace_path.len()] == workspace_path
+            {
                 manifest_paths.push(pkg.manifest_path().to_owned());
             }
         }
