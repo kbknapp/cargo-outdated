@@ -122,7 +122,11 @@ impl<'tmp> TempProject<'tmp> {
         let config = Config::new(shell, cwd, homedir);
         config.configure(
             0,
-            Some(true),
+            if options.flag_verbose > 0 {
+                None
+            } else {
+                Some(true)
+            },
             &options.flag_color,
             options.flag_frozen,
             options.flag_locked,

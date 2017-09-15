@@ -7,7 +7,6 @@
 ///         --all-features           Check outdated packages with all features enabled
 ///     -h, --help                   Prints help information
 ///         --no-default-features    Do not include the `default` feature
-///     -q, --quiet                  Coloring: auto, always, never
 ///     -R, --root-deps-only         Only check root dependencies (Equivalent to --depth=1)
 ///     -V, --version                Prints version information
 ///     -v, --verbose                Use verbose output
@@ -45,6 +44,7 @@ use std::path::Path;
 use cargo::core::Workspace;
 use cargo::util::important_paths::find_root_manifest_for_wd;
 use cargo::util::{CargoResult, CliError, Config};
+use cargo::core::shell::Verbosity;
 use clap::{App, AppSettings, Arg, ArgMatches, SubCommand};
 
 /// Options from CLI arguments
@@ -75,11 +75,7 @@ impl Options {
             flag_all_features: m.is_present("all-features"),
             flag_no_default_features: m.is_present("no-default-features"),
             flag_manifest_path: m.value_of("manifest-path").map(String::from),
-            flag_quiet: if m.is_present("quiet") {
-                Some(true)
-            } else {
-                None
-            },
+            flag_quiet: None,
             flag_verbose: m.occurrences_of("verbose") as u32,
             flag_frozen: false,
             flag_locked: false,
@@ -125,12 +121,6 @@ fn main() {
         .subcommand(
             SubCommand::with_name("outdated")
                 .about("Displays information about project dependency versions")
-                .arg(
-                    Arg::with_name("quiet")
-                        .long("quiet")
-                        .short("q")
-                        .help("Coloring: auto, always, never"),
-                )
                 .arg(
                     Arg::with_name("color")
                         .long("color")
@@ -266,7 +256,15 @@ pub fn execute(options: Options, config: &Config) -> CargoResult<i32> {
         find_root_manifest_for_wd(options.flag_manifest_path.clone(), config.cwd())?;
     let curr_workspace = Workspace::new(&curr_manifest, config)?;
     verbose!(config, "Resolving...", "current workspace");
+    if options.flag_verbose == 0 {
+        config.shell().set_verbosity(Verbosity::Quiet);
+    }
     let mut ela_curr = ElaborateWorkspace::from_workspace(&curr_workspace, &options)?;
+    if options.flag_verbose > 0 {
+        config.shell().set_verbosity(Verbosity::Verbose);
+    } else {
+        config.shell().set_verbosity(Verbosity::Normal);
+    }
 
     verbose!(config, "Parsing...", "compat workspace");
     let compat_proj =
