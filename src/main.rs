@@ -43,7 +43,6 @@ use cargo_ops::{ElaborateWorkspace, TempProject};
 use std::path::Path;
 
 use cargo::core::Workspace;
-use cargo::core::shell::{ColorConfig, Verbosity};
 use cargo::util::important_paths::find_root_manifest_for_wd;
 use cargo::util::{CargoResult, CliError, Config};
 use clap::{App, AppSettings, Arg, ArgMatches, SubCommand};
@@ -109,7 +108,7 @@ fn main() {
     let config = match Config::default() {
         Ok(cfg) => cfg,
         Err(e) => {
-            let mut shell = cargo::shell(Verbosity::Verbose, ColorConfig::Auto);
+            let mut shell = cargo::core::Shell::new();
             cargo::exit_with_error(e.into(), &mut shell)
         }
     };

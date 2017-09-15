@@ -11,7 +11,6 @@ use toml::Value;
 use toml::value::Table;
 use cargo::util::errors::CargoResultExt;
 use cargo::core::{PackageId, Workspace};
-use cargo::core::shell::{ColorConfig, Verbosity};
 use cargo::util::{CargoError, CargoErrorKind, CargoResult, Config};
 use cargo::ops::{update_lockfile, UpdateOptions};
 
@@ -110,7 +109,7 @@ impl<'tmp> TempProject<'tmp> {
         relative_manifest: &str,
         options: &Options,
     ) -> CargoResult<Config> {
-        let shell = ::cargo::shell(Verbosity::Verbose, ColorConfig::Auto);
+        let shell = ::cargo::core::Shell::new();
         let cwd = env::current_dir()
             .chain_err(|| "Cargo couldn't get the current directory of the process")?;
 
