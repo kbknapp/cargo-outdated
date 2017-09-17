@@ -67,7 +67,11 @@ impl<'tmp> TempProject<'tmp> {
                 fs::copy(lockfile, dest)?;
             }
         }
-        Self::write_manifest_semver_with_paths(&tmp_manifest_paths)?;
+        Self::write_manifest_semver_with_paths(
+            &tmp_manifest_paths,
+            workspace_root,
+            &temp_dir.path().to_string_lossy(),
+        )?;
 
         // virtual root
         let mut virtual_root = PathBuf::from(format!("{}/Cargo.toml", workspace_root));
@@ -153,9 +157,30 @@ impl<'tmp> TempProject<'tmp> {
         Ok(())
     }
 
+    fn manipulate_dependencies(manifest: &mut Manifest, f: &Fn(&mut Table)) {
+        manifest.dependencies.as_mut().map(f);
+        manifest.dev_dependencies.as_mut().map(f);
+        manifest.build_dependencies.as_mut().map(f);
+        manifest
+            .target
+            .as_mut()
+            .map(|ref mut t| for target in t.values_mut() {
+                if let Value::Table(ref mut target) = *target {
+                    for dependency_tables in
+                        &["dependencies", "dev-dependencies", "build-dependencies"]
+                    {
+                        target.get_mut(*dependency_tables).map(|dep_table| {
+                            if let Value::Table(ref mut dep_table) = *dep_table {
+                                f(dep_table);
+                            }
+                        });
+                    }
+                }
+            });
+    }
+
     /// Write manifests with SemVer requirements
     pub fn write_manifest_semver(&'tmp self) -> CargoResult<()> {
-        Self::write_manifest_semver_with_paths(&self.manifest_paths)?;
         let root_manifest = format!(
             "{}/{}",
             self.temp_dir.path().to_string_lossy(),
@@ -166,7 +191,11 @@ impl<'tmp> TempProject<'tmp> {
         Ok(())
     }
 
-    fn write_manifest_semver_with_paths(manifest_paths: &[PathBuf]) -> CargoResult<()> {
+    fn write_manifest_semver_with_paths<P: AsRef<Path>>(
+        manifest_paths: &[PathBuf],
+        orig_root: P,
+        tmp_root: P,
+    ) -> CargoResult<()> {
         let bin = {
             let mut bin = Table::new();
             bin.insert("name".to_owned(), Value::String("test".to_owned()));
@@ -184,6 +213,14 @@ impl<'tmp> TempProject<'tmp> {
             // provide lib.path
             manifest.lib.as_mut().map(|lib| {
                 lib.insert("path".to_owned(), Value::String("test_lib.rs".to_owned()));
+            });
+            Self::manipulate_dependencies(&mut manifest, &|deps| {
+                Self::replace_path_with_absolute(
+                    deps,
+                    orig_root.as_ref(),
+                    tmp_root.as_ref(),
+                    manifest_path,
+                )
             });
             Self::write_manifest(&manifest, manifest_path)?;
         }
@@ -207,43 +244,11 @@ impl<'tmp> TempProject<'tmp> {
                 ::toml::from_str(&buf)?
             };
             manifest.bin = Some(vec![bin.clone()]);
-
             // provide lib.path
             manifest.lib.as_mut().map(|lib| {
                 lib.insert("path".to_owned(), Value::String("test_lib.rs".to_owned()));
             });
-
-            // replace versions of direct dependencies
-            manifest
-                .dependencies
-                .as_mut()
-                .map(Self::replace_version_with_wildcard);
-            manifest
-                .dev_dependencies
-                .as_mut()
-                .map(Self::replace_version_with_wildcard);
-            manifest
-                .build_dependencies
-                .as_mut()
-                .map(Self::replace_version_with_wildcard);
-
-            // replace target-specific dependencies
-            manifest
-                .target
-                .as_mut()
-                .map(|ref mut t| for target in t.values_mut() {
-                    if let Value::Table(ref mut target) = *target {
-                        for dependency_tables in
-                            &["dependencies", "dev-dependencies", "build-dependencies"]
-                        {
-                            target.get_mut(*dependency_tables).map(|dep_table| {
-                                if let Value::Table(ref mut dep_table) = *dep_table {
-                                    Self::replace_version_with_wildcard(dep_table);
-                                }
-                            });
-                        }
-                    }
-                });
+            Self::manipulate_dependencies(&mut manifest, &Self::replace_version_with_wildcard);
             Self::write_manifest(&manifest, manifest_path)?;
         }
 
@@ -279,6 +284,50 @@ impl<'tmp> TempProject<'tmp> {
             }
         }
     }
+
+    fn replace_path_with_absolute(
+        dependencies: &mut Table,
+        orig_root: &Path,
+        tmp_root: &Path,
+        tmp_manifest: &Path,
+    ) {
+        let dep_names: Vec<_> = dependencies.keys().cloned().collect();
+        for name in dep_names {
+            let original = dependencies.get(&name).cloned().unwrap();
+            match original {
+                Value::Table(ref t) if t.contains_key("path") => {
+                    if let Value::String(ref orig_path) = t["path"] {
+                        let orig_path = Path::new(orig_path);
+                        if orig_path.is_relative() {
+                            let relative = {
+                                let delimiter: &[_] = &['/', '\\'];
+                                let relative = &tmp_manifest.to_string_lossy()
+                                    [tmp_root.to_string_lossy().len()..];
+                                let mut relative =
+                                    PathBuf::from(relative.trim_left_matches(delimiter));
+                                relative.pop();
+                                relative.join(orig_path)
+                            };
+                            if !tmp_root.join(&relative).join("Cargo.toml").exists() {
+                                let mut replaced = t.clone();
+                                replaced.insert(
+                                    "path".to_owned(),
+                                    Value::String(
+                                        fs::canonicalize(orig_root.join(relative))
+                                            .unwrap()
+                                            .to_string_lossy()
+                                            .to_string(),
+                                    ),
+                                );
+                                dependencies.insert(name, Value::Table(replaced));
+                            }
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
 }
 
 fn manifest_paths(elab: &ElaborateWorkspace) -> CargoResult<Vec<PathBuf>> {
@@ -310,9 +359,7 @@ fn manifest_paths(elab: &ElaborateWorkspace) -> CargoResult<Vec<PathBuf>> {
         if !members.contains(pkg_id) {
             let pkg = &elab.pkgs[pkg_id];
             let pkg_path = pkg.root().to_string_lossy();
-            if pkg_path.len() >= workspace_path.len() &&
-                &pkg_path[..workspace_path.len()] == workspace_path
-            {
+            if pkg_path.starts_with(workspace_path) {
                 manifest_paths.push(pkg.manifest_path().to_owned());
             }
         }
