@@ -1,3 +1,25 @@
+<a name="v0.5.0"></a>
+## v0.5.0 (2017-09-18)
+
+
+#### Refactoring
+
+*   Introduces [`cargo`](https://crates.io/crates/cargo) as a dependency ([0539a61](https://github.com/kbknapp/cargo-outdated/pull/51/commits/0539a619d30175fd287a979a9eecb1143df0f2f6))
+
+#### Improvements
+
+*   Replaces `RM` with `Removed` (closes [#46](https://github.com/kbknapp/cargo-outdated/issues/46))
+*   Adds `Kind`, `Platform` in output
+
+#### Features
+
+*   Supports `cargo` workspaces (closes [#28](https://github.com/kbknapp/cargo-outdated/issues/28))
+*   Supports embedded dependencies (fixes [#50](https://github.com/kbknapp/cargo-outdated/issues/50))
+*   Supports build/development/target-specific dependencies (closes [#20](https://github.com/kbknapp/cargo-outdated/issues/20), fixes [#49](https://github.com/kbknapp/cargo-outdated/issues/49))
+*   Adds `--all-features`, `--features`, `--no-default-features`
+
+
+
 <a name="v0.4.0"></a>
 ## v0.4.0 (2017-08-04)
 
@@ -8,7 +30,8 @@
 
 #### Bug Fixes
 
-*   Set bin.path in the temp manifest ([a0231de5](https://github.com/kbknapp/cargo-outdated/commit/a0231de51428e5238dcab0d73cdce2d2443f8a7e), closes [#41](https://github.com/kbknapp/cargo-outdated/issues/41))
+*   Sets bin.path in the temp manifest ([a0231de5](https://github.com/kbknapp/cargo-outdated/commit/a0231de51428e5238dcab0d73cdce2d2443f8a7e), closes [#41](https://github.com/kbknapp/cargo-outdated/issues/41))
+*   Correctly handles dependencies with multiple occurrences ([03d3e74cf](https://github.com/kbknapp/cargo-outdated/commit/03d3e74cf38156adecc1620271ec8beb9c442865))
 
 
 
