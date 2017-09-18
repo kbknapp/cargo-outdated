@@ -1,33 +1,29 @@
 [package]
-name = "cargo-outdated"
-version = "0.4.0"
 authors = ["Kevin K. <kbknapp@gmail.com>"]
-exclude = ["*.png"]
 description = "Cargo subcommand for displaying when dependencies are out of date"
-repository = "https://github.com/kbknapp/cargo-outdated.git"
-readme = "README.md"
-license = "MIT"
+exclude = ["*.png"]
 keywords = ["cargo", "subcommand", "dependencies", "cargo-subcommand", "deps"]
-
+license = "MIT"
+name = "cargo-outdated"
+readme = "README.md"
+repository = "https://github.com/kbknapp/cargo-outdated.git"
+version = "0.4.0"
 [[bin]]
 name = "cargo-outdated"
 
 [dependencies]
+cargo = "0.21.0"
 clap = "2.26.0"
+env_logger = "0.4.3"
+semver = "0.7.0"
 serde = "1.0.11"
 serde_derive = "1.0.11"
-toml = "~0.4.3"
 tabwriter = "~1.0.3"
 tempdir = "~0.3.5"
-ansi_term = {version = "0.9", optional = true}
+toml = "~0.4.3"
 
 [features]
-default = ["color"]
-color = ["ansi_term"]
 debug = []
-nightly = []
-unstable = []
-travis = ["nightly"]
-
+default = []
 [profile.release]
 lto = true

@@ -1,57 +1,25 @@
-macro_rules! wlnerr(
-    ($($arg:tt)*) => ({
-        use std::io::{Write, stderr};
-        writeln!(&mut stderr(), $($arg)*).ok();
-    })
-);
-
-#[allow(unused_macros)]
-macro_rules! werr(
-    ($($arg:tt)*) => ({
-        use std::io::{Write, stderr};
-        write!(&mut stderr(), $($arg)*).ok();
-    })
-);
-
-macro_rules! verbose(
-    ($cfg:ident, $($arg:tt)*) => ({
-        if $cfg.verbose {
-            use std::io::{Write, stdout};
-            write!(&mut stdout(), $($arg)*).ok();
-        }
-    })
-);
-
-macro_rules! verboseln(
-    ($cfg:ident, $($arg:tt)*) => ({
-        if $cfg.verbose {
-            use std::io::{Write, stdout};
-            writeln!(&mut stdout(), $($arg)*).ok();
-        }
-    })
-);
-
-#[cfg(feature = "debug")]
-macro_rules! debugln {
-    ($fmt:expr) => (println!(concat!("*DEBUG:cargo-outdated:", $fmt)));
-    ($fmt:expr, $($arg:tt)*) => (println!(concat!("*DEBUG:cargo-outdated:",$fmt), $($arg)*));
+macro_rules! verbose {
+    ($config: expr, $status: expr, $message: expr) => (
+        $config
+            .shell()
+            .verbose(
+                |sh| -> CargoResult<()> { sh.status($status, $message) },
+            )?
+    )
 }
 
 #[cfg(feature = "debug")]
 macro_rules! debug {
-    ($fmt:expr) => (print!(concat!("*DEBUG:cargo-outdated:", $fmt)));
-    ($fmt:expr, $($arg:tt)*) => (println!(concat!("*DEBUG:cargo-outdated:",$fmt), $($arg)*));
+    ($config: expr, $message: expr) => (
+        $config.shell().say($message, ::term::color::WHITE)?
+    );
+    ($config: expr, $($arg: tt)*) => (
+        $config.shell().say(format!($($arg)*), ::term::color::WHITE)?
+    );
 }
 
-#[cfg(not(feature = "debug"))]
-macro_rules! debugln {
-    ($fmt:expr) => ();
-    ($fmt:expr, $($arg:tt)*) => ();
-}
-
-#[allow(unused_macros)]
 #[cfg(not(feature = "debug"))]
 macro_rules! debug {
-    ($fmt:expr) => ();
-    ($fmt:expr, $($arg:tt)*) => ();
+    ($config: expr, $message: expr) => ();
+    ($config: expr, $($arg: tt)*) => ();
 }
