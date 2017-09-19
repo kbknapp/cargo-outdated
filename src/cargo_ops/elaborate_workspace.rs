@@ -20,7 +20,7 @@ pub struct ElaborateWorkspace<'ela> {
     /// Map of package status
     ///
     /// Since the grandparent may specify desired features of parent,
-    /// which influence the status of current, a tuple of
+    /// which influences the status of current, a tuple of
     /// `(grand, parent, current)` should be used as the unique id
     pub pkg_status: HashMap<(Option<PackageId>, Option<PackageId>, PackageId), PkgStatus>,
 }

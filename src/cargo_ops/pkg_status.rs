@@ -1,5 +1,6 @@
 use semver::Version;
 
+/// Enum which represents the update status of a package
 #[derive(Debug)]
 pub enum Status {
     Unchanged,
