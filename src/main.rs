@@ -227,6 +227,7 @@ fn main() {
     let result = execute(options, &config);
     match result {
         Err(e) => {
+            config.shell().set_verbosity(Verbosity::Normal);
             let cli_error = CliError::new(e, 1);
             cargo::exit_with_error(cli_error, &mut *config.shell())
         }
