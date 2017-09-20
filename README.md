@@ -89,9 +89,7 @@ USAGE:
     cargo outdated [FLAGS] [OPTIONS]
 
 FLAGS:
-        --all-features           Check outdated packages with all features enabled
     -h, --help                   Prints help information
-        --no-default-features    Do not include the `default` feature
     -R, --root-deps-only         Only check root dependencies (Equivalent to --depth=1)
     -V, --version                Prints version information
     -v, --verbose                Use verbose output

@@ -4,9 +4,7 @@
 ///     cargo outdated [FLAGS] [OPTIONS]
 ///
 /// FLAGS:
-///         --all-features           Check outdated packages with all features enabled
 ///     -h, --help                   Prints help information
-///         --no-default-features    Do not include the `default` feature
 ///     -R, --root-deps-only         Only check root dependencies (Equivalent to --depth=1)
 ///     -V, --version                Prints version information
 ///     -v, --verbose                Use verbose output
@@ -72,8 +70,8 @@ impl Options {
             flag_features: m.values_of("features")
                 .map(|vals| vals.into_iter().map(String::from).collect())
                 .unwrap_or_default(),
-            flag_all_features: m.is_present("all-features"),
-            flag_no_default_features: m.is_present("no-default-features"),
+            flag_all_features: !m.is_present("features"),
+            flag_no_default_features: false,
             flag_manifest_path: m.value_of("manifest-path").map(String::from),
             flag_quiet: None,
             flag_verbose: m.occurrences_of("verbose") as u32,
@@ -137,19 +135,8 @@ fn main() {
                         .takes_value(true)
                         .value_name("FEATURE")
                         .value_delimiter(" ")
+                        .empty_values(true)
                         .conflicts_with_all(&["all-features", "no-default-features"]),
-                )
-                .arg(
-                    Arg::with_name("all-features")
-                        .long("all-features")
-                        .help("Check outdated packages with all features enabled")
-                        .conflicts_with_all(&["features", "no-default-features"]),
-                )
-                .arg(
-                    Arg::with_name("no-default-features")
-                        .long("no-default-features")
-                        .help("Do not include the `default` feature")
-                        .conflicts_with_all(&["features", "all-features"]),
                 )
                 .arg(
                     Arg::with_name("packages")
