@@ -81,7 +81,7 @@ Otherwise, ensure you have the `cargo-outdated` binary in the directory which yo
 
 ### Options
 
-There are a few options for using `cargo-outdated` which should be somewhat self explanitory.
+There are a few options for using `cargo-outdated` which should be somewhat self explanatory.
 
 ```
 USAGE:
