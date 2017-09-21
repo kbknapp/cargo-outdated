@@ -253,6 +253,7 @@ impl<'ela> ElaborateWorkspace<'ela> {
         } else {
             let mut tw = TabWriter::new(vec![]);
             write!(&mut tw, "Name\tProject\tCompat\tLatest\tKind\tPlatform\n")?;
+            write!(&mut tw, "----\t-------\t------\t------\t----\t--------\n")?;
             for line in lines {
                 write!(&mut tw, "{}", line)?;
             }

@@ -16,6 +16,7 @@ Once installed (see below) running `cargo outdated` in a project directory looks
 ```
 $ cargo outdated
 Name             Project  Compat  Latest   Kind         Platform
+----             -------  ------  ------   ----         --------
 clap             2.20.0   2.20.5  2.26.0   Normal       ---
 clap->bitflags   0.7.0    ---     0.9.1    Normal       ---
 clap->libc       0.2.18   0.2.29  Removed  Normal       ---
@@ -81,16 +82,14 @@ Otherwise, ensure you have the `cargo-outdated` binary in the directory which yo
 
 ### Options
 
-There are a few options for using `cargo-outdated` which should be somewhat self explanitory.
+There are a few options for using `cargo-outdated` which should be somewhat self explanatory.
 
 ```
 USAGE:
     cargo outdated [FLAGS] [OPTIONS]
 
 FLAGS:
-        --all-features           Check outdated packages with all features enabled
     -h, --help                   Prints help information
-        --no-default-features    Do not include the `default` feature
     -R, --root-deps-only         Only check root dependencies (Equivalent to --depth=1)
     -V, --version                Prints version information
     -v, --verbose                Use verbose output
