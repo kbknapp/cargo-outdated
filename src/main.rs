@@ -71,7 +71,9 @@ impl Options {
                 .map(|vals| vals.into_iter().map(String::from).collect())
                 .unwrap_or_default(),
             flag_all_features: !m.is_present("features"),
-            flag_no_default_features: false,
+            flag_no_default_features: !m.values_of("features")
+                .map(|ref mut features| features.any(|f| f == "default"))
+                .unwrap_or(true),
             flag_manifest_path: m.value_of("manifest-path").map(String::from),
             flag_quiet: None,
             flag_verbose: m.occurrences_of("verbose") as u32,
