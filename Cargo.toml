@@ -1,5 +1,5 @@
 [package]
-authors = ["Kevin K. <kbknapp@gmail.com>"]
+authors = ["Kevin K. <kbknapp@gmail.com>", "Frederick Z. <frederick888@tsundere.moe>"]
 description = "Cargo subcommand for displaying when dependencies are out of date"
 exclude = ["*.png"]
 keywords = ["cargo", "subcommand", "dependencies", "cargo-subcommand", "deps"]
@@ -7,7 +7,7 @@ license = "MIT"
 name = "cargo-outdated"
 readme = "README.md"
 repository = "https://github.com/kbknapp/cargo-outdated.git"
-version = "0.5.0"
+version = "0.5.1"
 [[bin]]
 name = "cargo-outdated"
 

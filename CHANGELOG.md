@@ -1,3 +1,21 @@
+<a name="v0.5.1"></a>
+## v0.5.1 (2017-09-23)
+
+
+#### Documentation
+
+*   Fixes a typo ([38e37c6](https://github.com/kbknapp/cargo-outdated/pull/66/commits/38e37c6ee77a6ff252bb0702033d7a0b03eac226))
+
+#### Improvements
+
+*   Enables `--all-features` by default (closes [#57](https://github.com/kbknapp/cargo-outdated/issues/57), [f24c3a6](https://github.com/kbknapp/cargo-outdated/pull/64/commits/f24c3a6a8e050cbb651661bfbc9221546d987c41))
+*   Prints a dashed line under the table header ([b076bb1](https://github.com/kbknapp/cargo-outdated/pull/65/commits/b076bb144818b2c5d7efcc3af0acf85ae83f44e1))
+
+#### Bug Fixes
+
+*   Correctly shows error messages (closes [#60](https://github.com/kbknapp/cargo-outdated/issues/60), [daab865](https://github.com/kbknapp/cargo-outdated/pull/61/commits/daab865647715cf467fc28f1333afcd1fe2cf447))
+*   Excludes default features if not explicitly specified by user (closes [#69](https://github.com/kbknapp/cargo-outdated/issues/69), [7074fc8](https://github.com/kbknapp/cargo-outdated/pull/70/commits/7074fc8754d0cf231ff84070307ee92c1cedf065))
+
 <a name="v0.5.0"></a>
 ## v0.5.0 (2017-09-18)
 
