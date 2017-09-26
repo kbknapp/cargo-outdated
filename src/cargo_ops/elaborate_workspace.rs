@@ -12,8 +12,6 @@ use super::pkg_status::*;
 /// An elaborate workspace containing resolved dependencies and
 /// the update status of packages
 pub struct ElaborateWorkspace<'ela> {
-    /// Package which is treated as the root of the dependency tree
-    pub root: PackageId,
     pub workspace: &'ela Workspace<'ela>,
     pub pkgs: HashMap<PackageId, Package>,
     pub pkg_deps: HashMap<PackageId, HashMap<PackageId, Dependency>>,
@@ -23,6 +21,8 @@ pub struct ElaborateWorkspace<'ela> {
     /// which influences the status of current, a tuple of
     /// `(grand, parent, current)` should be used as the unique id
     pub pkg_status: HashMap<(Option<PackageId>, Option<PackageId>, PackageId), PkgStatus>,
+    /// Whether running against a virtual manifest
+    pub virtual_manifest: bool,
 }
 
 impl<'ela> ElaborateWorkspace<'ela> {
@@ -58,14 +58,24 @@ impl<'ela> ElaborateWorkspace<'ela> {
             pkg_deps.insert(pkg_id.clone(), dep_map);
         }
 
-        let root = {
-            let determine_root = || if let Some(ref root_name) = options.flag_root {
-                let workspace_root = workspace.current()?;
+        Ok(ElaborateWorkspace {
+            workspace: workspace,
+            pkgs: pkgs,
+            pkg_deps: pkg_deps,
+            pkg_status: HashMap::new(),
+            virtual_manifest: workspace.current().is_err(),
+        })
+    }
+
+    /// Determine root package based on current workspace and CLI options
+    pub fn determine_root(&self, options: &Options) -> CargoResult<PackageId> {
+        if let Some(ref root_name) = options.flag_root {
+            if let Ok(workspace_root) = self.workspace.current() {
                 if root_name == workspace_root.name() {
                     Ok(workspace_root.package_id().clone())
                 } else {
-                    for direct_dep in pkg_deps[workspace_root.package_id()].keys() {
-                        if pkgs[direct_dep].name() == root_name {
+                    for direct_dep in self.pkg_deps[workspace_root.package_id()].keys() {
+                        if self.pkgs[direct_dep].name() == root_name {
                             return Ok(direct_dep.clone());
                         }
                     }
@@ -74,19 +84,27 @@ impl<'ela> ElaborateWorkspace<'ela> {
                     )));
                 }
             } else {
-                Ok(workspace.current()?.package_id().clone())
-            };
+                Err(CargoError::from_kind(CargoErrorKind::Msg(
+                    "--root is not allowed when running against a virtual manifest".to_owned(),
+                )))
+            }
+        } else {
+            Ok(self.workspace.current()?.package_id().clone())
+        }
+    }
 
-            determine_root()?
-        };
-
-        Ok(ElaborateWorkspace {
-            root: root,
-            workspace: workspace,
-            pkgs: pkgs,
-            pkg_deps: pkg_deps,
-            pkg_status: HashMap::new(),
-        })
+    /// Find a member based on member name
+    fn find_member(&self, member: &PackageId) -> CargoResult<PackageId> {
+        for m in self.workspace.members() {
+            // members with the same name in a workspace is not allowed
+            // even with different paths
+            if member.name() == m.name() {
+                return Ok(m.package_id().clone());
+            }
+        }
+        Err(CargoError::from_kind(CargoErrorKind::Msg(
+            format!("Workspace member {} not found", member.name()),
+        )))
     }
 
     /// Resolve compatible and latest status from the corresponding `ElaborateWorkspace`s
@@ -96,20 +114,30 @@ impl<'ela> ElaborateWorkspace<'ela> {
         latest: &ElaborateWorkspace,
         options: &Options,
         config: &Config,
+        root: &PackageId,
     ) -> CargoResult<()> {
-        let root_parent = if &self.root == self.workspace.current()?.package_id() {
+        self.pkg_status.clear();
+        let root_parent = if self.virtual_manifest || root == self.workspace.current()?.package_id()
+        {
             None
         } else {
             Some(self.workspace.current()?.package_id())
         };
-        let root_id = self.root.clone();
+        let (compat_root, latest_root) = if self.virtual_manifest {
+            (compat.find_member(root)?, latest.find_member(root)?)
+        } else {
+            (
+                compat.determine_root(options)?,
+                latest.determine_root(options)?,
+            )
+        };
         self.resolve_status_recursive(
             None,
             root_parent,
-            &root_id,
-            Some(&compat.root),
+            root,
+            Some(&compat_root),
             compat,
-            Some(&latest.root),
+            Some(&latest_root),
             latest,
             options.flag_depth,
             config,
@@ -223,10 +251,15 @@ impl<'ela> ElaborateWorkspace<'ela> {
     }
 
     /// Print package status to `TabWriter`
-    pub fn print_list(&self, options: &Options, config: &Config) -> CargoResult<i32> {
-        verbose!(config, "Printing...", "list format");
+    pub fn print_list(
+        &self,
+        options: &Options,
+        root: &PackageId,
+        preceding_line: bool,
+    ) -> CargoResult<i32> {
         let mut lines = vec![];
-        let root_parent = if &self.root == self.workspace.current()?.package_id() {
+        let root_parent = if self.virtual_manifest || root == self.workspace.current()?.package_id()
+        {
             None
         } else {
             Some(self.workspace.current()?.package_id())
@@ -237,7 +270,7 @@ impl<'ela> ElaborateWorkspace<'ela> {
                 options,
                 None,
                 root_parent,
-                &self.root,
+                root,
                 options.flag_depth,
                 &mut lines,
                 &mut printed,
@@ -247,10 +280,17 @@ impl<'ela> ElaborateWorkspace<'ela> {
         lines.dedup();
         let lines_len = lines.len();
 
-        verbose!(config, "Printing...", "with tab writer");
         if lines.is_empty() {
-            println!("All dependencies are up to date, yay!");
+            if !self.virtual_manifest {
+                println!("All dependencies are up to date, yay!");
+            }
         } else {
+            if preceding_line {
+                println!();
+            }
+            if self.virtual_manifest {
+                println!("{}\n================", root.name());
+            }
             let mut tw = TabWriter::new(vec![]);
             write!(&mut tw, "Name\tProject\tCompat\tLatest\tKind\tPlatform\n")?;
             write!(&mut tw, "----\t-------\t------\t------\t----\t--------\n")?;
@@ -297,11 +337,12 @@ impl<'ela> ElaborateWorkspace<'ela> {
             // name version compatible latest kind platform
             if let Some(parent) = parent {
                 let dependency = &self.pkg_deps[parent][pkg_id];
-                let label = if parent == self.workspace.current()?.package_id() {
-                    pkg.name().to_owned()
-                } else {
-                    format!("{}->{}", self.pkgs[parent].name(), pkg.name())
-                };
+                let label =
+                    if self.virtual_manifest || parent == self.workspace.current()?.package_id() {
+                        pkg.name().to_owned()
+                    } else {
+                        format!("{}->{}", self.pkgs[parent].name(), pkg.name())
+                    };
                 let line = format!(
                     "{}\t{}\t{}\t{}\t{:?}\t{}\n",
                     label,
@@ -332,6 +373,11 @@ impl<'ela> ElaborateWorkspace<'ela> {
         }
 
         for dep in self.pkg_deps[pkg_id].keys() {
+            // if executed against a virtual manifest, we should stop if a dependency
+            // is another member to prevent duplicated output
+            if self.virtual_manifest && self.workspace.members().any(|m| m.package_id() == dep) {
+                continue;
+            }
             self.print_list_recursive(
                 options,
                 parent,

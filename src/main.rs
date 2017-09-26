@@ -280,12 +280,31 @@ pub fn execute(options: Options, config: &Config) -> CargoResult<i32> {
     let ela_latest =
         ElaborateWorkspace::from_workspace(latest_workspace.as_ref().unwrap(), &options)?;
 
-    verbose!(config, "Resolving...", "package status");
-    ela_curr.resolve_status(&ela_compat, &ela_latest, &options, config)?;
-
-    let count = ela_curr.print_list(&options, config)?;
-
-    Ok(count)
+    if ela_curr.virtual_manifest {
+        let mut sum = 0;
+        verbose!(config, "Printing...", "Package status in list format");
+        for member in ela_curr.workspace.members() {
+            ela_curr.resolve_status(
+                &ela_compat,
+                &ela_latest,
+                &options,
+                config,
+                member.package_id(),
+            )?;
+            sum += ela_curr.print_list(&options, member.package_id(), sum > 0)?;
+        }
+        if sum == 0 {
+            println!("All dependencies are up to date, yay!");
+        }
+        Ok(sum)
+    } else {
+        verbose!(config, "Resolving...", "package status");
+        let root = ela_curr.determine_root(&options)?;
+        ela_curr.resolve_status(&ela_compat, &ela_latest, &options, config, &root)?;
+        verbose!(config, "Printing...", "list format");
+        let count = ela_curr.print_list(&options, &root, false)?;
+        Ok(count)
+    }
 }
 
 #[allow(unknown_lints)]
