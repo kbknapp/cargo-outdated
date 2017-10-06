@@ -1,13 +1,23 @@
 [package]
-authors = ["Kevin K. <kbknapp@gmail.com>", "Frederick Z. <frederick888@tsundere.moe>"]
+authors = [
+    "Kevin K. <kbknapp@gmail.com>",
+    "Frederick Z. <frederick888@tsundere.moe>",
+]
 description = "Cargo subcommand for displaying when dependencies are out of date"
 exclude = ["*.png"]
-keywords = ["cargo", "subcommand", "dependencies", "cargo-subcommand", "deps"]
+keywords = [
+    "cargo",
+    "subcommand",
+    "dependencies",
+    "cargo-subcommand",
+    "deps",
+]
 license = "MIT"
 name = "cargo-outdated"
 readme = "README.md"
 repository = "https://github.com/kbknapp/cargo-outdated.git"
 version = "0.5.1"
+
 [[bin]]
 name = "cargo-outdated"
 
@@ -22,8 +32,12 @@ tabwriter = "~1.0.3"
 tempdir = "~0.3.5"
 toml = "~0.4.3"
 
+[dependencies.termcolor]
+optional = true
+version = "0.3.3"
+
 [features]
-debug = []
+debug = ["termcolor"]
 default = []
 [profile.release]
 lto = true
