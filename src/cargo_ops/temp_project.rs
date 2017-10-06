@@ -330,25 +330,15 @@ impl<'tmp> TempProject<'tmp> {
     }
 }
 
+/// Paths of all manifest files in current workspace
 fn manifest_paths(elab: &ElaborateWorkspace) -> CargoResult<Vec<PathBuf>> {
     let mut visited: HashSet<PackageId> = HashSet::new();
     let mut manifest_paths = vec![];
-    let workspace_members: HashSet<_> = elab.workspace
-        .members()
-        .map(|pkg| pkg.package_id())
-        .collect();
-    for member in &workspace_members {
-        manifest_paths.push(elab.pkgs[member].manifest_path().to_owned());
-    }
-    let root_pkg = elab.workspace.current()?.package_id();
-    // e.g. /path/to/project
-    let workspace_path = elab.workspace.current()?.root().to_string_lossy();
 
     fn manifest_paths_recursive(
         pkg_id: &PackageId,
         elab: &ElaborateWorkspace,
         workspace_path: &str,
-        members: &HashSet<&PackageId>,
         visited: &mut HashSet<PackageId>,
         manifest_paths: &mut Vec<PathBuf>,
     ) -> CargoResult<()> {
@@ -356,29 +346,32 @@ fn manifest_paths(elab: &ElaborateWorkspace) -> CargoResult<Vec<PathBuf>> {
             return Ok(());
         }
         visited.insert(pkg_id.clone());
-        if !members.contains(pkg_id) {
-            let pkg = &elab.pkgs[pkg_id];
-            let pkg_path = pkg.root().to_string_lossy();
-            if pkg_path.starts_with(workspace_path) {
-                manifest_paths.push(pkg.manifest_path().to_owned());
-            }
+        let pkg = &elab.pkgs[pkg_id];
+        let pkg_path = pkg.root().to_string_lossy();
+        if pkg_path.starts_with(workspace_path) {
+            manifest_paths.push(pkg.manifest_path().to_owned());
         }
 
         for dep in elab.pkg_deps[pkg_id].keys() {
-            manifest_paths_recursive(dep, elab, workspace_path, members, visited, manifest_paths)?;
+            manifest_paths_recursive(dep, elab, workspace_path, visited, manifest_paths)?;
         }
 
         Ok(())
     };
-    manifest_paths_recursive(
-        root_pkg,
-        elab,
-        &workspace_path,
-        &workspace_members,
-        &mut visited,
-        &mut manifest_paths,
-    )?;
 
+    // executed against a virtual manifest
+    let workspace_path = elab.workspace.root().to_string_lossy();
+    // if cargo workspace is not explicitly used, the pacakge itself would be a member
+    for member in elab.workspace.members() {
+        let root_pkg_id = member.package_id();
+        manifest_paths_recursive(
+            root_pkg_id,
+            elab,
+            &workspace_path,
+            &mut visited,
+            &mut manifest_paths,
+        )?;
+    }
 
     Ok(manifest_paths)
 }
