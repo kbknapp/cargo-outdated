@@ -9,6 +9,14 @@ A cargo subcommand for displaying when Rust dependencies are out of date
 
 `cargo-outdated` is for displaying when dependencies have newer versions available.
 
+## How it works
+
+The functionality of `cargo-outdated` largely depends on the `cargo` builtin command `cargo update`.
+
+To retrieve the list of available SemVer compatible dependencies, `cargo-outdated` firstly creates a temporary workspace, then executes `cargo update` against it, finally compares the temporary dependency tree with the original one.
+
+Similarly, to check the latest dependencies, `cargo-outdated` replaces the SemVer requirements of *direct* dependencies with wildcards then goes through the same process.
+
 ## Demo
 
 Once installed (see below) running `cargo outdated` in a project directory looks like the following:
