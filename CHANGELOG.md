@@ -1,3 +1,23 @@
+<a name="v0.5.2"></a>
+## v0.5.2 (2017-10-06)
+
+#### Documentation
+
+*   Briefly explains how `cargo-outdated` works in `README.md` ([8c35c61](https://github.com/kbknapp/cargo-outdated/commit/8c35c6148b4a29d50b55f1b064045e611fc5aa9b))
+
+#### Features
+
+*   Loops through all workspace members if executed against a virtual manifest (closes [#58](https://github.com/kbknapp/cargo-outdated/issues/58), [cd36aed](https://github.com/kbknapp/cargo-outdated/commit/cd36aed8f6b540d58ff4eb805cb2a20985f0122e))
+
+#### Bug Fixes
+
+*   Fixes missing dependency issue for debug build (closes [#77](https://github.com/kbknapp/cargo-outdated/issues/77), [c82e928](https://github.com/kbknapp/cargo-outdated/pull/78/commits/c82e92859e4659effcc08362081042b441004a1d))
+
+
+#### Tests
+
+*   Debug build is now part of CI ([05ada44](https://github.com/kbknapp/cargo-outdated/pull/78/commits/05ada447863f775ff58e6bfcaa764582af62f2cc))
+
 <a name="v0.5.1"></a>
 ## v0.5.1 (2017-09-23)
 
