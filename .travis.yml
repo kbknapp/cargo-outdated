@@ -1,7 +1,6 @@
 language: rust
 rust:
   - nightly
-#  - nightly-2016-03-22
   - beta
   - stable
 matrix:
@@ -9,9 +8,8 @@ matrix:
     - rust: nightly
 script:
   - |
-    cargo build &&
-    cargo test
-
+      cargo build
+      cargo build --features debug
 env:
   global:
     secure: JLBlgHY6OEmhJ8woewNJHmuBokTNUv7/WvLkJGV8xk0t6bXBwSU0jNloXwlH7FiQTc4TccX0PumPDD4MrMgxIAVFPmmmlQOCmdpYP4tqZJ8xo189E5zk8lKF5OyaVYCs5SMmFC3cxCsKjfwGIexNu3ck5Uhwe9jI0tqgkgM3URA=
