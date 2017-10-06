@@ -30,6 +30,8 @@ extern crate serde;
 extern crate serde_derive;
 extern crate tabwriter;
 extern crate tempdir;
+#[cfg(feature = "debug")]
+extern crate termcolor;
 extern crate toml;
 
 #[macro_use]
