@@ -8,6 +8,8 @@
 ///     -R, --root-deps-only         Only check root dependencies (Equivalent to --depth=1)
 ///     -V, --version                Prints version information
 ///     -v, --verbose                Use verbose output
+///     -w, --workspace              Check updates for all workspace members rather
+///                                  than only the root package
 ///
 /// OPTIONS:
 ///         --color <color>           Coloring: auto, always, never [default: auto]
@@ -63,6 +65,7 @@ pub struct Options {
     flag_packages: Vec<String>,
     flag_root: Option<String>,
     flag_depth: i32,
+    flag_workspace: bool,
 }
 
 impl Options {
@@ -96,6 +99,7 @@ impl Options {
                     .and_then(|v| v.parse::<i32>().ok())
                     .unwrap_or_else(|| -1_i32)
             },
+            flag_workspace: m.is_present("workspace"),
         }
     }
 }
@@ -208,6 +212,15 @@ fn main() {
                         .value_name("PATH")
                         .number_of_values(1)
                         .validator(is_file),
+                )
+                .arg(
+                    Arg::with_name("workspace")
+                        .long("workspace")
+                        .short("w")
+                        .long_help(
+                            "Check updates for all workspace members \
+                             rather than only the root package",
+                        ),
                 ),
         )
         .get_matches();
@@ -280,7 +293,7 @@ pub fn execute(options: Options, config: &Config) -> CargoResult<i32> {
     let ela_latest =
         ElaborateWorkspace::from_workspace(latest_workspace.as_ref().unwrap(), &options)?;
 
-    if ela_curr.virtual_manifest {
+    if ela_curr.workspace_mode {
         let mut sum = 0;
         verbose!(config, "Printing...", "Package status in list format");
         for member in ela_curr.workspace.members() {

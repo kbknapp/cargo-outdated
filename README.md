@@ -101,6 +101,8 @@ FLAGS:
     -R, --root-deps-only         Only check root dependencies (Equivalent to --depth=1)
     -V, --version                Prints version information
     -v, --verbose                Use verbose output
+    -w, --workspace              Check updates for all workspace members
+                                 rather than only the root package
 
 OPTIONS:
         --color <color>           Coloring: auto, always, never [default: auto]
