@@ -21,8 +21,8 @@ pub struct ElaborateWorkspace<'ela> {
     /// which influences the status of current, a tuple of
     /// `(grand, parent, current)` should be used as the unique id
     pub pkg_status: HashMap<(Option<PackageId>, Option<PackageId>, PackageId), PkgStatus>,
-    /// Whether running against a virtual manifest
-    pub virtual_manifest: bool,
+    /// Whether using workspace mode
+    pub workspace_mode: bool,
 }
 
 impl<'ela> ElaborateWorkspace<'ela> {
@@ -63,7 +63,7 @@ impl<'ela> ElaborateWorkspace<'ela> {
             pkgs: pkgs,
             pkg_deps: pkg_deps,
             pkg_status: HashMap::new(),
-            virtual_manifest: workspace.current().is_err(),
+            workspace_mode: options.flag_workspace || workspace.current().is_err(),
         })
     }
 
@@ -117,13 +117,12 @@ impl<'ela> ElaborateWorkspace<'ela> {
         root: &PackageId,
     ) -> CargoResult<()> {
         self.pkg_status.clear();
-        let root_parent = if self.virtual_manifest || root == self.workspace.current()?.package_id()
-        {
+        let root_parent = if self.workspace_mode || root == self.workspace.current()?.package_id() {
             None
         } else {
             Some(self.workspace.current()?.package_id())
         };
-        let (compat_root, latest_root) = if self.virtual_manifest {
+        let (compat_root, latest_root) = if self.workspace_mode {
             (compat.find_member(root)?, latest.find_member(root)?)
         } else {
             (
@@ -258,8 +257,7 @@ impl<'ela> ElaborateWorkspace<'ela> {
         preceding_line: bool,
     ) -> CargoResult<i32> {
         let mut lines = vec![];
-        let root_parent = if self.virtual_manifest || root == self.workspace.current()?.package_id()
-        {
+        let root_parent = if self.workspace_mode || root == self.workspace.current()?.package_id() {
             None
         } else {
             Some(self.workspace.current()?.package_id())
@@ -281,14 +279,14 @@ impl<'ela> ElaborateWorkspace<'ela> {
         let lines_len = lines.len();
 
         if lines.is_empty() {
-            if !self.virtual_manifest {
+            if !self.workspace_mode {
                 println!("All dependencies are up to date, yay!");
             }
         } else {
             if preceding_line {
                 println!();
             }
-            if self.virtual_manifest {
+            if self.workspace_mode {
                 println!("{}\n================", root.name());
             }
             let mut tw = TabWriter::new(vec![]);
@@ -330,15 +328,15 @@ impl<'ela> ElaborateWorkspace<'ela> {
         let pkg = &self.pkgs[pkg_id];
         let pkg_status = &self.pkg_status[&pkg_status_key];
 
-        if (pkg_status.compat.is_changed() || pkg_status.latest.is_changed()) &&
-            (options.flag_packages.is_empty() ||
-                options.flag_packages.contains(&pkg.name().to_string()))
+        if (pkg_status.compat.is_changed() || pkg_status.latest.is_changed())
+            && (options.flag_packages.is_empty()
+                || options.flag_packages.contains(&pkg.name().to_string()))
         {
             // name version compatible latest kind platform
             if let Some(parent) = parent {
                 let dependency = &self.pkg_deps[parent][pkg_id];
                 let label =
-                    if self.virtual_manifest || parent == self.workspace.current()?.package_id() {
+                    if self.workspace_mode || parent == self.workspace.current()?.package_id() {
                         pkg.name().to_owned()
                     } else {
                         format!("{}->{}", self.pkgs[parent].name(), pkg.name())
@@ -375,7 +373,7 @@ impl<'ela> ElaborateWorkspace<'ela> {
         for dep in self.pkg_deps[pkg_id].keys() {
             // if executed against a virtual manifest, we should stop if a dependency
             // is another member to prevent duplicated output
-            if self.virtual_manifest && self.workspace.members().any(|m| m.package_id() == dep) {
+            if self.workspace_mode && self.workspace.members().any(|m| m.package_id() == dep) {
                 continue;
             }
             self.print_list_recursive(
