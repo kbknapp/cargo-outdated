@@ -1,3 +1,10 @@
+<a name="v0.5.3"></a>
+## v0.5.3 (2017-10-10)
+
+#### Improvements
+
+*   Provides `--workspace` flag to enforce workspace mode so that it can loop through workspace members even if it's not executed against a virtual manifest (closes [#81](https://github.com/kbknapp/cargo-outdated/issues/81), [f690a7a](https://github.com/kbknapp/cargo-outdated/pull/82/commits/f690a7a22a3c1f56e67c7ee784e69d96f537c301))
+
 <a name="v0.5.2"></a>
 ## v0.5.2 (2017-10-06)
 
