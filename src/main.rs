@@ -252,6 +252,7 @@ pub fn execute(options: Options, config: &Config) -> CargoResult<i32> {
         &options.flag_color,
         options.flag_frozen,
         options.flag_locked,
+        &[],
     )?;
     debug!(config, format!("options: {:?}", options));
 

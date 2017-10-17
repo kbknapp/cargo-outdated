@@ -90,9 +90,8 @@ impl<'tmp> TempProject<'tmp> {
             }
         }
 
-        let relative_manifest = String::from(
-            &orig_manifest[orig_workspace.workspace.root().to_string_lossy().len()..],
-        );
+        let relative_manifest =
+            String::from(&orig_manifest[orig_workspace.workspace.root().to_string_lossy().len()..]);
         let config = Self::generate_config(
             &temp_dir.path().to_string_lossy(),
             &relative_manifest,
@@ -134,6 +133,7 @@ impl<'tmp> TempProject<'tmp> {
             &options.flag_color,
             options.flag_frozen,
             options.flag_locked,
+            &[],
         )?;
         Ok(config)
     }
