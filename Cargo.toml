@@ -22,7 +22,7 @@ version = "0.5.3"
 name = "cargo-outdated"
 
 [dependencies]
-cargo = "0.21.0"
+cargo = "0.22.0"
 clap = "2.26.0"
 env_logger = "0.4.3"
 semver = "0.7.0"
