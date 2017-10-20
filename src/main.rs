@@ -4,11 +4,13 @@
 ///     cargo outdated [FLAGS] [OPTIONS]
 ///
 /// FLAGS:
+///     -a, --aggressive             Ignores channels for latest updates
 ///     -h, --help                   Prints help information
+///     -q, --quiet                  Suppresses warnings
 ///     -R, --root-deps-only         Only check root dependencies (Equivalent to --depth=1)
 ///     -V, --version                Prints version information
 ///     -v, --verbose                Use verbose output
-///     -w, --workspace              Check updates for all workspace members rather
+///     -w, --workspace              Checks updates for all workspace members rather
 ///                                  than only the root package
 ///
 /// OPTIONS:
@@ -57,7 +59,7 @@ pub struct Options {
     flag_all_features: bool,
     flag_no_default_features: bool,
     flag_manifest_path: Option<String>,
-    flag_quiet: Option<bool>,
+    flag_quiet: bool,
     flag_verbose: u32,
     flag_frozen: bool,
     flag_locked: bool,
@@ -66,6 +68,7 @@ pub struct Options {
     flag_root: Option<String>,
     flag_depth: i32,
     flag_workspace: bool,
+    flag_aggressive: bool,
 }
 
 impl Options {
@@ -80,7 +83,7 @@ impl Options {
                 .map(|ref mut features| features.any(|f| f == "default"))
                 .unwrap_or(true),
             flag_manifest_path: m.value_of("manifest-path").map(String::from),
-            flag_quiet: None,
+            flag_quiet: m.is_present("quiet"),
             flag_verbose: m.occurrences_of("verbose") as u32,
             flag_frozen: false,
             flag_locked: false,
@@ -100,6 +103,7 @@ impl Options {
                     .unwrap_or_else(|| -1_i32)
             },
             flag_workspace: m.is_present("workspace"),
+            flag_aggressive: m.is_present("aggressive"),
         }
     }
 }
@@ -218,9 +222,21 @@ fn main() {
                         .long("workspace")
                         .short("w")
                         .long_help(
-                            "Check updates for all workspace members \
+                            "Checks updates for all workspace members \
                              rather than only the root package",
                         ),
+                )
+                .arg(
+                    Arg::with_name("aggressive")
+                        .long("aggressive")
+                        .short("a")
+                        .help("Ignores channels for latest updates"),
+                )
+                .arg(
+                    Arg::with_name("quiet")
+                        .long("quiet")
+                        .short("q")
+                        .help("Suppresses warnings"),
                 ),
         )
         .get_matches();
@@ -248,7 +264,7 @@ fn main() {
 pub fn execute(options: Options, config: &Config) -> CargoResult<i32> {
     config.configure(
         options.flag_verbose,
-        options.flag_quiet,
+        None,
         &options.flag_color,
         options.flag_frozen,
         options.flag_locked,
@@ -275,7 +291,11 @@ pub fn execute(options: Options, config: &Config) -> CargoResult<i32> {
     verbose!(config, "Parsing...", "compat workspace");
     let compat_proj =
         TempProject::from_workspace(&ela_curr, &curr_manifest.to_string_lossy(), &options)?;
-    compat_proj.write_manifest_semver()?;
+    compat_proj.write_manifest_semver(
+        curr_workspace.root(),
+        compat_proj.temp_dir.path(),
+        &ela_curr,
+    )?;
     verbose!(config, "Updating...", "compat workspace");
     compat_proj.cargo_update()?;
     verbose!(config, "Resolving...", "compat workspace");
@@ -286,7 +306,7 @@ pub fn execute(options: Options, config: &Config) -> CargoResult<i32> {
     verbose!(config, "Parsing...", "latest workspace");
     let latest_proj =
         TempProject::from_workspace(&ela_curr, &curr_manifest.to_string_lossy(), &options)?;
-    latest_proj.write_manifest_latest()?;
+    latest_proj.write_manifest_latest(&ela_curr)?;
     verbose!(config, "Updating...", "latest workspace");
     latest_proj.cargo_update()?;
     verbose!(config, "Resolving...", "latest workspace");

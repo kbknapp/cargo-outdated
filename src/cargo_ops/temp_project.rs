@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 use std::fs::{self, File};
 use std::io::{Read, Write};
-use std::collections::HashSet;
+use std::collections::{BTreeMap, HashSet};
 use std::env;
 use std::rc::Rc;
 use std::cell::RefCell;
@@ -10,9 +10,10 @@ use tempdir::TempDir;
 use toml::Value;
 use toml::value::Table;
 use cargo::util::errors::CargoResultExt;
-use cargo::core::{PackageId, Workspace};
-use cargo::util::{CargoError, CargoErrorKind, CargoResult, Config};
+use cargo::core::{Dependency, PackageId, Summary, Verbosity, Workspace};
+use cargo::util::{CargoResult, Config};
 use cargo::ops::{update_lockfile, UpdateOptions};
+use semver::{Identifier, Version, VersionReq};
 
 use Options;
 use super::{ElaborateWorkspace, Manifest};
@@ -24,6 +25,7 @@ pub struct TempProject<'tmp> {
     manifest_paths: Vec<PathBuf>,
     config: Config,
     relative_manifest: String,
+    options: &'tmp Options,
 }
 
 impl<'tmp> TempProject<'tmp> {
@@ -31,15 +33,10 @@ impl<'tmp> TempProject<'tmp> {
     pub fn from_workspace(
         orig_workspace: &ElaborateWorkspace,
         orig_manifest: &str,
-        options: &Options,
+        options: &'tmp Options,
     ) -> CargoResult<TempProject<'tmp>> {
         // e.g. /path/to/project
-        let workspace_root = orig_workspace.workspace.root().to_str().ok_or_else(|| {
-            CargoError::from_kind(CargoErrorKind::Msg(format!(
-                "Invalid character found in path {}",
-                orig_workspace.workspace.root().to_string_lossy()
-            )))
-        })?;
+        let workspace_root = orig_workspace.workspace.root().to_string_lossy();
 
         let temp_dir = TempDir::new("cargo-outdated")?;
         let manifest_paths = manifest_paths(orig_workspace)?;
@@ -67,11 +64,6 @@ impl<'tmp> TempProject<'tmp> {
                 fs::copy(lockfile, dest)?;
             }
         }
-        Self::write_manifest_semver_with_paths(
-            &tmp_manifest_paths,
-            workspace_root,
-            &temp_dir.path().to_string_lossy(),
-        )?;
 
         // virtual root
         let mut virtual_root = PathBuf::from(format!("{}/Cargo.toml", workspace_root));
@@ -98,12 +90,12 @@ impl<'tmp> TempProject<'tmp> {
             options,
         )?;
         Ok(TempProject {
-            // workspace: Workspace::new(Path::new(&root_manifest), config)?,
             workspace: Rc::new(RefCell::new(None)),
             temp_dir: temp_dir,
             manifest_paths: tmp_manifest_paths,
             config: config,
             relative_manifest: relative_manifest,
+            options: options,
         })
     }
 
@@ -157,79 +149,44 @@ impl<'tmp> TempProject<'tmp> {
         Ok(())
     }
 
-    fn manipulate_dependencies(manifest: &mut Manifest, f: &Fn(&mut Table)) {
-        manifest.dependencies.as_mut().map(f);
-        manifest.dev_dependencies.as_mut().map(f);
-        manifest.build_dependencies.as_mut().map(f);
-        manifest
-            .target
-            .as_mut()
-            .map(|ref mut t| for target in t.values_mut() {
+    fn manipulate_dependencies<F>(manifest: &mut Manifest, f: &F) -> CargoResult<()>
+    where
+        F: Fn(&mut Table) -> CargoResult<()>,
+    {
+        if let Some(dep) = manifest.dependencies.as_mut() {
+            f(dep)?;
+        }
+        if let Some(dep) = manifest.dev_dependencies.as_mut() {
+            f(dep)?;
+        }
+        if let Some(dep) = manifest.build_dependencies.as_mut() {
+            f(dep)?;
+        }
+        if let Some(t) = manifest.target.as_mut() {
+            for target in t.values_mut() {
                 if let Value::Table(ref mut target) = *target {
                     for dependency_tables in
                         &["dependencies", "dev-dependencies", "build-dependencies"]
                     {
-                        target.get_mut(*dependency_tables).map(|dep_table| {
-                            if let Value::Table(ref mut dep_table) = *dep_table {
-                                f(dep_table);
-                            }
-                        });
+                        if let Some(&mut Value::Table(ref mut dep_table)) =
+                            target.get_mut(*dependency_tables)
+                        {
+                            f(dep_table)?;
+                        }
                     }
                 }
-            });
+            }
+        }
+        Ok(())
     }
 
     /// Write manifests with SemVer requirements
-    pub fn write_manifest_semver(&'tmp self) -> CargoResult<()> {
-        let root_manifest = format!(
-            "{}/{}",
-            self.temp_dir.path().to_string_lossy(),
-            self.relative_manifest
-        );
-        *self.workspace.borrow_mut() =
-            Some(Workspace::new(Path::new(&root_manifest), &self.config)?);
-        Ok(())
-    }
-
-    fn write_manifest_semver_with_paths<P: AsRef<Path>>(
-        manifest_paths: &[PathBuf],
+    pub fn write_manifest_semver<P: AsRef<Path>>(
+        &'tmp self,
         orig_root: P,
         tmp_root: P,
+        workspace: &ElaborateWorkspace,
     ) -> CargoResult<()> {
-        let bin = {
-            let mut bin = Table::new();
-            bin.insert("name".to_owned(), Value::String("test".to_owned()));
-            bin.insert("path".to_owned(), Value::String("test.rs".to_owned()));
-            bin
-        };
-        for manifest_path in manifest_paths {
-            let mut manifest: Manifest = {
-                let mut buf = String::new();
-                let mut file = File::open(manifest_path)?;
-                file.read_to_string(&mut buf)?;
-                ::toml::from_str(&buf)?
-            };
-            manifest.bin = Some(vec![bin.clone()]);
-            // provide lib.path
-            manifest.lib.as_mut().map(|lib| {
-                lib.insert("path".to_owned(), Value::String("test_lib.rs".to_owned()));
-            });
-            Self::manipulate_dependencies(&mut manifest, &|deps| {
-                Self::replace_path_with_absolute(
-                    deps,
-                    orig_root.as_ref(),
-                    tmp_root.as_ref(),
-                    manifest_path,
-                )
-            });
-            Self::write_manifest(&manifest, manifest_path)?;
-        }
-
-        Ok(())
-    }
-
-    /// Write manifests with wildcard requirements
-    pub fn write_manifest_latest(&'tmp self) -> CargoResult<()> {
         let bin = {
             let mut bin = Table::new();
             bin.insert("name".to_owned(), Value::String("test".to_owned()));
@@ -248,7 +205,56 @@ impl<'tmp> TempProject<'tmp> {
             manifest.lib.as_mut().map(|lib| {
                 lib.insert("path".to_owned(), Value::String("test_lib.rs".to_owned()));
             });
-            Self::manipulate_dependencies(&mut manifest, &Self::replace_version_with_wildcard);
+            Self::manipulate_dependencies(&mut manifest, &|deps| {
+                Self::replace_path_with_absolute(
+                    deps,
+                    orig_root.as_ref(),
+                    tmp_root.as_ref(),
+                    manifest_path,
+                )
+            })?;
+            let package_name = manifest.name();
+            let features = manifest.features.clone();
+            Self::manipulate_dependencies(&mut manifest, &|deps| {
+                self.update_version_and_feature(deps, &features, workspace, &package_name, false)
+            })?;
+            Self::write_manifest(&manifest, manifest_path)?;
+        }
+        let root_manifest = format!(
+            "{}/{}",
+            self.temp_dir.path().to_string_lossy(),
+            self.relative_manifest
+        );
+        *self.workspace.borrow_mut() =
+            Some(Workspace::new(Path::new(&root_manifest), &self.config)?);
+        Ok(())
+    }
+
+    /// Write manifests with wildcard requirements
+    pub fn write_manifest_latest(&'tmp self, workspace: &ElaborateWorkspace) -> CargoResult<()> {
+        let bin = {
+            let mut bin = Table::new();
+            bin.insert("name".to_owned(), Value::String("test".to_owned()));
+            bin.insert("path".to_owned(), Value::String("test.rs".to_owned()));
+            bin
+        };
+        for manifest_path in &self.manifest_paths {
+            let mut manifest: Manifest = {
+                let mut buf = String::new();
+                let mut file = File::open(manifest_path)?;
+                file.read_to_string(&mut buf)?;
+                ::toml::from_str(&buf)?
+            };
+            manifest.bin = Some(vec![bin.clone()]);
+            // provide lib.path
+            manifest.lib.as_mut().map(|lib| {
+                lib.insert("path".to_owned(), Value::String("test_lib.rs".to_owned()));
+            });
+            let package_name = manifest.name();
+            let features = manifest.features.clone();
+            Self::manipulate_dependencies(&mut manifest, &|deps| {
+                self.update_version_and_feature(deps, &features, workspace, &package_name, true)
+            })?;
             Self::write_manifest(&manifest, manifest_path)?;
         }
 
@@ -262,27 +268,187 @@ impl<'tmp> TempProject<'tmp> {
         Ok(())
     }
 
-    fn replace_version_with_wildcard(dependencies: &mut Table) {
+    fn find_update(
+        &self,
+        name: &str,
+        dependent_package_name: &str,
+        requirement: &str,
+        workspace: &ElaborateWorkspace,
+        find_latest: bool,
+    ) -> CargoResult<Summary> {
+        let package_id = workspace.find_direct_dependency(name, dependent_package_name)?;
+        let source_id = package_id.source_id();
+        let mut source = source_id.load(&self.config)?;
+        let dependency = Dependency::parse_no_deprecated(name, None, source_id)?;
+        let query_result = source.query_vec(&dependency)?;
+        let version_req = VersionReq::parse(requirement)?;
+        let summaries: BTreeMap<&Version, &Summary> = query_result
+            .iter()
+            .filter(|&summary| if find_latest {
+                self.options.flag_aggressive || valid_latest_version(requirement, summary.version())
+            } else {
+                version_req.matches(summary.version())
+            })
+            .map(|summary| (summary.version(), summary))
+            .collect();
+        Ok(
+            summaries
+                .values()
+                .last()
+                .cloned()
+                .expect(&format!(
+                    "Cannot find matched versions of package {} from source {}",
+                    name,
+                    source_id
+                ))
+                .clone(),
+        )
+    }
+
+    fn feature_includes(&self, name: &str, optional: bool, features_table: &Option<Value>) -> bool {
+        if self.options.flag_all_features {
+            return true;
+        }
+        if !optional
+            && self.options
+                .flag_features
+                .contains(&String::from("default"))
+        {
+            return true;
+        }
+        let features_table = match *features_table {
+            Some(Value::Table(ref features_table)) => features_table,
+            _ => return false,
+        };
+        let mut to_resolve: Vec<&str> = self.options
+            .flag_features
+            .iter()
+            .filter(|f| !f.is_empty())
+            .map(String::as_str)
+            .collect();
+        let mut visited: HashSet<&str> = HashSet::new();
+        while let Some(feature) = to_resolve.pop() {
+            if feature == name {
+                return true;
+            }
+            if visited.contains(feature) {
+                continue;
+            }
+            visited.insert(feature);
+            if features_table.contains_key(feature) {
+                let specified_features = match features_table.get(feature) {
+                    None => panic!("Feature {} does not exist", feature),
+                    Some(&Value::Array(ref specified_features)) => specified_features,
+                    _ => panic!("Feature {} is not mapped to an array", feature),
+                };
+                for spec in specified_features {
+                    if let Value::String(ref spec) = *spec {
+                        to_resolve.push(spec.as_str());
+                    }
+                }
+            }
+        }
+        false
+    }
+
+    fn update_version_and_feature(
+        &self,
+        dependencies: &mut Table,
+        features: &Option<Value>,
+        workspace: &ElaborateWorkspace,
+        package_name: &str,
+        version_to_latest: bool,
+    ) -> CargoResult<()> {
         let dep_names: Vec<_> = dependencies.keys().cloned().collect();
         for name in dep_names {
             let original = dependencies.get(&name).cloned().unwrap();
             match original {
-                Value::String(_) => {
-                    dependencies.insert(name, Value::String("*".to_owned()));
-                }
+                Value::String(requirement) => if version_to_latest {
+                    dependencies.insert(
+                        name.clone(),
+                        Value::String(
+                            self.find_update(
+                                &name,
+                                package_name,
+                                &requirement,
+                                workspace,
+                                version_to_latest,
+                            )?
+                                .version()
+                                .to_string(),
+                        ),
+                    );
+                },
                 Value::Table(ref t) => {
-                    if t.contains_key("path") {
+                    if t.contains_key("path") || !t.contains_key("version")
+                        || !(version_to_latest || t.contains_key("features"))
+                    {
+                        continue;
+                    }
+                    let optional = t.get("optional")
+                        .map(|optional| if let Value::Boolean(optional) = *optional {
+                            optional
+                        } else {
+                            false
+                        })
+                        .unwrap_or(false);
+                    if !self.feature_includes(&name, optional, features) {
                         continue;
                     }
                     let mut replaced = t.clone();
-                    if replaced.contains_key("version") {
-                        replaced.insert("version".to_owned(), Value::String("*".to_owned()));
+                    let requirement = match replaced["version"] {
+                        Value::String(ref requirement) => requirement.clone(),
+                        _ => panic!("Version of {} is not a string", name),
+                    };
+                    let summary = self.find_update(
+                        &name,
+                        package_name,
+                        &requirement,
+                        workspace,
+                        version_to_latest,
+                    )?;
+                    if version_to_latest {
+                        replaced.insert(
+                            "version".to_owned(),
+                            Value::String(summary.version().to_string()),
+                        );
                     }
-                    dependencies.insert(name, Value::Table(replaced));
+                    if replaced.contains_key("features") {
+                        let features = match replaced.get("features") {
+                            Some(&Value::Array(ref features)) => features
+                                .iter()
+                                .filter(|&feature| {
+                                    let feature = match *feature {
+                                        Value::String(ref feature) => feature,
+                                        _ => panic!(
+                                            "Features section of {} is not an array of strings",
+                                            name
+                                        ),
+                                    };
+                                    let retained = summary.features().contains_key(feature);
+                                    if !retained {
+                                        self.warn(format!(
+                                            "Feature {} of package {} \
+                                             has been obsolete in version {}",
+                                            feature,
+                                            name,
+                                            summary.version()
+                                        )).unwrap();
+                                    }
+                                    retained
+                                })
+                                .cloned()
+                                .collect::<Vec<Value>>(),
+                            _ => panic!("Features section of {} is not an array", name),
+                        };
+                        replaced.insert("features".to_owned(), Value::Array(features));
+                    }
+                    dependencies.insert(name.clone(), Value::Table(replaced));
                 }
                 _ => panic!("Dependency spec is neither a string nor a table {}", name),
             }
         }
+        Ok(())
     }
 
     fn replace_path_with_absolute(
@@ -290,7 +456,7 @@ impl<'tmp> TempProject<'tmp> {
         orig_root: &Path,
         tmp_root: &Path,
         tmp_manifest: &Path,
-    ) {
+    ) -> CargoResult<()> {
         let dep_names: Vec<_> = dependencies.keys().cloned().collect();
         for name in dep_names {
             let original = dependencies.get(&name).cloned().unwrap();
@@ -313,8 +479,7 @@ impl<'tmp> TempProject<'tmp> {
                                 replaced.insert(
                                     "path".to_owned(),
                                     Value::String(
-                                        fs::canonicalize(orig_root.join(relative))
-                                            .unwrap()
+                                        fs::canonicalize(orig_root.join(relative))?
                                             .to_string_lossy()
                                             .to_string(),
                                     ),
@@ -327,6 +492,21 @@ impl<'tmp> TempProject<'tmp> {
                 _ => {}
             }
         }
+        Ok(())
+    }
+
+    fn warn<T: ::std::fmt::Display>(&self, message: T) -> CargoResult<()> {
+        let original_verbosity = self.config.shell().verbosity();
+        self.config
+            .shell()
+            .set_verbosity(if self.options.flag_quiet {
+                Verbosity::Quiet
+            } else {
+                Verbosity::Normal
+            });
+        self.config.shell().warn(message)?;
+        self.config.shell().set_verbosity(original_verbosity);
+        Ok(())
     }
 }
 
@@ -374,4 +554,29 @@ fn manifest_paths(elab: &ElaborateWorkspace) -> CargoResult<Vec<PathBuf>> {
     }
 
     Ok(manifest_paths)
+}
+
+fn valid_latest_version(requirement: &str, version: &Version) -> bool {
+    match (requirement.contains('-'), version.is_prerelease()) {
+        // if user was on a stable channel, it's unlikely for him to update to an unstable one
+        (false, true) => false,
+        // both are stable, leave for further filters
+        // ...or...
+        // user was on an unstable one, newer stable ones are still candidates
+        (false, false) | (true, false) => true,
+        // both are unstable, must be in the same channel
+        (true, true) => {
+            let requirement_channel = {
+                let pre = requirement.split(&['-', '+'][..]).nth(1).unwrap();
+                pre.trim_matches(|c| !char::is_alphabetic(c))
+            };
+            match (requirement_channel.is_empty(), &version.pre[0]) {
+                (true, &Identifier::Numeric(_)) => true,
+                (false, &Identifier::AlphaNumeric(ref pre)) => {
+                    requirement_channel == pre.trim_matches(char::is_numeric)
+                }
+                _ => false,
+            }
+        }
+    }
 }

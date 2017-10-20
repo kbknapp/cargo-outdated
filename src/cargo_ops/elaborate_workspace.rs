@@ -107,6 +107,38 @@ impl<'ela> ElaborateWorkspace<'ela> {
         )))
     }
 
+    /// Find a contained package, which is a member or dependency inside the workspace
+    fn find_contained_package(&self, name: &str) -> CargoResult<PackageId> {
+        let root_path = self.workspace.root();
+        for (pkg_id, pkg) in &self.pkgs {
+            if pkg.manifest_path().starts_with(root_path) && pkg.name() == name {
+                return Ok(pkg_id.clone());
+            }
+        }
+        Err(CargoError::from_kind(CargoErrorKind::Msg(
+            format!("Cannot find package {} in workspace", name),
+        )))
+    }
+
+    /// Find a direct dependency of a contained package
+    pub fn find_direct_dependency(
+        &self,
+        dependency_name: &str,
+        dependent_package_name: &str,
+    ) -> CargoResult<PackageId> {
+        let dependent_package = self.find_contained_package(dependent_package_name)?;
+        for direct_dep in self.pkg_deps[&dependent_package].keys() {
+            if direct_dep.name() == dependency_name {
+                return Ok(direct_dep.clone());
+            }
+        }
+        Err(CargoError::from_kind(CargoErrorKind::Msg(format!(
+            "Direct dependency {} not found for package {}",
+            dependency_name,
+            dependent_package_name
+        ))))
+    }
+
     /// Resolve compatible and latest status from the corresponding `ElaborateWorkspace`s
     pub fn resolve_status(
         &mut self,
