@@ -1,4 +1,23 @@
 <a name="v0.5.3"></a>
+## v0.6.0 (2017-10-21)
+
+#### Improvements
+
+*   Queries [`crates.io`](https://crates.io) API for new versions with a channel-aware policy for latest ones (can be ignored by `--aggressive`) (closes [#75](https://github.com/kbknapp/cargo-outdated/issues/75), [7d57929](https://github.com/kbknapp/cargo-outdated/pull/87/commits/7d5792943fd28e17e57589520818b08b55cb667f))
+
+#### Bug Fixes
+
+*   Queries [`crates.io`](https://crates.io) API for feature changes to avoid "Package does not have these features" errors and warns user of obsolete features (can be suppressed by `--quiet`) (closes [#84](https://github.com/kbknapp/cargo-outdated/issues/84), [7d57929](https://github.com/kbknapp/cargo-outdated/pull/87/commits/7d5792943fd28e17e57589520818b08b55cb667f))
+
+#### Documentation
+
+*   Updates dependency graph in `README.md` (closes [#86](https://github.com/kbknapp/cargo-outdated/issues/86), [cf773eb](https://github.com/kbknapp/cargo-outdated/pull/88/commits/cf773eb1643ee4770dc107579f668ea2a5fd6d3a))
+
+#### Others
+
+*   Updates `cargo` to `0.22.0` ([29ce666](https://github.com/kbknapp/cargo-outdated/pull/85/commits/29ce6661cab50dcc9624d0a02be0facf4d5da067))
+
+<a name="v0.5.3"></a>
 ## v0.5.3 (2017-10-10)
 
 #### Improvements
