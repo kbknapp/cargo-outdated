@@ -97,11 +97,13 @@ USAGE:
     cargo outdated [FLAGS] [OPTIONS]
 
 FLAGS:
+    -a, --aggressive             Ignores channels for latest updates
     -h, --help                   Prints help information
+    -q, --quiet                  Suppresses warnings
     -R, --root-deps-only         Only check root dependencies (Equivalent to --depth=1)
     -V, --version                Prints version information
     -v, --verbose                Use verbose output
-    -w, --workspace              Check updates for all workspace members
+    -w, --workspace              Checks updates for all workspace members
                                  rather than only the root package
 
 OPTIONS:
