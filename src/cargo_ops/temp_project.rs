@@ -36,7 +36,8 @@ impl<'tmp> TempProject<'tmp> {
         options: &'tmp Options,
     ) -> CargoResult<TempProject<'tmp>> {
         // e.g. /path/to/project
-        let workspace_root = orig_workspace.workspace.root().to_string_lossy();
+        let workspace_root = orig_workspace.workspace.root();
+        let workspace_root_str = workspace_root.to_string_lossy();
 
         let temp_dir = TempDir::new("cargo-outdated")?;
         let manifest_paths = manifest_paths(orig_workspace)?;
@@ -45,19 +46,21 @@ impl<'tmp> TempProject<'tmp> {
             // e.g. /path/to/project/src/sub
             let mut from_dir = from.clone();
             from_dir.pop();
-            let from_dir = from_dir.to_string_lossy();
+            let from_dir_str = from_dir.to_string_lossy();
             // e.g. /tmp/cargo.xxx/src/sub
-            let mut dest = PathBuf::from(format!(
-                "{}/{}",
-                temp_dir.path().to_string_lossy(),
-                &from_dir[workspace_root.len()..]
-            ));
+            let mut dest = if workspace_root_str.len() < from_dir_str.len() {
+                temp_dir
+                    .path()
+                    .join(&from_dir_str[workspace_root_str.len() + 1..])
+            } else {
+                temp_dir.path().to_owned()
+            };
             fs::create_dir_all(&dest)?;
             // e.g. /tmp/cargo.xxx/src/sub/Cargo.toml
             dest.push("Cargo.toml");
             tmp_manifest_paths.push(dest.clone());
             fs::copy(from, &dest)?;
-            let lockfile = PathBuf::from(format!("{}/Cargo.lock", from_dir));
+            let lockfile = from_dir.join("Cargo.lock");
             if lockfile.is_file() {
                 dest.pop();
                 dest.push("Cargo.lock");
@@ -66,29 +69,18 @@ impl<'tmp> TempProject<'tmp> {
         }
 
         // virtual root
-        let mut virtual_root = PathBuf::from(format!("{}/Cargo.toml", workspace_root));
+        let mut virtual_root = workspace_root.join("Cargo.toml");
         if !manifest_paths.contains(&virtual_root) && virtual_root.is_file() {
-            fs::copy(
-                &virtual_root,
-                format!("{}/Cargo.toml", temp_dir.path().to_string_lossy()),
-            )?;
+            fs::copy(&virtual_root, temp_dir.path().join("Cargo.toml"))?;
             virtual_root.pop();
             virtual_root.push("Cargo.lock");
             if virtual_root.is_file() {
-                fs::copy(
-                    &virtual_root,
-                    format!("{}/Cargo.lock", temp_dir.path().to_string_lossy()),
-                )?;
+                fs::copy(&virtual_root, temp_dir.path().join("Cargo.lock"))?;
             }
         }
 
-        let relative_manifest =
-            String::from(&orig_manifest[orig_workspace.workspace.root().to_string_lossy().len()..]);
-        let config = Self::generate_config(
-            &temp_dir.path().to_string_lossy(),
-            &relative_manifest,
-            options,
-        )?;
+        let relative_manifest = String::from(&orig_manifest[workspace_root_str.len() + 1..]);
+        let config = Self::generate_config(temp_dir.path(), &relative_manifest, options)?;
         Ok(TempProject {
             workspace: Rc::new(RefCell::new(None)),
             temp_dir: temp_dir,
@@ -100,7 +92,7 @@ impl<'tmp> TempProject<'tmp> {
     }
 
     fn generate_config(
-        root: &str,
+        root: &Path,
         relative_manifest: &str,
         options: &Options,
     ) -> CargoResult<Config> {
@@ -112,7 +104,7 @@ impl<'tmp> TempProject<'tmp> {
             "Cargo couldn't find your home directory. \
              This probably means that $HOME was not set."
         })?;
-        let mut cwd = PathBuf::from(format!("{}/{}", root, relative_manifest));
+        let mut cwd = Path::new(root).join(relative_manifest);
         cwd.pop();
         let config = Config::new(shell, cwd, homedir);
         config.configure(
@@ -220,11 +212,7 @@ impl<'tmp> TempProject<'tmp> {
             })?;
             Self::write_manifest(&manifest, manifest_path)?;
         }
-        let root_manifest = format!(
-            "{}/{}",
-            self.temp_dir.path().to_string_lossy(),
-            self.relative_manifest
-        );
+        let root_manifest = self.temp_dir.path().join(&self.relative_manifest);
         *self.workspace.borrow_mut() =
             Some(Workspace::new(Path::new(&root_manifest), &self.config)?);
         Ok(())
@@ -258,11 +246,7 @@ impl<'tmp> TempProject<'tmp> {
             Self::write_manifest(&manifest, manifest_path)?;
         }
 
-        let root_manifest = format!(
-            "{}/{}",
-            self.temp_dir.path().to_string_lossy(),
-            self.relative_manifest
-        );
+        let root_manifest = self.temp_dir.path().join(&self.relative_manifest);
         *self.workspace.borrow_mut() =
             Some(Workspace::new(Path::new(&root_manifest), &self.config)?);
         Ok(())
