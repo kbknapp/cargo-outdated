@@ -272,22 +272,31 @@ impl<'tmp> TempProject<'tmp> {
         &self,
         name: &str,
         dependent_package_name: &str,
-        requirement: &str,
+        requirement: Option<&str>,
         workspace: &ElaborateWorkspace,
         find_latest: bool,
     ) -> CargoResult<Summary> {
         let package_id = workspace.find_direct_dependency(name, dependent_package_name)?;
         let source_id = package_id.source_id();
         let mut source = source_id.load(&self.config)?;
+        if !source_id.is_default_registry() {
+            source.update()?;
+        }
         let dependency = Dependency::parse_no_deprecated(name, None, source_id)?;
         let query_result = source.query_vec(&dependency)?;
-        let version_req = VersionReq::parse(requirement)?;
+        let version_req = match requirement {
+            Some(requirement) => Some(VersionReq::parse(requirement)?),
+            None => None,
+        };
         let summaries: BTreeMap<&Version, &Summary> = query_result
             .iter()
-            .filter(|&summary| if find_latest {
-                self.options.flag_aggressive || valid_latest_version(requirement, summary.version())
+            .filter(|&summary| if version_req.is_none() {
+                true
+            } else if find_latest {
+                self.options.flag_aggressive
+                    || valid_latest_version(requirement.unwrap(), summary.version())
             } else {
-                version_req.matches(summary.version())
+                version_req.as_ref().unwrap().matches(summary.version())
             })
             .map(|summary| (summary.version(), summary))
             .collect();
@@ -370,7 +379,7 @@ impl<'tmp> TempProject<'tmp> {
                             self.find_update(
                                 &name,
                                 package_name,
-                                &requirement,
+                                Some(requirement.as_str()),
                                 workspace,
                                 version_to_latest,
                             )?
@@ -380,9 +389,7 @@ impl<'tmp> TempProject<'tmp> {
                     );
                 },
                 Value::Table(ref t) => {
-                    if t.contains_key("path") || !t.contains_key("version")
-                        || !(version_to_latest || t.contains_key("features"))
-                    {
+                    if !(version_to_latest || t.contains_key("features")) {
                         continue;
                     }
                     let optional = t.get("optional")
@@ -396,18 +403,19 @@ impl<'tmp> TempProject<'tmp> {
                         continue;
                     }
                     let mut replaced = t.clone();
-                    let requirement = match replaced["version"] {
-                        Value::String(ref requirement) => requirement.clone(),
-                        _ => panic!("Version of {} is not a string", name),
+                    let requirement = match t.get("version") {
+                        Some(&Value::String(ref requirement)) => Some(requirement.as_str()),
+                        Some(_) => panic!("Version of {} is not a string", name),
+                        _ => None,
                     };
                     let summary = self.find_update(
                         &name,
                         package_name,
-                        &requirement,
+                        requirement,
                         workspace,
                         version_to_latest,
                     )?;
-                    if version_to_latest {
+                    if version_to_latest && t.contains_key("version") {
                         replaced.insert(
                             "version".to_owned(),
                             Value::String(summary.version().to_string()),
