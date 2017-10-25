@@ -1,6 +1,6 @@
 [root]
 name = "cargo-outdated"
-version = "0.6.0"
+version = "0.6.1"
 dependencies = [
  "cargo 0.22.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "clap 2.27.0 (registry+https://github.com/rust-lang/crates.io-index)",
