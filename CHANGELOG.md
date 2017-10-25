@@ -1,4 +1,20 @@
-<a name="v0.5.3"></a>
+<a name="v0.6.1"></a>
+## v0.6.1 (2017-10-25)
+
+#### Bug Fixes
+
+*   Fixes `--exit-code`, `--color` (upstream) (closes [#63](https://github.com/kbknapp/cargo-outdated/issues/63), [4d4b6a8](https://github.com/kbknapp/cargo-outdated/pull/90/commits/4d4b6a85b9a6e2c212683eee35efc421188c2051))
+*   Calls `Source::update()` on non-default sources before `Registry::query()` (closes [#91](https://github.com/kbknapp/cargo-outdated/issues/91), [9e7b774](https://github.com/kbknapp/cargo-outdated/pull/93/commits/9e7b774b833c38e4b9ea842b205348ab2576034d))
+
+#### Performance
+
+*   Replaces `format!()` with `Path.join()` (closes [#73](https://github.com/kbknapp/cargo-outdated/issues/73), [4d28c02](https://github.com/kbknapp/cargo-outdated/pull/94/commits/4d28c028fcd7cfce42df7e9223858ad5b046c9e7))
+
+#### Tests
+
+*   Runs Travis CI only on `master` to avoid redundant builds
+
+<a name="v0.6.0"></a>
 ## v0.6.0 (2017-10-21)
 
 #### Improvements
