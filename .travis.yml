@@ -6,6 +6,9 @@ rust:
 matrix:
   allow_failures:
     - rust: nightly
+branches:
+  only:
+    - master
 script:
   - |
       cargo build
