@@ -219,7 +219,12 @@ impl<'tmp> TempProject<'tmp> {
     }
 
     /// Write manifests with wildcard requirements
-    pub fn write_manifest_latest(&'tmp self, workspace: &ElaborateWorkspace) -> CargoResult<()> {
+    pub fn write_manifest_latest<P: AsRef<Path>>(
+        &'tmp self,
+        orig_root: P,
+        tmp_root: P,
+        workspace: &ElaborateWorkspace,
+    ) -> CargoResult<()> {
         let bin = {
             let mut bin = Table::new();
             bin.insert("name".to_owned(), Value::String("test".to_owned()));
@@ -238,6 +243,14 @@ impl<'tmp> TempProject<'tmp> {
             manifest.lib.as_mut().map(|lib| {
                 lib.insert("path".to_owned(), Value::String("test_lib.rs".to_owned()));
             });
+            Self::manipulate_dependencies(&mut manifest, &|deps| {
+                Self::replace_path_with_absolute(
+                    deps,
+                    orig_root.as_ref(),
+                    tmp_root.as_ref(),
+                    manifest_path,
+                )
+            })?;
             let package_name = manifest.name();
             let features = manifest.features.clone();
             Self::manipulate_dependencies(&mut manifest, &|deps| {
