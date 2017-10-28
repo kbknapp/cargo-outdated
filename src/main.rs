@@ -306,7 +306,11 @@ pub fn execute(options: Options, config: &Config) -> CargoResult<i32> {
     verbose!(config, "Parsing...", "latest workspace");
     let latest_proj =
         TempProject::from_workspace(&ela_curr, &curr_manifest.to_string_lossy(), &options)?;
-    latest_proj.write_manifest_latest(&ela_curr)?;
+    latest_proj.write_manifest_latest(
+        curr_workspace.root(),
+        compat_proj.temp_dir.path(),
+        &ela_curr,
+    )?;
     verbose!(config, "Updating...", "latest workspace");
     latest_proj.cargo_update()?;
     verbose!(config, "Resolving...", "latest workspace");
