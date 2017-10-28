@@ -1,3 +1,10 @@
+<a name="v0.6.2"></a>
+## v0.6.2 (2017-10-28)
+
+#### Bug Fixes
+
+*   Replaces relative paths with absolute ones in latest manifests (closes [#96](https://github.com/kbknapp/cargo-outdated/issues/96), [ec431cd](https://github.com/kbknapp/cargo-outdated/pull/97/commits/ec431cd1bfe6680b4ccd89703c05a9840874c1ae))
+
 <a name="v0.6.1"></a>
 ## v0.6.1 (2017-10-25)
 
