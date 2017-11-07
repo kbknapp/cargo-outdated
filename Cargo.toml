@@ -16,7 +16,11 @@ license = "MIT"
 name = "cargo-outdated"
 readme = "README.md"
 repository = "https://github.com/kbknapp/cargo-outdated.git"
-version = "0.6.2"
+version = "0.6.3"
+categories = ["development-tools", "development-tools::cargo-plugins"]
+
+[badges]
+travis-ci = {repository = "kbknapp/cargo-outdated"}
 
 [[bin]]
 name = "cargo-outdated"
