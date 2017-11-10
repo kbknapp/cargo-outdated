@@ -1,6 +1,6 @@
 # cargo-outdated
 
-[![Join the chat at https://gitter.im/kbknapp/cargo-outdated](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/kbknapp/cargo-outdated?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+[![Join the chat at https://gitter.im/kbknapp/cargo-outdated](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/kbknapp/cargo-outdated?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge) [![crates.io](https://img.shields.io/crates/v/cargo-outdated.svg)](https://crates.io/crates/cargo-outdated)
 Linux: [![Build Status](https://travis-ci.org/kbknapp/cargo-outdated.svg?branch=master)](https://travis-ci.org/kbknapp/cargo-outdated)
 
 A cargo subcommand for displaying when Rust dependencies are out of date
