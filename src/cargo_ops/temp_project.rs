@@ -565,7 +565,7 @@ fn manifest_paths(elab: &ElaborateWorkspace) -> CargoResult<Vec<PathBuf>> {
 
     // executed against a virtual manifest
     let workspace_path = elab.workspace.root().to_string_lossy();
-    // if cargo workspace is not explicitly used, the pacakge itself would be a member
+    // if cargo workspace is not explicitly used, the package itself would be a member
     for member in elab.workspace.members() {
         let root_pkg_id = member.package_id();
         manifest_paths_recursive(
