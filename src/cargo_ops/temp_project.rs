@@ -287,13 +287,15 @@ impl<'tmp> TempProject<'tmp> {
         };
         let summaries: BTreeMap<&Version, &Summary> = query_result
             .iter()
-            .filter(|&summary| if version_req.is_none() {
-                true
-            } else if find_latest {
-                self.options.flag_aggressive
-                    || valid_latest_version(requirement.unwrap(), summary.version())
-            } else {
-                version_req.as_ref().unwrap().matches(summary.version())
+            .filter(|&summary| {
+                if version_req.is_none() {
+                    true
+                } else if find_latest {
+                    self.options.flag_aggressive
+                        || valid_latest_version(requirement.unwrap(), summary.version())
+                } else {
+                    version_req.as_ref().unwrap().matches(summary.version())
+                }
             })
             .map(|summary| (summary.version(), summary))
             .collect();
@@ -390,10 +392,12 @@ impl<'tmp> TempProject<'tmp> {
                         continue;
                     }
                     let optional = t.get("optional")
-                        .map(|optional| if let Value::Boolean(optional) = *optional {
-                            optional
-                        } else {
-                            false
+                        .map(|optional| {
+                            if let Value::Boolean(optional) = *optional {
+                                optional
+                            } else {
+                                false
+                            }
                         })
                         .unwrap_or(false);
                     if !self.feature_includes(&name, optional, features) {

@@ -11,8 +11,7 @@ pub use self::elaborate_workspace::ElaborateWorkspace;
 /// A continent struct for quick parsing and manipulating manifest
 #[derive(Debug, Serialize, Deserialize)]
 struct Manifest {
-    #[serde(serialize_with = "::toml::ser::tables_last")]
-    pub package: Table,
+    #[serde(serialize_with = "::toml::ser::tables_last")] pub package: Table,
     #[serde(skip_serializing_if = "Option::is_none", serialize_with = "opt_tables_last")]
     pub dependencies: Option<Table>,
     #[serde(rename = "dev-dependencies", skip_serializing_if = "Option::is_none",
