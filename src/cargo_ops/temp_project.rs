@@ -434,7 +434,8 @@ impl<'tmp> TempProject<'tmp> {
                                             name
                                         ),
                                     };
-                                    let retained = summary.features().contains_key(feature);
+                                    let retained =
+                                        features_and_options(&summary).contains(feature.as_str());
                                     if !retained {
                                         self.warn(format!(
                                             "Feature {} of package {} \
@@ -517,6 +518,20 @@ impl<'tmp> TempProject<'tmp> {
         self.config.shell().set_verbosity(original_verbosity);
         Ok(())
     }
+}
+
+/// Features and optional dependencies of a Summary
+fn features_and_options(summary: &Summary) -> HashSet<&str> {
+    let mut result: HashSet<&str> = summary.features().keys().map(String::as_str).collect();
+    summary
+        .dependencies()
+        .iter()
+        .filter(|d| d.is_optional())
+        .map(Dependency::name)
+        .for_each(|d| {
+            result.insert(d);
+        });
+    result
 }
 
 /// Paths of all manifest files in current workspace
