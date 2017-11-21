@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 use std::fs::{self, File};
 use std::io::{Read, Write};
-use std::collections::{BTreeMap, HashSet};
+use std::collections::HashSet;
 use std::env;
 use std::rc::Rc;
 use std::cell::RefCell;
@@ -274,21 +274,28 @@ impl<'tmp> TempProject<'tmp> {
         find_latest: bool,
     ) -> CargoResult<Summary> {
         let package_id = workspace.find_direct_dependency(name, dependent_package_name)?;
-        let source_id = package_id.source_id();
+        let version = package_id.version();
+        let source_id = package_id.source_id().with_precise(None);
         let mut source = source_id.load(&self.config)?;
         if !source_id.is_default_registry() {
             source.update()?;
         }
-        let dependency = Dependency::parse_no_deprecated(name, None, source_id)?;
-        let query_result = source.query_vec(&dependency)?;
+        let dependency = Dependency::parse_no_deprecated(name, None, &source_id)?;
+        let query_result = {
+            let mut query_result = source.query_vec(&dependency)?;
+            query_result.sort_by(|a, b| b.version().cmp(a.version()));
+            query_result
+        };
         let version_req = match requirement {
             Some(requirement) => Some(VersionReq::parse(requirement)?),
             None => None,
         };
-        let summaries: BTreeMap<&Version, &Summary> = query_result
+        let latest_result = query_result
             .iter()
-            .filter(|&summary| {
-                if version_req.is_none() {
+            .find(|summary| {
+                if summary.version() < version {
+                    false
+                } else if version_req.is_none() {
                     true
                 } else if find_latest {
                     self.options.flag_aggressive
@@ -297,20 +304,12 @@ impl<'tmp> TempProject<'tmp> {
                     version_req.as_ref().unwrap().matches(summary.version())
                 }
             })
-            .map(|summary| (summary.version(), summary))
-            .collect();
-        Ok(
-            summaries
-                .values()
-                .last()
-                .cloned()
-                .expect(&format!(
-                    "Cannot find matched versions of package {} from source {}",
-                    name,
-                    source_id
-                ))
-                .clone(),
-        )
+            .expect(&format!(
+                "Cannot find matched versions of package {} from source {}",
+                name,
+                source_id
+            ));
+        Ok(latest_result.clone())
     }
 
     fn feature_includes(&self, name: &str, optional: bool, features_table: &Option<Value>) -> bool {
