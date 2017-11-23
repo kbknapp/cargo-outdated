@@ -281,7 +281,7 @@ pub fn execute(options: Options, config: &Config) -> CargoResult<i32> {
     if options.flag_verbose == 0 {
         config.shell().set_verbosity(Verbosity::Quiet);
     }
-    let mut ela_curr = ElaborateWorkspace::from_workspace(&curr_workspace, &options)?;
+    let ela_curr = ElaborateWorkspace::from_workspace(&curr_workspace, &options)?;
     if options.flag_verbose > 0 {
         config.shell().set_verbosity(Verbosity::Verbose);
     } else {
@@ -338,9 +338,9 @@ pub fn execute(options: Options, config: &Config) -> CargoResult<i32> {
     } else {
         verbose!(config, "Resolving...", "package status");
         let root = ela_curr.determine_root(&options)?;
-        ela_curr.resolve_status(&ela_compat, &ela_latest, &options, config, &root)?;
+        ela_curr.resolve_status(&ela_compat, &ela_latest, &options, config, root)?;
         verbose!(config, "Printing...", "list format");
-        let count = ela_curr.print_list(&options, &root, false)?;
+        let count = ela_curr.print_list(&options, root, false)?;
         Ok(count)
     }
 }
