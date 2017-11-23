@@ -1,3 +1,32 @@
+<a name="v0.7.0"></a>
+## v0.7.0 (2017-11-23)
+
+#### Bug Fixes
+
+*   Treats optional dependencies as features as well (closes [#100](https://github.com/kbknapp/cargo-outdated/issues/100), [f67634f](https://github.com/kbknapp/cargo-outdated/pull/107/commits/f67634f1ccda77a1ff86e72d6f0e32e6c94ee717))
+*   Filters yanked packages out from candidates (closes [#101](https://github.com/kbknapp/cargo-outdated/issues/101), [c42a4ef](https://github.com/kbknapp/cargo-outdated/pull/109/commits/c42a4ef33e6242c26b94017be2e6dee3136072f3))
+*   Rewrites the algorithm of dependency tree comparison (closes [#105](https://github.com/kbknapp/cargo-outdated/issues/105), [5cd414a](https://github.com/kbknapp/cargo-outdated/pull/111/commits/5cd414aa766b5d7ca1bc8ec8687d8af91878116c))
+
+#### Improvements
+
+*   Uses [`docopt`](https://crates.io/crates/docopt) instead of [`clap`](https://crates.io/crates/clap) to make `cargo-outdated` more native (closes [#110](https://github.com/kbknapp/cargo-outdated/issues/110), [71cd8ed](https://github.com/kbknapp/cargo-outdated/pull/112/commits/71cd8edb693fef2c24df352ff8d087fd06c4ce4e), [9497bd8](https://github.com/kbknapp/cargo-outdated/pull/114/commits/9497bd8d9b365db234f2ce02b3f7cd988752931a))
+
+#### Documentation
+
+*   Adds crates.io version badge to readme ([7e64221](https://github.com/kbknapp/cargo-outdated/pull/104/commits/7e64221c30fbbcc5e9dcfacf12537ba3ac28207c))
+*   Removes dependency graph from readme ([3792687](https://github.com/kbknapp/cargo-outdated/pull/113/commits/37926871132de526519ddbd39790d357bc5ce28a))
+
+<a name="v0.6.3"></a>
+## v0.6.3 (2017-11-07)
+
+#### Documentation
+
+*   Adds a CONTRIBUTORS.md and a just target to update it ([062845e](https://github.com/kbknapp/cargo-outdated/pull/102/commits/062845e6a9e54c31a9bfe42307115e80decf47b2))
+
+#### Others
+
+*   Adds crates.io categories and badges ([e99f31d](https://github.com/kbknapp/cargo-outdated/pull/102/commits/e99f31d39b0429c1405eff7e93b9310deeebc56d))
+
 <a name="v0.6.2"></a>
 ## v0.6.2 (2017-10-28)
 
