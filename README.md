@@ -93,30 +93,30 @@ Otherwise, ensure you have the `cargo-outdated` binary in the directory which yo
 There are a few options for using `cargo-outdated` which should be somewhat self explanatory.
 
 ```
+Displays information about project dependency versions
+
 USAGE:
-    cargo outdated [FLAGS] [OPTIONS]
+    cargo outdated [options]
 
-FLAGS:
-    -a, --aggressive             Ignores channels for latest updates
-    -h, --help                   Prints help information
-    -q, --quiet                  Suppresses warnings
-    -R, --root-deps-only         Only check root dependencies (Equivalent to --depth=1)
-    -V, --version                Prints version information
-    -v, --verbose                Use verbose output
-    -w, --workspace              Checks updates for all workspace members
-                                 rather than only the root package
-
-OPTIONS:
-        --color <color>           Coloring: auto, always, never [default: auto]
-                                  [values: auto, always, never]
-    -d, --depth <NUM>             How deep in the dependency chain to search
-                                  (Defaults to all dependencies when omitted)
-        --exit-code <NUM>         The exit code to return on new versions found [default: 0]
-        --features <FEATURE>      Space-separated list of features
-    -m, --manifest-path <PATH>    An absolute path to the Cargo.toml file to use
-                                  (Defaults to Cargo.toml in project root)
-    -p, --packages <PKG>...       Package to inspect for updates
-    -r, --root <ROOT>             Package to treat as the root package
+Options:
+    -a, --aggressive            Ignores channels for latest updates
+    -h, --help                  Prints help information
+    -q, --quiet                 Suppresses warnings
+    -R, --root-deps-only        Only check root dependencies (Equivalent to --depth=1)
+    -V, --version               Prints version information
+    -v, --verbose ...           Use verbose output
+    -w, --workspace             Checks updates for all workspace members rather than
+                                only the root package
+        --color COLOR           Coloring: auto, always, never [default: auto]
+                                [values: auto, always, never]
+    -d, --depth NUM             How deep in the dependency chain to search
+                                (Defaults to all dependencies when omitted)
+        --exit-code NUM         The exit code to return on new versions found [default: 0]
+        --features FEATURES     Space-separated list of features
+    -m, --manifest-path FILE    An absolute path to the Cargo.toml file to use
+                                (Defaults to Cargo.toml in project root)
+    -p, --packages PKGS         Packages to inspect for updates
+    -r, --root ROOT             Package to treat as the root package
 ```
 
 ## License

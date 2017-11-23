@@ -45,7 +45,7 @@ Options:
         --features FEATURES     Space-separated list of features
     -m, --manifest-path FILE    An absolute path to the Cargo.toml file to use
                                 (Defaults to Cargo.toml in project root)
-    -p, --packages PKG          Package to inspect for updates
+    -p, --packages PKGS         Packages to inspect for updates
     -r, --root ROOT             Package to treat as the root package
 ";
 
