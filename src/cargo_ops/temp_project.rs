@@ -115,8 +115,8 @@ impl<'tmp> TempProject<'tmp> {
                 Some(true)
             },
             &options.flag_color,
-            options.flag_frozen,
-            options.flag_locked,
+            options.locked(),
+            options.frozen(),
             &[],
         )?;
         Ok(config)
@@ -313,7 +313,7 @@ impl<'tmp> TempProject<'tmp> {
     }
 
     fn feature_includes(&self, name: &str, optional: bool, features_table: &Option<Value>) -> bool {
-        if self.options.flag_all_features {
+        if self.options.all_features() {
             return true;
         }
         if !optional

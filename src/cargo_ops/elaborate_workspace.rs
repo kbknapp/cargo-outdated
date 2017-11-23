@@ -33,8 +33,8 @@ impl<'ela> ElaborateWorkspace<'ela> {
             workspace,
             None,
             &options.flag_features,
-            options.flag_all_features,
-            options.flag_no_default_features,
+            options.all_features(),
+            options.no_default_features(),
             &specs,
         )?;
         let mut pkgs = HashMap::new();
@@ -176,7 +176,7 @@ impl<'ela> ElaborateWorkspace<'ela> {
             );
             self.pkg_status.borrow_mut().insert(path.clone(), status);
             // next layer
-            if options.flag_depth < 0 || depth < options.flag_depth {
+            if options.flag_depth.is_none() || &depth < options.flag_depth.as_ref().unwrap() {
                 self.pkg_deps[pkg]
                     .keys()
                     .filter(|dep| !path.contains(dep))
@@ -255,7 +255,7 @@ impl<'ela> ElaborateWorkspace<'ela> {
                 }
             }
             // next layer
-            if options.flag_depth < 0 || depth < options.flag_depth {
+            if options.flag_depth.is_none() || &depth < options.flag_depth.as_ref().unwrap() {
                 self.pkg_deps[pkg]
                     .keys()
                     .filter(|dep| !path.contains(dep))
