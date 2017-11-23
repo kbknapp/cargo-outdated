@@ -61,6 +61,7 @@ pub struct Options {
     flag_packages: Vec<String>,
     flag_root: Option<String>,
     flag_depth: Option<i32>,
+    flag_root_deps_only: bool,
     flag_workspace: bool,
     flag_aggressive: bool,
 }
@@ -81,16 +82,25 @@ fn main() {
     env_logger::init().unwrap();
     let options = {
         let mut options: Options = Docopt::new(USAGE)
-            .and_then(|d| d.deserialize())
+            .and_then(|d| {
+                d.version(Some(
+                    concat!(env!("CARGO_PKG_NAME"), " v", env!("CARGO_PKG_VERSION")).to_owned(),
+                )).deserialize()
+            })
             .unwrap_or_else(|e| e.exit());
-        options.flag_features = options
-            .flag_features
-            .iter()
-            .flat_map(|s| s.split_whitespace())
-            .flat_map(|s| s.split(','))
-            .filter(|s| !s.is_empty())
-            .map(|s| s.to_string())
-            .collect();
+        fn flat_split(arg: &[String]) -> Vec<String> {
+            arg.iter()
+                .flat_map(|s| s.split_whitespace())
+                .flat_map(|s| s.split(','))
+                .filter(|s| !s.is_empty())
+                .map(|s| s.to_string())
+                .collect()
+        }
+        options.flag_features = flat_split(&options.flag_features);
+        options.flag_packages = flat_split(&options.flag_packages);
+        if options.flag_root_deps_only {
+            options.flag_depth = Some(1);
+        }
         options
     };
 

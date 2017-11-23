@@ -159,7 +159,7 @@ impl<'ela> ElaborateWorkspace<'ela> {
         queue.push_back((vec![root], Some(compat_root), Some(latest_root)));
         while let Some((path, compat_pkg, latest_pkg)) = queue.pop_front() {
             let pkg = path.last().unwrap();
-            let depth = path.len() as i32;
+            let depth = path.len() as i32 - 1;
             // generate pkg_status
             let status = PkgStatus {
                 compat: Status::from_versions(pkg.version(), compat_pkg.map(|p| p.version())),
@@ -212,7 +212,7 @@ impl<'ela> ElaborateWorkspace<'ela> {
         queue.push_back(vec![root]);
         while let Some(path) = queue.pop_front() {
             let pkg = path.last().unwrap();
-            let depth = path.len() as i32;
+            let depth = path.len() as i32 - 1;
             // generate lines
             let status = &self.pkg_status.borrow_mut()[&path];
             if (status.compat.is_changed() || status.latest.is_changed())
