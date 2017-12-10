@@ -106,7 +106,7 @@ impl<'tmp> TempProject<'tmp> {
         })?;
         let mut cwd = Path::new(root).join(relative_manifest);
         cwd.pop();
-        let config = Config::new(shell, cwd, homedir);
+        let mut config = Config::new(shell, cwd, homedir);
         config.configure(
             0,
             if options.flag_verbose > 0 {
@@ -306,8 +306,7 @@ impl<'tmp> TempProject<'tmp> {
             })
             .expect(&format!(
                 "Cannot find matched versions of package {} from source {}",
-                name,
-                source_id
+                name, source_id
             ));
         Ok(latest_result.clone())
     }

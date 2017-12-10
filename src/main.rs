@@ -104,7 +104,7 @@ fn main() {
         options
     };
 
-    let config = match Config::default() {
+    let mut config = match Config::default() {
         Ok(cfg) => cfg,
         Err(e) => {
             let mut shell = cargo::core::Shell::new();
@@ -112,7 +112,7 @@ fn main() {
         }
     };
     let exit_code = options.flag_exit_code;
-    let result = execute(options, &config);
+    let result = execute(options, &mut config);
     match result {
         Err(e) => {
             config.shell().set_verbosity(Verbosity::Normal);
@@ -129,7 +129,7 @@ fn main() {
 
 #[allow(unknown_lints)]
 #[allow(needless_pass_by_value)]
-pub fn execute(options: Options, config: &Config) -> CargoResult<i32> {
+pub fn execute(options: Options, config: &mut Config) -> CargoResult<i32> {
     config.configure(
         options.flag_verbose,
         None,
