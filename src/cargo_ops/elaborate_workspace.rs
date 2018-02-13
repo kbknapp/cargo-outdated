@@ -99,9 +99,10 @@ impl<'ela> ElaborateWorkspace<'ela> {
                 return Ok(m.package_id());
             }
         }
-        Err(CargoError::from_kind(CargoErrorKind::Msg(
-            format!("Workspace member {} not found", member.name()),
-        )))
+        Err(CargoError::from_kind(CargoErrorKind::Msg(format!(
+            "Workspace member {} not found",
+            member.name()
+        ))))
     }
 
     /// Find a contained package, which is a member or dependency inside the workspace
@@ -112,9 +113,10 @@ impl<'ela> ElaborateWorkspace<'ela> {
                 return Ok(pkg_id.clone());
             }
         }
-        Err(CargoError::from_kind(CargoErrorKind::Msg(
-            format!("Cannot find package {} in workspace", name),
-        )))
+        Err(CargoError::from_kind(CargoErrorKind::Msg(format!(
+            "Cannot find package {} in workspace",
+            name
+        ))))
     }
 
     /// Find a direct dependency of a contained package
@@ -131,8 +133,7 @@ impl<'ela> ElaborateWorkspace<'ela> {
         }
         Err(CargoError::from_kind(CargoErrorKind::Msg(format!(
             "Direct dependency {} not found for package {}",
-            dependency_name,
-            dependent_package_name
+            dependency_name, dependent_package_name
         ))))
     }
 
