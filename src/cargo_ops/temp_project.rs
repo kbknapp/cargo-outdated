@@ -13,6 +13,7 @@ use cargo::util::errors::CargoResultExt;
 use cargo::core::{Dependency, PackageId, Summary, Verbosity, Workspace};
 use cargo::util::{CargoResult, Config};
 use cargo::ops::{update_lockfile, UpdateOptions};
+use failure::err_msg;
 use semver::{Identifier, Version, VersionReq};
 
 use Options;
@@ -100,9 +101,11 @@ impl<'tmp> TempProject<'tmp> {
         let cwd = env::current_dir()
             .chain_err(|| "Cargo couldn't get the current directory of the process")?;
 
-        let homedir = ::cargo::util::homedir(&cwd).ok_or_else(|| {
-            "Cargo couldn't find your home directory. \
-             This probably means that $HOME was not set."
+        let homedir = ::cargo::util::config::homedir(&cwd).ok_or_else(|| {
+            err_msg(
+                "Cargo couldn't find your home directory. \
+                This probably means that $HOME was not set."
+            )
         })?;
         let mut cwd = Path::new(root).join(relative_manifest);
         cwd.pop();

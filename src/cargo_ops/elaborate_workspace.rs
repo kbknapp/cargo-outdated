@@ -4,7 +4,8 @@ use std::collections::{BTreeSet, HashMap, VecDeque};
 
 use cargo::core::{Dependency, Package, PackageId, Workspace};
 use cargo::ops::{self, Packages};
-use cargo::util::{CargoError, CargoErrorKind, CargoResult, Config};
+use cargo::util::{CargoResult, Config};
+use failure::err_msg;
 use tabwriter::TabWriter;
 
 use super::Options;
@@ -76,14 +77,14 @@ impl<'ela> ElaborateWorkspace<'ela> {
                             return Ok(direct_dep);
                         }
                     }
-                    return Err(CargoError::from_kind(CargoErrorKind::Msg(
-                        "Root is neither the workspace root nor a direct dependency".to_owned(),
-                    )));
+                    Err(err_msg(
+                        "Root is neither the workspace root nor a direct dependency",
+                    ))
                 }
             } else {
-                Err(CargoError::from_kind(CargoErrorKind::Msg(
-                    "--root is not allowed when running against a virtual manifest".to_owned(),
-                )))
+                Err(err_msg(
+                    "--root is not allowed when running against a virtual manifest",
+                ))
             }
         } else {
             Ok(self.workspace.current()?.package_id())
@@ -99,10 +100,8 @@ impl<'ela> ElaborateWorkspace<'ela> {
                 return Ok(m.package_id());
             }
         }
-        Err(CargoError::from_kind(CargoErrorKind::Msg(format!(
-            "Workspace member {} not found",
-            member.name()
-        ))))
+
+        Err(format_err!("Workspace member {} not found", member.name()))
     }
 
     /// Find a contained package, which is a member or dependency inside the workspace
@@ -113,10 +112,8 @@ impl<'ela> ElaborateWorkspace<'ela> {
                 return Ok(pkg_id.clone());
             }
         }
-        Err(CargoError::from_kind(CargoErrorKind::Msg(format!(
-            "Cannot find package {} in workspace",
-            name
-        ))))
+
+        Err(format_err!("Cannot find package {} in workspace", name))
     }
 
     /// Find a direct dependency of a contained package
@@ -131,10 +128,10 @@ impl<'ela> ElaborateWorkspace<'ela> {
                 return Ok(direct_dep.clone());
             }
         }
-        Err(CargoError::from_kind(CargoErrorKind::Msg(format!(
-            "Direct dependency {} not found for package {}",
-            dependency_name, dependent_package_name
-        ))))
+
+        Err(format_err!(
+            "Direct dependency {} not found for package {}", dependency_name, dependent_package_name
+        ))
     }
 
     /// Resolve compatible and latest status from the corresponding `ElaborateWorkspace`s
