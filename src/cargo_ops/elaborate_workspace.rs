@@ -174,7 +174,7 @@ impl<'ela> ElaborateWorkspace<'ela> {
             );
             self.pkg_status.borrow_mut().insert(path.clone(), status);
             // next layer
-            if options.flag_depth.is_none() || &depth < options.flag_depth.as_ref().unwrap() {
+            if options.flag_depth.is_none() || depth < options.flag_depth.unwrap() {
                 self.pkg_deps[pkg]
                     .keys()
                     .filter(|dep| !path.contains(dep))
@@ -253,7 +253,7 @@ impl<'ela> ElaborateWorkspace<'ela> {
                 }
             }
             // next layer
-            if options.flag_depth.is_none() || &depth < options.flag_depth.as_ref().unwrap() {
+            if options.flag_depth.is_none() || depth < options.flag_depth.unwrap() {
                 self.pkg_deps[pkg]
                     .keys()
                     .filter(|dep| !path.contains(dep))
