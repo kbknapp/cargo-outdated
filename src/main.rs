@@ -1,4 +1,6 @@
 extern crate cargo;
+#[macro_use]
+extern crate failure;
 extern crate docopt;
 extern crate env_logger;
 extern crate semver;
@@ -79,7 +81,7 @@ impl Options {
 }
 
 fn main() {
-    env_logger::init().unwrap();
+    env_logger::init();
     let options = {
         let mut options: Options = Docopt::new(USAGE)
             .and_then(|d| {
