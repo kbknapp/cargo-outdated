@@ -1,4 +1,6 @@
 extern crate cargo;
+#[macro_use]
+extern crate failure;
 extern crate docopt;
 extern crate env_logger;
 extern crate semver;
@@ -16,10 +18,10 @@ mod macros;
 mod cargo_ops;
 use cargo_ops::{ElaborateWorkspace, TempProject};
 
+use cargo::core::shell::Verbosity;
 use cargo::core::Workspace;
 use cargo::util::important_paths::find_root_manifest_for_wd;
 use cargo::util::{CargoResult, CliError, Config};
-use cargo::core::shell::Verbosity;
 use docopt::Docopt;
 
 pub const USAGE: &str = "
@@ -79,7 +81,7 @@ impl Options {
 }
 
 fn main() {
-    env_logger::init().unwrap();
+    env_logger::init();
     let options = {
         let mut options: Options = Docopt::new(USAGE)
             .and_then(|d| {
@@ -134,16 +136,20 @@ pub fn execute(options: Options, config: &mut Config) -> CargoResult<i32> {
         options.flag_verbose,
         None,
         &options.flag_color,
-        options.locked(),
         options.frozen(),
+        options.locked(),
+        &None,
         &[],
     )?;
     debug!(config, format!("options: {:?}", options));
 
     verbose!(config, "Parsing...", "current workspace");
     // the Cargo.toml that we are actually working on
-    let curr_manifest =
-        find_root_manifest_for_wd(options.flag_manifest_path.clone(), config.cwd())?;
+    let curr_manifest = if let Some(ref manifest_path) = options.flag_manifest_path {
+        manifest_path.into()
+    } else {
+        find_root_manifest_for_wd(config.cwd())?
+    };
     let curr_workspace = Workspace::new(&curr_manifest, config)?;
     verbose!(config, "Resolving...", "current workspace");
     if options.flag_verbose == 0 {

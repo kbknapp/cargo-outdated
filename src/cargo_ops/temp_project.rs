@@ -1,22 +1,23 @@
-use std::path::{Path, PathBuf};
-use std::fs::{self, File};
-use std::io::{Read, Write};
+use std::cell::RefCell;
 use std::collections::HashSet;
 use std::env;
+use std::fs::{self, File};
+use std::io::{Read, Write};
+use std::path::{Path, PathBuf};
 use std::rc::Rc;
-use std::cell::RefCell;
 
-use tempdir::TempDir;
-use toml::Value;
-use toml::value::Table;
-use cargo::util::errors::CargoResultExt;
 use cargo::core::{Dependency, PackageId, Summary, Verbosity, Workspace};
-use cargo::util::{CargoResult, Config};
 use cargo::ops::{update_lockfile, UpdateOptions};
+use cargo::util::errors::CargoResultExt;
+use cargo::util::{CargoResult, Config};
+use failure::err_msg;
 use semver::{Identifier, Version, VersionReq};
+use tempdir::TempDir;
+use toml::value::Table;
+use toml::Value;
 
-use Options;
 use super::{ElaborateWorkspace, Manifest};
+use Options;
 
 /// A temporary project
 pub struct TempProject<'tmp> {
@@ -101,8 +102,10 @@ impl<'tmp> TempProject<'tmp> {
             .chain_err(|| "Cargo couldn't get the current directory of the process")?;
 
         let homedir = ::cargo::util::homedir(&cwd).ok_or_else(|| {
-            "Cargo couldn't find your home directory. \
-             This probably means that $HOME was not set."
+            err_msg(
+                "Cargo couldn't find your home directory. \
+                 This probably means that $HOME was not set.",
+            )
         })?;
         let mut cwd = Path::new(root).join(relative_manifest);
         cwd.pop();
@@ -115,8 +118,9 @@ impl<'tmp> TempProject<'tmp> {
                 Some(true)
             },
             &options.flag_color,
-            options.locked(),
             options.frozen(),
+            options.locked(),
+            &None,
             &[],
         )?;
         Ok(config)
@@ -127,7 +131,7 @@ impl<'tmp> TempProject<'tmp> {
         let update_opts = UpdateOptions {
             aggressive: false,
             precise: None,
-            to_update: &[],
+            to_update: Vec::new(),
             config: &self.config,
         };
         update_lockfile(self.workspace.borrow().as_ref().unwrap(), &update_opts)?;
@@ -316,7 +320,8 @@ impl<'tmp> TempProject<'tmp> {
             return true;
         }
         if !optional
-            && self.options
+            && self
+                .options
                 .flag_features
                 .contains(&String::from("default"))
         {
@@ -326,7 +331,8 @@ impl<'tmp> TempProject<'tmp> {
             Some(Value::Table(ref features_table)) => features_table,
             _ => return false,
         };
-        let mut to_resolve: Vec<&str> = self.options
+        let mut to_resolve: Vec<&str> = self
+            .options
             .flag_features
             .iter()
             .filter(|f| !f.is_empty())
@@ -389,7 +395,8 @@ impl<'tmp> TempProject<'tmp> {
                     if !(version_to_latest || t.contains_key("features")) {
                         continue;
                     }
-                    let optional = t.get("optional")
+                    let optional = t
+                        .get("optional")
                         .map(|optional| {
                             if let Value::Boolean(optional) = *optional {
                                 optional
@@ -527,7 +534,7 @@ fn features_and_options(summary: &Summary) -> HashSet<&str> {
         .filter(|d| d.is_optional())
         .map(Dependency::name)
         .for_each(|d| {
-            result.insert(d);
+            result.insert(d.as_str());
         });
     result
 }
