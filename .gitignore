@@ -19,3 +19,7 @@
 # Backup Files
 *.orig
 *.bk
+
+# IDE or Editor
+.idea/
+.vscode/
