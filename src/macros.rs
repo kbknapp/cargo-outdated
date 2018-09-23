@@ -1,5 +1,5 @@
 macro_rules! verbose {
-    ($config: expr, $status: expr, $message: expr) => {
+    ($config:expr, $status:expr, $message:expr) => {
         $config
             .shell()
             .verbose(|sh| -> CargoResult<()> { sh.status($status, $message) })?
@@ -18,6 +18,6 @@ macro_rules! debug {
 
 #[cfg(not(feature = "debug"))]
 macro_rules! debug {
-    ($config: expr, $message: expr) => {};
-    ($config: expr, $($arg: tt)*) => {};
+    ($config:expr, $message:expr) => {};
+    ($config:expr, $($arg:tt)*) => {};
 }
