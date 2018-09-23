@@ -1,3 +1,19 @@
+<a name="0.7.1"></a>
+## 0.7.1 (2018-09-23)
+
+#### Documentation
+
+*   update contributor list ([eae6c697](https://github.com/kbknapp/cargo-outdated/commit/eae6c697b07d0453a5fcf5bbaad397bc5c649f59))
+*   updates usage text ([642ecbd1](https://github.com/kbknapp/cargo-outdated/commit/642ecbd1e1b40702142d644c560e39d8d58c3f82))
+
+#### Bug Fixes
+
+*   Remove extra reference taking per clippy. ([9efa1e8d](https://github.com/kbknapp/cargo-outdated/commit/9efa1e8da16461b4d3f698b4d4c7343b64c5bd92))
+
+#### Others
+
+*   Update dependencies and related codes for compatibility. ([d5813a13](https://github.com/kbknapp/cargo-outdated/pull/135/commits/d5813a13b538981e9ed7e60dc9f9c804ef9fe24e))
+
 <a name="v0.7.0"></a>
 ## v0.7.0 (2017-11-23)
 
