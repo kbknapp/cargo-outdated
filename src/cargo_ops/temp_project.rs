@@ -527,12 +527,12 @@ impl<'tmp> TempProject<'tmp> {
 
 /// Features and optional dependencies of a Summary
 fn features_and_options(summary: &Summary) -> HashSet<&str> {
-    let mut result: HashSet<&str> = summary.features().keys().map(String::as_str).collect();
+    let mut result: HashSet<&str> = summary.features().keys().map(|s| s.as_str()).collect();
     summary
         .dependencies()
         .iter()
         .filter(|d| d.is_optional())
-        .map(Dependency::name)
+        .map(Dependency::package_name)
         .for_each(|d| {
             result.insert(d.as_str());
         });

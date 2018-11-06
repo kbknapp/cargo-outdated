@@ -29,7 +29,7 @@ impl<'ela> ElaborateWorkspace<'ela> {
         workspace: &'ela Workspace,
         options: &Options,
     ) -> CargoResult<ElaborateWorkspace<'ela>> {
-        let specs = Packages::All.into_package_id_specs(workspace)?;
+        let specs = Packages::All.to_package_id_specs(workspace)?;
         let (packages, resolve) = ops::resolve_ws_precisely(
             workspace,
             None,
