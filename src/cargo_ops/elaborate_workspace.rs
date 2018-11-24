@@ -40,8 +40,8 @@ impl<'ela> ElaborateWorkspace<'ela> {
         )?;
         let mut pkgs = HashMap::new();
         let mut pkg_deps = HashMap::new();
-        for pkg_id in packages.package_ids() {
-            let pkg = packages.get(pkg_id)?;
+        for pkg in packages.get_many(packages.package_ids())? {
+            let pkg_id = pkg.package_id();
             pkgs.insert(pkg_id.clone(), pkg.clone());
             let deps = pkg.dependencies();
             let mut dep_map = HashMap::new();
