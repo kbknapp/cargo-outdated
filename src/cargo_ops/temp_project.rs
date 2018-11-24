@@ -375,22 +375,24 @@ impl<'tmp> TempProject<'tmp> {
         for name in dep_names {
             let original = dependencies.get(&name).cloned().unwrap();
             match original {
-                Value::String(requirement) => if version_to_latest {
-                    dependencies.insert(
-                        name.clone(),
-                        Value::String(
-                            self.find_update(
-                                &name,
-                                package_name,
-                                Some(requirement.as_str()),
-                                workspace,
-                                version_to_latest,
-                            )?
+                Value::String(requirement) => {
+                    if version_to_latest {
+                        dependencies.insert(
+                            name.clone(),
+                            Value::String(
+                                self.find_update(
+                                    &name,
+                                    package_name,
+                                    Some(requirement.as_str()),
+                                    workspace,
+                                    version_to_latest,
+                                )?
                                 .version()
                                 .to_string(),
-                        ),
-                    );
-                },
+                            ),
+                        );
+                    }
+                }
                 Value::Table(ref t) => {
                     if !(version_to_latest || t.contains_key("features")) {
                         continue;
@@ -448,7 +450,8 @@ impl<'tmp> TempProject<'tmp> {
                                             feature,
                                             name,
                                             summary.version()
-                                        )).unwrap();
+                                        ))
+                                        .unwrap();
                                     }
                                     retained
                                 })

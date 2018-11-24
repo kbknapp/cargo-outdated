@@ -87,7 +87,8 @@ fn main() {
             .and_then(|d| {
                 d.version(Some(
                     concat!(env!("CARGO_PKG_NAME"), " v", env!("CARGO_PKG_VERSION")).to_owned(),
-                )).deserialize()
+                ))
+                .deserialize()
             })
             .unwrap_or_else(|e| e.exit());
         fn flat_split(arg: &[String]) -> Vec<String> {
@@ -121,11 +122,13 @@ fn main() {
             let cli_error = CliError::new(e, 1);
             cargo::exit_with_error(cli_error, &mut *config.shell())
         }
-        Ok(i) => if i > 0 {
-            std::process::exit(exit_code);
-        } else {
-            std::process::exit(0);
-        },
+        Ok(i) => {
+            if i > 0 {
+                std::process::exit(exit_code);
+            } else {
+                std::process::exit(0);
+            }
+        }
     }
 }
 
