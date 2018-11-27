@@ -1,16 +1,7 @@
 #![deny(bare_trait_objects, anonymous_parameters, elided_lifetimes_in_paths)]
 
 use cargo;
-#[macro_use]
-extern crate failure;
-
 use env_logger;
-
-#[macro_use]
-extern crate serde_derive;
-
-#[cfg(feature = "debug")]
-extern crate termcolor;
 
 #[macro_use]
 mod macros;
@@ -51,7 +42,7 @@ Options:
 ";
 
 /// Options from CLI arguments
-#[derive(Deserialize, Debug)]
+#[derive(serde_derive::Deserialize, Debug)]
 pub struct Options {
     flag_color: Option<String>,
     flag_features: Vec<String>,

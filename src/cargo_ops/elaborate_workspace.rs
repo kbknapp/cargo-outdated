@@ -5,7 +5,7 @@ use std::io::{self, Write};
 use cargo::core::{Dependency, Package, PackageId, Workspace};
 use cargo::ops::{self, Packages};
 use cargo::util::{CargoResult, Config};
-use failure::err_msg;
+use failure::{err_msg, format_err};
 use tabwriter::TabWriter;
 
 use super::pkg_status::*;
