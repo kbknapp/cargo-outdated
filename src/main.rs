@@ -1,22 +1,21 @@
-extern crate cargo;
+#![deny(bare_trait_objects, anonymous_parameters, elided_lifetimes_in_paths)]
+
+use cargo;
 #[macro_use]
 extern crate failure;
-extern crate docopt;
-extern crate env_logger;
-extern crate semver;
-extern crate serde;
+
+use env_logger;
+
 #[macro_use]
 extern crate serde_derive;
-extern crate tabwriter;
-extern crate tempdir;
+
 #[cfg(feature = "debug")]
 extern crate termcolor;
-extern crate toml;
 
 #[macro_use]
 mod macros;
 mod cargo_ops;
-use cargo_ops::{ElaborateWorkspace, TempProject};
+use crate::cargo_ops::{ElaborateWorkspace, TempProject};
 
 use cargo::core::shell::Verbosity;
 use cargo::core::Workspace;

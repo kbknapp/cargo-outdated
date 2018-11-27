@@ -17,7 +17,7 @@ use toml::value::Table;
 use toml::Value;
 
 use super::{ElaborateWorkspace, Manifest};
-use Options;
+use crate::Options;
 
 /// A temporary project
 pub struct TempProject<'tmp> {
@@ -32,7 +32,7 @@ pub struct TempProject<'tmp> {
 impl<'tmp> TempProject<'tmp> {
     /// Copy needed manifest and lock files from an existing workspace
     pub fn from_workspace(
-        orig_workspace: &ElaborateWorkspace,
+        orig_workspace: &ElaborateWorkspace<'_>,
         orig_manifest: &str,
         options: &'tmp Options,
     ) -> CargoResult<TempProject<'tmp>> {
@@ -139,9 +139,9 @@ impl<'tmp> TempProject<'tmp> {
     }
 
     fn write_manifest<P: AsRef<Path>>(manifest: &Manifest, path: P) -> CargoResult<()> {
-        let mut file = try!(File::create(path));
+        let mut file = File::create(path)?;
         let serialized = ::toml::to_string(manifest).expect("Failed to serialized Cargo.toml");
-        try!(write!(file, "{}", serialized));
+        write!(file, "{}", serialized)?;
         Ok(())
     }
 
@@ -181,7 +181,7 @@ impl<'tmp> TempProject<'tmp> {
         &'tmp self,
         orig_root: P,
         tmp_root: P,
-        workspace: &ElaborateWorkspace,
+        workspace: &ElaborateWorkspace<'_>,
     ) -> CargoResult<()> {
         let bin = {
             let mut bin = Table::new();
@@ -227,7 +227,7 @@ impl<'tmp> TempProject<'tmp> {
         &'tmp self,
         orig_root: P,
         tmp_root: P,
-        workspace: &ElaborateWorkspace,
+        workspace: &ElaborateWorkspace<'_>,
     ) -> CargoResult<()> {
         let bin = {
             let mut bin = Table::new();
@@ -274,7 +274,7 @@ impl<'tmp> TempProject<'tmp> {
         name: &str,
         dependent_package_name: &str,
         requirement: Option<&str>,
-        workspace: &ElaborateWorkspace,
+        workspace: &ElaborateWorkspace<'_>,
         find_latest: bool,
     ) -> CargoResult<Summary> {
         let package_id = workspace.find_direct_dependency(name, dependent_package_name)?;
@@ -367,7 +367,7 @@ impl<'tmp> TempProject<'tmp> {
         &self,
         dependencies: &mut Table,
         features: &Option<Value>,
-        workspace: &ElaborateWorkspace,
+        workspace: &ElaborateWorkspace<'_>,
         package_name: &str,
         version_to_latest: bool,
     ) -> CargoResult<()> {
@@ -543,13 +543,13 @@ fn features_and_options(summary: &Summary) -> HashSet<&str> {
 }
 
 /// Paths of all manifest files in current workspace
-fn manifest_paths(elab: &ElaborateWorkspace) -> CargoResult<Vec<PathBuf>> {
+fn manifest_paths(elab: &ElaborateWorkspace<'_>) -> CargoResult<Vec<PathBuf>> {
     let mut visited: HashSet<PackageId> = HashSet::new();
     let mut manifest_paths = vec![];
 
     fn manifest_paths_recursive(
         pkg_id: &PackageId,
-        elab: &ElaborateWorkspace,
+        elab: &ElaborateWorkspace<'_>,
         workspace_path: &str,
         visited: &mut HashSet<PackageId>,
         manifest_paths: &mut Vec<PathBuf>,
