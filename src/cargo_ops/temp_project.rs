@@ -12,7 +12,7 @@ use cargo::util::errors::CargoResultExt;
 use cargo::util::{CargoResult, Config};
 use failure::err_msg;
 use semver::{Identifier, Version, VersionReq};
-use tempdir::TempDir;
+use tempfile::{Builder, TempDir};
 use toml::value::Table;
 use toml::Value;
 
@@ -40,7 +40,7 @@ impl<'tmp> TempProject<'tmp> {
         let workspace_root = orig_workspace.workspace.root();
         let workspace_root_str = workspace_root.to_string_lossy();
 
-        let temp_dir = TempDir::new("cargo-outdated")?;
+        let temp_dir = Builder::new().prefix("cargo-outdated").tempdir()?;
         let manifest_paths = manifest_paths(orig_workspace)?;
         let mut tmp_manifest_paths = vec![];
         for from in &manifest_paths {

@@ -8,7 +8,7 @@ extern crate serde;
 #[macro_use]
 extern crate serde_derive;
 extern crate tabwriter;
-extern crate tempdir;
+extern crate tempfile;
 #[cfg(feature = "debug")]
 extern crate termcolor;
 extern crate toml;
