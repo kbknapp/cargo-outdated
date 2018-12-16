@@ -488,7 +488,7 @@ impl<'tmp> TempProject<'tmp> {
                                 let relative = &tmp_manifest.to_string_lossy()
                                     [tmp_root.to_string_lossy().len()..];
                                 let mut relative =
-                                    PathBuf::from(relative.trim_left_matches(delimiter));
+                                    PathBuf::from(relative.trim_start_matches(delimiter));
                                 relative.pop();
                                 relative.join(orig_path)
                             };
