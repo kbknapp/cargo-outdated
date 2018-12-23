@@ -5,7 +5,7 @@ use std::io::{self, Write};
 use cargo::core::{Dependency, Package, PackageId, Workspace};
 use cargo::ops::{self, Packages};
 use cargo::util::{CargoResult, Config};
-use failure::err_msg;
+use failure::{err_msg, format_err};
 use tabwriter::TabWriter;
 
 use super::pkg_status::*;
@@ -26,7 +26,7 @@ pub struct ElaborateWorkspace<'ela> {
 impl<'ela> ElaborateWorkspace<'ela> {
     /// Elaborate a `Workspace`
     pub fn from_workspace(
-        workspace: &'ela Workspace,
+        workspace: &'ela Workspace<'_>,
         options: &Options,
     ) -> CargoResult<ElaborateWorkspace<'ela>> {
         let specs = Packages::All.to_package_id_specs(workspace)?;
@@ -40,8 +40,8 @@ impl<'ela> ElaborateWorkspace<'ela> {
         )?;
         let mut pkgs = HashMap::new();
         let mut pkg_deps = HashMap::new();
-        for pkg_id in packages.package_ids() {
-            let pkg = packages.get(pkg_id)?;
+        for pkg in packages.get_many(packages.package_ids())? {
+            let pkg_id = pkg.package_id();
             pkgs.insert(pkg_id.clone(), pkg.clone());
             let deps = pkg.dependencies();
             let mut dep_map = HashMap::new();
@@ -136,8 +136,8 @@ impl<'ela> ElaborateWorkspace<'ela> {
     /// Resolve compatible and latest status from the corresponding `ElaborateWorkspace`s
     pub fn resolve_status(
         &'ela self,
-        compat: &ElaborateWorkspace,
-        latest: &ElaborateWorkspace,
+        compat: &ElaborateWorkspace<'_>,
+        latest: &ElaborateWorkspace<'_>,
         options: &Options,
         _config: &Config,
         root: &'ela PackageId,
