@@ -9,7 +9,7 @@ pub use self::pkg_status::*;
 pub use self::temp_project::TempProject;
 
 /// A continent struct for quick parsing and manipulating manifest
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, serde_derive::Serialize, serde_derive::Deserialize)]
 struct Manifest {
     #[serde(serialize_with = "::toml::ser::tables_last")]
     pub package: Table,

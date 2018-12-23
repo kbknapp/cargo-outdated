@@ -1,22 +1,12 @@
-extern crate cargo;
-#[macro_use]
-extern crate failure;
-extern crate docopt;
-extern crate env_logger;
-extern crate semver;
-extern crate serde;
-#[macro_use]
-extern crate serde_derive;
-extern crate tabwriter;
-extern crate tempdir;
-#[cfg(feature = "debug")]
-extern crate termcolor;
-extern crate toml;
+#![deny(bare_trait_objects, anonymous_parameters, elided_lifetimes_in_paths)]
+
+use cargo;
+use env_logger;
 
 #[macro_use]
 mod macros;
 mod cargo_ops;
-use cargo_ops::{ElaborateWorkspace, TempProject};
+use crate::cargo_ops::{ElaborateWorkspace, TempProject};
 
 use cargo::core::shell::Verbosity;
 use cargo::core::Workspace;
@@ -52,7 +42,7 @@ Options:
 ";
 
 /// Options from CLI arguments
-#[derive(Deserialize, Debug)]
+#[derive(serde_derive::Deserialize, Debug)]
 pub struct Options {
     flag_color: Option<String>,
     flag_features: Vec<String>,
@@ -87,7 +77,8 @@ fn main() {
             .and_then(|d| {
                 d.version(Some(
                     concat!(env!("CARGO_PKG_NAME"), " v", env!("CARGO_PKG_VERSION")).to_owned(),
-                )).deserialize()
+                ))
+                .deserialize()
             })
             .unwrap_or_else(|e| e.exit());
         fn flat_split(arg: &[String]) -> Vec<String> {
@@ -121,11 +112,13 @@ fn main() {
             let cli_error = CliError::new(e, 1);
             cargo::exit_with_error(cli_error, &mut *config.shell())
         }
-        Ok(i) => if i > 0 {
-            std::process::exit(exit_code);
-        } else {
-            std::process::exit(0);
-        },
+        Ok(i) => {
+            if i > 0 {
+                std::process::exit(exit_code);
+            } else {
+                std::process::exit(0);
+            }
+        }
     }
 }
 
