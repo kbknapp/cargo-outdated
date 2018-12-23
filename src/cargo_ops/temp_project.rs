@@ -84,11 +84,11 @@ impl<'tmp> TempProject<'tmp> {
         let config = Self::generate_config(temp_dir.path(), &relative_manifest, options)?;
         Ok(TempProject {
             workspace: Rc::new(RefCell::new(None)),
-            temp_dir: temp_dir,
+            temp_dir,
             manifest_paths: tmp_manifest_paths,
-            config: config,
-            relative_manifest: relative_manifest,
-            options: options,
+            config,
+            relative_manifest,
+            options,
         })
     }
 
@@ -198,9 +198,9 @@ impl<'tmp> TempProject<'tmp> {
             };
             manifest.bin = Some(vec![bin.clone()]);
             // provide lib.path
-            manifest.lib.as_mut().map(|lib| {
+            if let Some(lib) = manifest.lib.as_mut() {
                 lib.insert("path".to_owned(), Value::String("test_lib.rs".to_owned()));
-            });
+            }
             Self::manipulate_dependencies(&mut manifest, &|deps| {
                 Self::replace_path_with_absolute(
                     deps,
@@ -244,9 +244,9 @@ impl<'tmp> TempProject<'tmp> {
             };
             manifest.bin = Some(vec![bin.clone()]);
             // provide lib.path
-            manifest.lib.as_mut().map(|lib| {
+            if let Some(lib) = manifest.lib.as_mut() {
                 lib.insert("path".to_owned(), Value::String("test_lib.rs".to_owned()));
-            });
+            }
             Self::manipulate_dependencies(&mut manifest, &|deps| {
                 Self::replace_path_with_absolute(
                     deps,
@@ -308,7 +308,7 @@ impl<'tmp> TempProject<'tmp> {
                     version_req.as_ref().unwrap().matches(summary.version())
                 }
             })
-            .expect(&format!(
+            .unwrap_or_else(|| panic!(
                 "Cannot find matched versions of package {} from source {}",
                 name, source_id
             ));
