@@ -39,10 +39,10 @@ term_size->libc  0.2.18   0.2.29  0.2.29   Normal       cfg(not(target_os = "win
 
 ## Installing
 
-`cargo-outdated` can be installed with `cargo install`
+The latest version of `cargo-outdated` compatible with Rust 2018 edition can be installed or updated with `cargo install`:
 
-```
-$ cargo install cargo-outdated
+```sh
+cargo install --force --git https://github.com/kbknapp/cargo-outdated
 ```
 
 ## Compiling
