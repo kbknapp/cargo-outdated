@@ -1,3 +1,8 @@
+<a name="0.8.0"></a>
+## 0.8.0
+
+* Update Cargo dependency for compatibility with Rust 2018 edition
+
 <a name="0.7.1"></a>
 ## 0.7.1 (2018-09-23)
 
