@@ -21,7 +21,7 @@ Similarly, to check the latest dependencies, `cargo-outdated` replaces the SemVe
 
 Once installed (see below) running `cargo outdated` in a project directory looks like the following:
 
-```
+```text
 $ cargo outdated
 Name             Project  Compat  Latest   Kind         Platform
 ----             -------  ------  ------   ----         --------
@@ -71,10 +71,10 @@ If you do not have root, `sudo`, or write permission to any directory already in
 Simply change `bin` to whatever you'd like to name the directory, and `.bashrc` to whatever your shell startup file is (usually `.bashrc`, `.bash_profile`, or `.zshrc`)
 
 ```sh
-$ mkdir ~/bin
-$ echo "export PATH=$PATH:$HOME/bin" >> ~/.bashrc
-$ cp cargo-outdated ~/bin
-$ source ~/.bashrc
+mkdir ~/bin
+echo "export PATH=$PATH:$HOME/bin" >> ~/.bashrc
+cp cargo-outdated ~/bin
+source ~/.bashrc
 ```
 
 ### Windows
@@ -82,7 +82,7 @@ $ source ~/.bashrc
 On Windows 7/8 you can add directory to the `PATH` variable by opening a command line as an administrator and running
 
 ```sh
-C:\> setx path "%path%;C:\path\to\cargo-outdated\binary"
+setx path "%path%;C:\path\to\cargo-outdated\binary"
 ```
 
 Otherwise, ensure you have the `cargo-outdated` binary in the directory which you operating in the command line from, because Windows automatically adds your current directory to PATH (i.e. if you open a command line to `C:\my_project\` to use `cargo-outdated` ensure `cargo-outdated.exe` is inside that directory as well).
@@ -92,7 +92,7 @@ Otherwise, ensure you have the `cargo-outdated` binary in the directory which yo
 
 There are a few options for using `cargo-outdated` which should be somewhat self explanatory.
 
-```
+```text
 Displays information about project dependency versions
 
 USAGE:
