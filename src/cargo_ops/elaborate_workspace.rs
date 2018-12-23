@@ -57,9 +57,9 @@ impl<'ela> ElaborateWorkspace<'ela> {
         }
 
         Ok(ElaborateWorkspace {
-            workspace: workspace,
-            pkgs: pkgs,
-            pkg_deps: pkg_deps,
+            workspace,
+            pkgs,
+            pkg_deps,
             pkg_status: RefCell::new(HashMap::new()),
             workspace_mode: options.flag_workspace || workspace.current().is_err(),
         })
@@ -280,8 +280,8 @@ impl<'ela> ElaborateWorkspace<'ela> {
                 println!("{}\n================", root.name());
             }
             let mut tw = TabWriter::new(vec![]);
-            write!(&mut tw, "Name\tProject\tCompat\tLatest\tKind\tPlatform\n")?;
-            write!(&mut tw, "----\t-------\t------\t------\t----\t--------\n")?;
+            writeln!(&mut tw, "Name\tProject\tCompat\tLatest\tKind\tPlatform")?;
+            writeln!(&mut tw, "----\t-------\t------\t------\t----\t--------")?;
             for line in &lines {
                 write!(&mut tw, "{}", line)?;
             }
