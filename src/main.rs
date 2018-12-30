@@ -8,6 +8,7 @@ mod macros;
 mod cargo_ops;
 use crate::cargo_ops::{ElaborateWorkspace, TempProject};
 
+use cargo::core::maybe_allow_nightly_features;
 use cargo::core::shell::Verbosity;
 use cargo::core::Workspace;
 use cargo::util::important_paths::find_root_manifest_for_wd;
@@ -135,6 +136,9 @@ pub fn execute(options: Options, config: &mut Config) -> CargoResult<i32> {
         &[],
     )?;
     debug!(config, format!("options: {:?}", options));
+
+    // Needed to allow nightly features
+    maybe_allow_nightly_features();
 
     verbose!(config, "Parsing...", "current workspace");
     // the Cargo.toml that we are actually working on
