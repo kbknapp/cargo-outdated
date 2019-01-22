@@ -11,7 +11,7 @@ branches:
     - master
 script:
   - |
-      cargo build
+      cargo build --locked
       cargo build --features debug
 env:
   global:
