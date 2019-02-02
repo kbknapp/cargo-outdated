@@ -371,11 +371,13 @@ impl<'tmp> TempProject<'tmp> {
         package_name: &str,
         version_to_latest: bool,
     ) -> CargoResult<()> {
-        let dep_names: Vec<_> = dependencies.keys().cloned().collect();
-        for name in dep_names {
-            let original = dependencies.get(&name).cloned().unwrap();
+        let dep_keys: Vec<_> = dependencies.keys().cloned().collect();
+        for dep_key in dep_keys {
+            let original = dependencies.get(&dep_key).cloned().unwrap();
+
             match original {
                 Value::String(requirement) => {
+                    let name = dep_key;
                     if version_to_latest {
                         dependencies.insert(
                             name.clone(),
@@ -394,6 +396,13 @@ impl<'tmp> TempProject<'tmp> {
                     }
                 }
                 Value::Table(ref t) => {
+                    let name = match t.get("package") {
+                        Some(&Value::String(ref s)) => s,
+                        // TODO: Probably this should emit an error?
+                        Some(_) => &dep_key,
+                        None => &dep_key,
+                    };
+
                     if !(version_to_latest || t.contains_key("features")) {
                         continue;
                     }
@@ -463,7 +472,7 @@ impl<'tmp> TempProject<'tmp> {
                     }
                     dependencies.insert(name.clone(), Value::Table(replaced));
                 }
-                _ => panic!("Dependency spec is neither a string nor a table {}", name),
+                _ => panic!("Dependency spec is neither a string nor a table {}", dep_key),
             }
         }
         Ok(())
