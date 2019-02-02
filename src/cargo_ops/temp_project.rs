@@ -398,8 +398,7 @@ impl<'tmp> TempProject<'tmp> {
                 Value::Table(ref t) => {
                     let name = match t.get("package") {
                         Some(&Value::String(ref s)) => s,
-                        // TODO: Probably this should emit an error?
-                        Some(_) => &dep_key,
+                        Some(_) => panic!("'package' of dependency {} is not a string", dep_key),
                         None => &dep_key,
                     };
 
