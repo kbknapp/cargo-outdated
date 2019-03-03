@@ -389,7 +389,7 @@ impl<'tmp> TempProject<'tmp> {
                             Result::Ok(val) => dependencies
                                 .insert(name.clone(), Value::String(val.version().to_string())),
                             Result::Err(_err) => {
-                                err_msg(format!(
+                                eprintln!(format!(
                                     "Updates to dependency {} could not be found",
                                     name.clone()
                                 ));
@@ -438,7 +438,7 @@ impl<'tmp> TempProject<'tmp> {
                     match r_summary {
                         Result::Ok(val) => summary = val,
                         Result::Err(_) => {
-                            err_msg(format!("Update for {} could not be found!", name.clone()));
+                            eprintln(format!("Update for {} could not be found!", name.clone()));
                             return Ok(());
                         }
                     };
