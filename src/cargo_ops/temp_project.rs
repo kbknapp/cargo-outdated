@@ -379,20 +379,23 @@ impl<'tmp> TempProject<'tmp> {
                 Value::String(requirement) => {
                     let name = dep_key;
                     if version_to_latest {
-                        dependencies.insert(
-                            name.clone(),
-                            Value::String(
-                                self.find_update(
-                                    &name,
-                                    package_name,
-                                    Some(requirement.as_str()),
-                                    workspace,
-                                    version_to_latest,
-                                )?
-                                .version()
-                                .to_string(),
-                            ),
-                        );
+                        match self.find_update(
+                            &name,
+                            package_name,
+                            Some(requirement.as_str()),
+                            workspace,
+                            version_to_latest,
+                        ) {
+                            Result::Ok(val) => dependencies
+                                .insert(name.clone(), Value::String(val.version().to_string())),
+                            Result::Err(_err) => {
+                                err_msg(format!(
+                                    "Updates to dependency {} could not be found",
+                                    name.clone()
+                                ));
+                                None
+                            }
+                        };
                     }
                 }
                 Value::Table(ref t) => {
@@ -424,13 +427,21 @@ impl<'tmp> TempProject<'tmp> {
                         Some(_) => panic!("Version of {} is not a string", name),
                         _ => None,
                     };
-                    let summary = self.find_update(
+                    let r_summary = self.find_update(
                         &name,
                         package_name,
                         requirement,
                         workspace,
                         version_to_latest,
-                    )?;
+                    );
+                    let mut summary;
+                    match r_summary {
+                        Result::Ok(val) => summary = val,
+                        Result::Err(_) => {
+                            err_msg(format!("Update for {} could not be found!", name.clone()));
+                            return Ok(());
+                        }
+                    };
                     if version_to_latest && t.contains_key("version") {
                         replaced.insert(
                             "version".to_owned(),
