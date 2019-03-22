@@ -126,6 +126,11 @@ impl<'ela> ElaborateWorkspace<'ela> {
                 return Ok(direct_dep.clone());
             }
         }
+        for (pkg_id, pkg) in &self.pkgs {
+            if pkg.name().as_str() == dependency_name {
+                return Ok(pkg_id.clone());
+            }
+        }
         Err(format_err!(
             "Direct dependency {} not found for package {}",
             dependency_name,
