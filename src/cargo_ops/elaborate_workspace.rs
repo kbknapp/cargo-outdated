@@ -1,11 +1,13 @@
 use std::cell::RefCell;
-use std::collections::{BTreeSet, HashMap, VecDeque};
+use std::collections::{BTreeSet, HashMap, HashSet, VecDeque};
 use std::io::{self, Write};
 
 use cargo::core::{Dependency, Package, PackageId, Workspace};
 use cargo::ops::{self, Packages};
 use cargo::util::{CargoResult, Config};
 use failure::{err_msg, format_err};
+use serde::{Deserialize, Serialize};
+use serde_json;
 use tabwriter::TabWriter;
 
 use super::pkg_status::*;
@@ -21,6 +23,22 @@ pub struct ElaborateWorkspace<'ela> {
     pub pkg_status: RefCell<HashMap<Vec<&'ela PackageId>, PkgStatus>>,
     /// Whether using workspace mode
     pub workspace_mode: bool,
+}
+
+/// A struct to serialize to json with serde
+#[derive(Serialize, Deserialize)]
+pub struct CrateMetadata {
+    pub dependencies: HashSet<Metadata>,
+}
+
+#[derive(Serialize, Deserialize, Eq, Hash, PartialEq)]
+pub struct Metadata {
+    pub name: String,
+    pub project: String,
+    pub compat: String,
+    pub latest: String,
+    pub kind: String,
+    pub platform: String,
 }
 
 impl<'ela> ElaborateWorkspace<'ela> {
@@ -300,5 +318,103 @@ impl<'ela> ElaborateWorkspace<'ela> {
         }
 
         Ok(lines.len() as i32)
+    }
+
+    pub fn print_json(
+        &'ela self,
+        options: &Options,
+        root: &'ela PackageId,
+        preceding_line: bool,
+    ) -> CargoResult<i32> {
+        let mut crate_graph = CrateMetadata {
+            dependencies: HashSet::new(),
+        };
+        let mut queue = VecDeque::new();
+        queue.push_back(vec![root]);
+        
+        while let Some(path) = queue.pop_front() {
+            let pkg = path.last().unwrap();
+            let depth = path.len() as i32 - 1;
+            // generate lines
+            let status = &self.pkg_status.borrow_mut()[&path];
+            if (status.compat.is_changed() || status.latest.is_changed())
+                && (options.flag_packages.is_empty()
+                    || options.flag_packages.contains(&pkg.name().to_string()))
+            {
+                // name version compatible latest kind platform
+                let parent = path.get(path.len() - 2);
+                if let Some(parent) = parent {
+                    let dependency = &self.pkg_deps[parent][pkg];
+                    let label = if self.workspace_mode
+                        || parent == &self.workspace.current()?.package_id()
+                    {
+                        pkg.name().to_string()
+                    } else {
+                        format!("{}->{}", self.pkgs[parent].name(), pkg.name())
+                    };
+
+                    let line = Metadata {
+                        name: label,
+                        project: pkg.version().to_string(),
+                        compat: status.compat.to_string(),
+                        latest: status.latest.to_string(),
+                        kind: format!("{:?}", dependency.kind()).to_string(),
+                        platform: dependency
+                            .platform()
+                            .map(|p| p.to_string())
+                            .unwrap_or_else(|| "---".to_owned()),
+                    };
+                    if !crate_graph.dependencies.contains(&line) {
+                        crate_graph.dependencies.insert(line);
+                    }
+                } else {
+                    let line = Metadata {
+                        name: pkg.name().to_string(),
+                        project: pkg.version().to_string(),
+                        compat: status.compat.to_string(),
+                        latest: status.latest.to_string(),
+                        kind: String::new(),
+                        platform: String::new(),
+                    };
+                    if !crate_graph.dependencies.contains(&line) {
+                        crate_graph.dependencies.insert(line);
+                    }
+                }
+            }
+            // next layer
+            if options.flag_depth.is_none() || depth < options.flag_depth.unwrap() {
+                self.pkg_deps[pkg]
+                    .keys()
+                    .filter(|dep| !path.contains(dep))
+                    .filter(|dep| {
+                        !self.workspace_mode
+                            || !self.workspace.members().any(|mem| &mem.package_id() == dep)
+                    })
+                    .for_each(|dep| {
+                        let mut path = path.clone();
+                        path.push(dep);
+                        queue.push_back(path);
+                    });
+            }
+        }
+
+        if crate_graph.dependencies.is_empty() {
+            if !self.workspace_mode {
+                println!("All dependencies are up to date, yay!");
+            }
+        } else {
+            if preceding_line {
+                println!();
+            }
+            
+            let dependencies =  serde_json::to_string(&crate_graph)?;
+            //getting fancy here so we can add in the crate name at the top level for scripting
+            let json = format!("{{\"crate\": \"{}\",{}}}", root.name(), &dependencies[1..dependencies.len()-1]);
+
+            write!(io::stdout(), "{}", json)?;
+            io::stdout().flush()?;
+        }
+
+        Ok(crate_graph.dependencies.len() as i32)
     }
 }
