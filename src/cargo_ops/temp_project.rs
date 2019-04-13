@@ -160,7 +160,7 @@ impl<'tmp> TempProject<'tmp> {
             f(dep)?;
         }
         if let Some(t) = manifest.target.as_mut() {
-            for target in t.values_mut() {
+            for (_key, target) in t.iter_mut() {
                 if let Value::Table(ref mut target) = *target {
                     for dependency_tables in
                         &["dependencies", "dev-dependencies", "build-dependencies"]
