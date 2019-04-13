@@ -87,7 +87,7 @@ fn main() {
                 .flat_map(|s| s.split_whitespace())
                 .flat_map(|s| s.split(','))
                 .filter(|s| !s.is_empty())
-                .map(|s| s.to_string())
+                .map(ToString::to_string)
                 .collect()
         }
         options.flag_features = flat_split(&options.flag_features);
@@ -123,8 +123,6 @@ fn main() {
     }
 }
 
-#[allow(unknown_lints)]
-#[allow(needless_pass_by_value)]
 pub fn execute(options: Options, config: &mut Config) -> CargoResult<i32> {
     config.configure(
         options.flag_verbose,
@@ -193,14 +191,15 @@ pub fn execute(options: Options, config: &mut Config) -> CargoResult<i32> {
         let mut sum = 0;
         verbose!(config, "Printing...", "Package status in list format");
         for member in ela_curr.workspace.members() {
+            let package_id = member.package_id();
             ela_curr.resolve_status(
                 &ela_compat,
                 &ela_latest,
                 &options,
                 config,
-                member.package_id(),
+                package_id,
             )?;
-            sum += ela_curr.print_list(&options, member.package_id(), sum > 0)?;
+            sum += ela_curr.print_list(&options, package_id, sum > 0)?;
         }
         if sum == 0 {
             println!("All dependencies are up to date, yay!");
