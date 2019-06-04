@@ -309,10 +309,12 @@ impl<'tmp> TempProject<'tmp> {
                     version_req.as_ref().unwrap().matches(summary.version())
                 }
             })
-            .unwrap_or_else(|| panic!(
-                "Cannot find matched versions of package {} from source {}",
-                name, source_id
-            ));
+            .unwrap_or_else(|| {
+                panic!(
+                    "Cannot find matched versions of package {} from source {}",
+                    name, source_id
+                )
+            });
         Ok(latest_result.clone())
     }
 
@@ -483,7 +485,10 @@ impl<'tmp> TempProject<'tmp> {
                     }
                     dependencies.insert(name.clone(), Value::Table(replaced));
                 }
-                _ => panic!("Dependency spec is neither a string nor a table {}", dep_key),
+                _ => panic!(
+                    "Dependency spec is neither a string nor a table {}",
+                    dep_key
+                ),
             }
         }
         Ok(())

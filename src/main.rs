@@ -192,13 +192,7 @@ pub fn execute(options: Options, config: &mut Config) -> CargoResult<i32> {
         verbose!(config, "Printing...", "Package status in list format");
         for member in ela_curr.workspace.members() {
             let package_id = member.package_id();
-            ela_curr.resolve_status(
-                &ela_compat,
-                &ela_latest,
-                &options,
-                config,
-                package_id,
-            )?;
+            ela_curr.resolve_status(&ela_compat, &ela_latest, &options, config, package_id)?;
             sum += ela_curr.print_list(&options, package_id, sum > 0)?;
         }
         if sum == 0 {

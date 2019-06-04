@@ -27,20 +27,20 @@ travis-ci = {repository = "kbknapp/cargo-outdated"}
 name = "cargo-outdated"
 
 [dependencies]
-cargo = "0.35.0"
-docopt = "1.0.0"
-env_logger = "0.6.0"
+cargo = "0.36.0"
+docopt = "1.1.0"
+env_logger = "0.6.1"
 semver = "0.9.0"
-serde = "1.0.11"
-serde_derive = "1.0.11"
-tabwriter = "~1.1.0"
-tempfile = "3"
-toml = "~0.5.0"
-failure = "0.1.1"
+serde = "1.0.92"
+serde_derive = "1.0.92"
+tabwriter = "1.1.0"
+tempfile = "3.0.8"
+toml = "0.5.1"
+failure = "0.1.5"
 
 [dependencies.termcolor]
 optional = true
-version = "1.0"
+version = "1.0.5"
 
 [features]
 debug = ["termcolor"]

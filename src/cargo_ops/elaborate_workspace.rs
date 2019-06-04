@@ -265,10 +265,7 @@ impl<'ela> ElaborateWorkspace<'ela> {
                     .filter(|dep| !path.contains(dep))
                     .filter(|&dep| {
                         !self.workspace_mode
-                            || !self
-                                .workspace
-                                .members()
-                                .any(|mem| &mem.package_id() == dep)
+                            || !self.workspace.members().any(|mem| &mem.package_id() == dep)
                     })
                     .for_each(|&dep| {
                         let mut path = path.clone();
