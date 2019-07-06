@@ -120,6 +120,7 @@ impl<'tmp> TempProject<'tmp> {
             &options.flag_color,
             options.frozen(),
             options.locked(),
+            false,
             &None,
             &[],
         )?;
@@ -283,10 +284,12 @@ impl<'tmp> TempProject<'tmp> {
         let source_id = package_id.source_id().with_precise(None);
         let mut source = source_id.load(&self.config, &HashSet::new())?;
         if !source_id.is_default_registry() {
+            let _lock = self.config.acquire_package_cache_lock()?;
             source.update()?;
         }
         let dependency = Dependency::parse_no_deprecated(name, None, source_id)?;
         let query_result = {
+            let _lock = self.config.acquire_package_cache_lock()?;
             let mut query_result = source.query_vec(&dependency)?;
             query_result.sort_by(|a, b| b.version().cmp(a.version()));
             query_result
@@ -437,9 +440,8 @@ impl<'tmp> TempProject<'tmp> {
                         workspace,
                         version_to_latest,
                     );
-                    let mut summary;
-                    match r_summary {
-                        Result::Ok(val) => summary = val,
+                    let summary = match r_summary {
+                        Result::Ok(val) => val,
                         Result::Err(_) => {
                             eprintln!("Update for {} could not be found!", name.clone());
                             return Ok(());

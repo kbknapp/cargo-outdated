@@ -130,6 +130,7 @@ pub fn execute(options: Options, config: &mut Config) -> CargoResult<i32> {
         &options.flag_color,
         options.frozen(),
         options.locked(),
+        false,
         &None,
         &[],
     )?;
