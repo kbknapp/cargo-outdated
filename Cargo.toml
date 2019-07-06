@@ -1,9 +1,12 @@
 [package]
+name = "cargo-outdated"
+version = "0.8.0"
 authors = [
     "Kevin K. <kbknapp@gmail.com>",
     "Frederick Z. <frederick888@tsundere.moe>",
 ]
-description = "Cargo subcommand for displaying when dependencies are out of date"
+categories = ["development-tools", "development-tools::cargo-plugins"]
+edition = "2018"
 exclude = ["*.png"]
 keywords = [
     "cargo",
@@ -13,12 +16,9 @@ keywords = [
     "deps",
 ]
 license = "MIT"
-name = "cargo-outdated"
 readme = "README.md"
 repository = "https://github.com/kbknapp/cargo-outdated.git"
-version = "0.8.0"
-categories = ["development-tools", "development-tools::cargo-plugins"]
-edition = "2018"
+description = "Cargo subcommand for displaying when dependencies are out of date"
 
 [badges]
 travis-ci = {repository = "kbknapp/cargo-outdated"}
@@ -30,13 +30,13 @@ name = "cargo-outdated"
 cargo = "0.36.0"
 docopt = "1.0.0"
 env_logger = "0.6.0"
+failure = "0.1.1"
 semver = "0.9.0"
 serde = "1.0.11"
 serde_derive = "1.0.11"
 tabwriter = "~1.1.0"
 tempfile = "3"
 toml = "~0.5.0"
-failure = "0.1.1"
 
 [dependencies.termcolor]
 optional = true
@@ -45,5 +45,6 @@ version = "1.0"
 [features]
 debug = ["termcolor"]
 default = []
+
 [profile.release]
 lto = true
