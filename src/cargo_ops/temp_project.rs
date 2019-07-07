@@ -120,6 +120,7 @@ impl<'tmp> TempProject<'tmp> {
             &options.flag_color,
             options.frozen(),
             options.locked(),
+            false,
             &None,
             &[],
         )?;
@@ -283,10 +284,12 @@ impl<'tmp> TempProject<'tmp> {
         let source_id = package_id.source_id().with_precise(None);
         let mut source = source_id.load(&self.config, &HashSet::new())?;
         if !source_id.is_default_registry() {
+            let _lock = self.config.acquire_package_cache_lock()?;
             source.update()?;
         }
         let dependency = Dependency::parse_no_deprecated(name, None, source_id)?;
         let query_result = {
+            let _lock = self.config.acquire_package_cache_lock()?;
             let mut query_result = source.query_vec(&dependency)?;
             query_result.sort_by(|a, b| b.version().cmp(a.version()));
             query_result
@@ -309,10 +312,12 @@ impl<'tmp> TempProject<'tmp> {
                     version_req.as_ref().unwrap().matches(summary.version())
                 }
             })
-            .unwrap_or_else(|| panic!(
-                "Cannot find matched versions of package {} from source {}",
-                name, source_id
-            ));
+            .unwrap_or_else(|| {
+                panic!(
+                    "Cannot find matched versions of package {} from source {}",
+                    name, source_id
+                )
+            });
         Ok(latest_result.clone())
     }
 
@@ -435,9 +440,8 @@ impl<'tmp> TempProject<'tmp> {
                         workspace,
                         version_to_latest,
                     );
-                    let mut summary;
-                    match r_summary {
-                        Result::Ok(val) => summary = val,
+                    let summary = match r_summary {
+                        Result::Ok(val) => val,
                         Result::Err(_) => {
                             eprintln!("Update for {} could not be found!", name.clone());
                             return Ok(());
@@ -483,7 +487,10 @@ impl<'tmp> TempProject<'tmp> {
                     }
                     dependencies.insert(name.clone(), Value::Table(replaced));
                 }
-                _ => panic!("Dependency spec is neither a string nor a table {}", dep_key),
+                _ => panic!(
+                    "Dependency spec is neither a string nor a table {}",
+                    dep_key
+                ),
             }
         }
         Ok(())

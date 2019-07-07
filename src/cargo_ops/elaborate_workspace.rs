@@ -32,7 +32,6 @@ impl<'ela> ElaborateWorkspace<'ela> {
         let specs = Packages::All.to_package_id_specs(workspace)?;
         let (packages, resolve) = ops::resolve_ws_precisely(
             workspace,
-            None,
             &options.flag_features,
             options.all_features(),
             options.no_default_features(),
@@ -265,10 +264,7 @@ impl<'ela> ElaborateWorkspace<'ela> {
                     .filter(|dep| !path.contains(dep))
                     .filter(|&dep| {
                         !self.workspace_mode
-                            || !self
-                                .workspace
-                                .members()
-                                .any(|mem| &mem.package_id() == dep)
+                            || !self.workspace.members().any(|mem| &mem.package_id() == dep)
                     })
                     .for_each(|&dep| {
                         let mut path = path.clone();
