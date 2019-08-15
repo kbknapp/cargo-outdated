@@ -2,7 +2,7 @@ use std::cell::RefCell;
 use std::collections::{BTreeSet, HashMap, HashSet, VecDeque};
 use std::io::{self, Write};
 
-use cargo::core::{Dependency, Package, PackageId, Workspace};
+use cargo::core::{Dependency, dependency::Kind, Package, PackageId, Workspace};
 use cargo::ops::{self, Packages};
 use cargo::util::{CargoResult, Config};
 use failure::{err_msg, format_err};
@@ -28,6 +28,7 @@ pub struct ElaborateWorkspace<'ela> {
 /// A struct to serialize to json with serde
 #[derive(Serialize, Deserialize)]
 pub struct CrateMetadata {
+    pub crate_name: String,
     pub dependencies: HashSet<Metadata>,
 }
 
@@ -37,8 +38,8 @@ pub struct Metadata {
     pub project: String,
     pub compat: String,
     pub latest: String,
-    pub kind: String,
-    pub platform: String,
+    pub kind: Option<String>,
+    pub platform: Option<String>,
 }
 
 impl<'ela> ElaborateWorkspace<'ela> {
@@ -327,6 +328,7 @@ impl<'ela> ElaborateWorkspace<'ela> {
         preceding_line: bool,
     ) -> CargoResult<i32> {
         let mut crate_graph = CrateMetadata {
+            crate_name: root.name().to_string(),
             dependencies: HashSet::new(),
         };
         let mut queue = VecDeque::new();
@@ -343,6 +345,9 @@ impl<'ela> ElaborateWorkspace<'ela> {
             {
                 // name version compatible latest kind platform
                 let parent = path.get(path.len() - 2);
+
+                let mut line;
+
                 if let Some(parent) = parent {
                     let dependency = &self.pkg_deps[parent][pkg];
                     let label = if self.workspace_mode
@@ -353,33 +358,35 @@ impl<'ela> ElaborateWorkspace<'ela> {
                         format!("{}->{}", self.pkgs[parent].name(), pkg.name())
                     };
 
-                    let line = Metadata {
+                    let dependency_type =  match dependency.kind() {
+                        Kind::Normal => "Normal",
+                        Kind::Development => "Development",
+                        Kind::Build => "Build"
+                    };
+
+                    line = Metadata {
                         name: label,
                         project: pkg.version().to_string(),
                         compat: status.compat.to_string(),
                         latest: status.latest.to_string(),
-                        kind: format!("{:?}", dependency.kind()).to_string(),
+                        kind: Some(dependency_type.to_string()),
                         platform: dependency
                             .platform()
                             .map(|p| p.to_string())
-                            .unwrap_or_else(|| "---".to_owned()),
                     };
-                    if !crate_graph.dependencies.contains(&line) {
-                        crate_graph.dependencies.insert(line);
-                    }
+                    
                 } else {
-                    let line = Metadata {
+                    line = Metadata {
                         name: pkg.name().to_string(),
                         project: pkg.version().to_string(),
                         compat: status.compat.to_string(),
                         latest: status.latest.to_string(),
-                        kind: String::new(),
-                        platform: String::new(),
-                    };
-                    if !crate_graph.dependencies.contains(&line) {
-                        crate_graph.dependencies.insert(line);
-                    }
+                        kind: None,
+                        platform: None,
+                    };    
                 }
+
+                crate_graph.dependencies.insert(line);
             }
             // next layer
             if options.flag_depth.is_none() || depth < options.flag_depth.unwrap() {
@@ -406,13 +413,8 @@ impl<'ela> ElaborateWorkspace<'ela> {
             if preceding_line {
                 println!();
             }
-            
-            let dependencies =  serde_json::to_string(&crate_graph)?;
-            //getting fancy here so we can add in the crate name at the top level for scripting
-            let json = format!("{{\"crate\": \"{}\",{}}}", root.name(), &dependencies[1..dependencies.len()-1]);
-
-            write!(io::stdout(), "{}", json)?;
-            io::stdout().flush()?;
+           
+            serde_json::to_writer(io::stdout(), &crate_graph)?; 
         }
 
         Ok(crate_graph.dependencies.len() as i32)
