@@ -2,7 +2,7 @@ use std::cell::RefCell;
 use std::collections::{BTreeSet, HashMap, HashSet, VecDeque};
 use std::io::{self, Write};
 
-use cargo::core::{dependency::Kind, Dependency, Package, PackageId, Workspace};
+use cargo::core::{Dependency, dependency::Kind, Package, PackageId, Workspace};
 use cargo::ops::{self, Packages};
 use cargo::util::{CargoResult, Config};
 use failure::{err_msg, format_err};
@@ -333,7 +333,7 @@ impl<'ela> ElaborateWorkspace<'ela> {
         };
         let mut queue = VecDeque::new();
         queue.push_back(vec![root]);
-
+        
         while let Some(path) = queue.pop_front() {
             let pkg = path.last().unwrap();
             let depth = path.len() as i32 - 1;
@@ -358,10 +358,10 @@ impl<'ela> ElaborateWorkspace<'ela> {
                         format!("{}->{}", self.pkgs[parent].name(), pkg.name())
                     };
 
-                    let dependency_type = match dependency.kind() {
+                    let dependency_type =  match dependency.kind() {
                         Kind::Normal => "Normal",
                         Kind::Development => "Development",
-                        Kind::Build => "Build",
+                        Kind::Build => "Build"
                     };
 
                     line = Metadata {
@@ -370,8 +370,11 @@ impl<'ela> ElaborateWorkspace<'ela> {
                         compat: status.compat.to_string(),
                         latest: status.latest.to_string(),
                         kind: Some(dependency_type.to_string()),
-                        platform: dependency.platform().map(|p| p.to_string()),
+                        platform: dependency
+                            .platform()
+                            .map(|p| p.to_string())
                     };
+                    
                 } else {
                     line = Metadata {
                         name: pkg.name().to_string(),
@@ -380,7 +383,7 @@ impl<'ela> ElaborateWorkspace<'ela> {
                         latest: status.latest.to_string(),
                         kind: None,
                         platform: None,
-                    };
+                    };    
                 }
 
                 crate_graph.dependencies.insert(line);
@@ -401,18 +404,8 @@ impl<'ela> ElaborateWorkspace<'ela> {
                     });
             }
         }
-
-        if crate_graph.dependencies.is_empty() {
-            if !self.workspace_mode {
-                println!("All dependencies are up to date, yay!");
-            }
-        } else {
-            if preceding_line {
-                println!();
-            }
-
-            serde_json::to_writer(io::stdout(), &crate_graph)?;
-        }
+           
+        serde_json::to_writer(io::stdout(), &crate_graph)?; 
 
         Ok(crate_graph.dependencies.len() as i32)
     }
