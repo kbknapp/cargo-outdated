@@ -24,6 +24,8 @@ USAGE:
 Options:
     -a, --aggressive            Ignores channels for latest updates
     -h, --help                  Prints help information
+        --format FORMAT         Output formatting [default: list]
+                                [values: list, json]
     -q, --quiet                 Suppresses warnings
     -R, --root-deps-only        Only check root dependencies (Equivalent to --depth=1)
     -V, --version               Prints version information
@@ -45,6 +47,7 @@ Options:
 /// Options from CLI arguments
 #[derive(serde_derive::Deserialize, Debug)]
 pub struct Options {
+    flag_format: Option<String>,
     flag_color: Option<String>,
     flag_features: Vec<String>,
     flag_manifest_path: Option<String>,
@@ -190,11 +193,25 @@ pub fn execute(options: Options, config: &mut Config) -> CargoResult<i32> {
 
     if ela_curr.workspace_mode {
         let mut sum = 0;
-        verbose!(config, "Printing...", "Package status in list format");
+        if options.flag_format == Some("list".to_string()) {
+            verbose!(config, "Printing...", "Package status in list format");
+        } else if options.flag_format == Some("json".to_string()) {
+            verbose!(config, "Printing...", "Package status in json format");
+        }
+
         for member in ela_curr.workspace.members() {
-            let package_id = member.package_id();
-            ela_curr.resolve_status(&ela_compat, &ela_latest, &options, config, package_id)?;
-            sum += ela_curr.print_list(&options, package_id, sum > 0)?;
+            ela_curr.resolve_status(
+                &ela_compat,
+                &ela_latest,
+                &options,
+                config,
+                member.package_id(),
+            )?;
+            if options.flag_format == Some("list".to_string()) {
+                sum += ela_curr.print_list(&options, member.package_id(), sum > 0)?;
+            } else if options.flag_format == Some("json".to_string()) {
+                sum += ela_curr.print_json(&options, member.package_id())?;
+            }
         }
         if sum == 0 {
             println!("All dependencies are up to date, yay!");
@@ -205,7 +222,17 @@ pub fn execute(options: Options, config: &mut Config) -> CargoResult<i32> {
         let root = ela_curr.determine_root(&options)?;
         ela_curr.resolve_status(&ela_compat, &ela_latest, &options, config, root)?;
         verbose!(config, "Printing...", "list format");
-        let count = ela_curr.print_list(&options, root, false)?;
+        let mut count = 0;
+
+        if options.flag_format == Some("list".to_string()) {
+            count = ela_curr.print_list(&options, root, false)?;
+        } else if options.flag_format == Some("json".to_string()) {
+            ela_curr.print_json(&options, root)?;
+        } else {
+            println!("Error, did not specify list or json output formatting");
+            std::process::exit(2);
+        }
+
         Ok(count)
     }
 }

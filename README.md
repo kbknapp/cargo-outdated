@@ -101,6 +101,8 @@ USAGE:
 Options:
     -a, --aggressive            Ignores channels for latest updates
     -h, --help                  Prints help information
+        --format FORMAT         Output formatting [default: list]
+                                [values: list, json]
     -q, --quiet                 Suppresses warnings
     -R, --root-deps-only        Only check root dependencies (Equivalent to --depth=1)
     -V, --version               Prints version information
