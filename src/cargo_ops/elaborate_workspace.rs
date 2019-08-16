@@ -325,8 +325,7 @@ impl<'ela> ElaborateWorkspace<'ela> {
     pub fn print_json(
         &'ela self,
         options: &Options,
-        root: &'ela PackageId,
-        preceding_line: bool,
+        root: PackageId,
     ) -> CargoResult<i32> {
         let mut crate_graph = CrateMetadata {
             crate_name: root.name().to_string(),
@@ -347,7 +346,7 @@ impl<'ela> ElaborateWorkspace<'ela> {
                 // name version compatible latest kind platform
                 let parent = path.get(path.len() - 2);
 
-                let mut line;
+                let line;
 
                 if let Some(parent) = parent {
                     let dependency = &self.pkg_deps[parent][pkg];
@@ -396,11 +395,11 @@ impl<'ela> ElaborateWorkspace<'ela> {
                     .filter(|dep| !path.contains(dep))
                     .filter(|dep| {
                         !self.workspace_mode
-                            || !self.workspace.members().any(|mem| &mem.package_id() == dep)
+                            || !self.workspace.members().any(|mem| mem.package_id() == **dep)
                     })
                     .for_each(|dep| {
                         let mut path = path.clone();
-                        path.push(dep);
+                        path.push(*dep);
                         queue.push_back(path);
                     });
             }

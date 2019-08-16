@@ -216,7 +216,7 @@ pub fn execute(options: Options, config: &mut Config) -> CargoResult<i32> {
             if options.flag_format == Some("list".to_string()) {
                 sum += ela_curr.print_list(&options, member.package_id(), sum > 0)?;
             } else if options.flag_format == Some("json".to_string()) {
-                sum += ela_curr.print_json(&options, &member.package_id(), sum > 0)?;
+                sum += ela_curr.print_json(&options, member.package_id())?;
             }
         }
         if sum == 0 {
@@ -233,7 +233,7 @@ pub fn execute(options: Options, config: &mut Config) -> CargoResult<i32> {
         if options.flag_format == Some("list".to_string()) {
             count = ela_curr.print_list(&options, root, false)?;
         } else if options.flag_format == Some("json".to_string()) {
-            ela_curr.print_json(&options, &root, false)?;
+            ela_curr.print_json(&options, root)?;
         } else {
             println!("Error, did not specify list or json output formatting");
             std::process::exit(2);
