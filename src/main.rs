@@ -96,7 +96,7 @@ fn main() {
                 .flat_map(|s| s.split_whitespace())
                 .flat_map(|s| s.split(','))
                 .filter(|s| !s.is_empty())
-                .map(|s| s.to_string())
+                .map(ToString::to_string)
                 .collect()
         }
         options.flag_features = flat_split(&options.flag_features);
@@ -132,8 +132,6 @@ fn main() {
     }
 }
 
-#[allow(unknown_lints)]
-#[allow(needless_pass_by_value)]
 pub fn execute(options: Options, config: &mut Config) -> CargoResult<i32> {
     config.configure(
         options.flag_verbose,
@@ -141,6 +139,7 @@ pub fn execute(options: Options, config: &mut Config) -> CargoResult<i32> {
         &options.flag_color,
         options.frozen(),
         options.locked(),
+        false,
         &None,
         &[],
     )?;

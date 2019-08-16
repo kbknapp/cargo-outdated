@@ -20,7 +20,7 @@ pub struct ElaborateWorkspace<'ela> {
     pub pkgs: HashMap<PackageId, Package>,
     pub pkg_deps: HashMap<PackageId, HashMap<PackageId, Dependency>>,
     /// Map of package status
-    pub pkg_status: RefCell<HashMap<Vec<&'ela PackageId>, PkgStatus>>,
+    pub pkg_status: RefCell<HashMap<Vec<PackageId>, PkgStatus>>,
     /// Whether using workspace mode
     pub workspace_mode: bool,
 }
@@ -51,7 +51,6 @@ impl<'ela> ElaborateWorkspace<'ela> {
         let specs = Packages::All.to_package_id_specs(workspace)?;
         let (packages, resolve) = ops::resolve_ws_precisely(
             workspace,
-            None,
             &options.flag_features,
             options.all_features(),
             options.no_default_features(),
@@ -61,18 +60,18 @@ impl<'ela> ElaborateWorkspace<'ela> {
         let mut pkg_deps = HashMap::new();
         for pkg in packages.get_many(packages.package_ids())? {
             let pkg_id = pkg.package_id();
-            pkgs.insert(pkg_id.clone(), pkg.clone());
+            pkgs.insert(pkg_id, pkg.clone());
             let deps = pkg.dependencies();
             let mut dep_map = HashMap::new();
             for dep_id in resolve.deps(pkg_id) {
                 for d in deps {
                     if d.matches_id(dep_id.0) {
-                        dep_map.insert(dep_id.0.clone(), d.clone());
+                        dep_map.insert(dep_id.0, d.clone());
                         break;
                     }
                 }
             }
-            pkg_deps.insert(pkg_id.clone(), dep_map);
+            pkg_deps.insert(pkg_id, dep_map);
         }
 
         Ok(ElaborateWorkspace {
@@ -85,15 +84,15 @@ impl<'ela> ElaborateWorkspace<'ela> {
     }
 
     /// Determine root package based on current workspace and CLI options
-    pub fn determine_root(&self, options: &Options) -> CargoResult<&PackageId> {
+    pub fn determine_root(&self, options: &Options) -> CargoResult<PackageId> {
         if let Some(ref root_name) = options.flag_root {
             if let Ok(workspace_root) = self.workspace.current() {
                 if root_name == workspace_root.name().as_str() {
                     Ok(workspace_root.package_id())
                 } else {
-                    for direct_dep in self.pkg_deps[workspace_root.package_id()].keys() {
+                    for direct_dep in self.pkg_deps[&workspace_root.package_id()].keys() {
                         if self.pkgs[direct_dep].name().as_str() == root_name {
-                            return Ok(direct_dep);
+                            return Ok(*direct_dep);
                         }
                     }
                     return Err(err_msg(
@@ -111,7 +110,7 @@ impl<'ela> ElaborateWorkspace<'ela> {
     }
 
     /// Find a member based on member name
-    fn find_member(&self, member: &PackageId) -> CargoResult<&PackageId> {
+    fn find_member(&self, member: PackageId) -> CargoResult<PackageId> {
         for m in self.workspace.members() {
             // members with the same name in a workspace is not allowed
             // even with different paths
@@ -127,7 +126,7 @@ impl<'ela> ElaborateWorkspace<'ela> {
         let root_path = self.workspace.root();
         for (pkg_id, pkg) in &self.pkgs {
             if pkg.manifest_path().starts_with(root_path) && pkg.name().as_str() == name {
-                return Ok(pkg_id.clone());
+                return Ok(*pkg_id);
             }
         }
         Err(format_err!("Cannot find package {} in workspace", name))
@@ -142,12 +141,12 @@ impl<'ela> ElaborateWorkspace<'ela> {
         let dependent_package = self.find_contained_package(dependent_package_name)?;
         for direct_dep in self.pkg_deps[&dependent_package].keys() {
             if direct_dep.name().as_str() == dependency_name {
-                return Ok(direct_dep.clone());
+                return Ok(*direct_dep);
             }
         }
         for (pkg_id, pkg) in &self.pkgs {
             if pkg.name().as_str() == dependency_name {
-                return Ok(pkg_id.clone());
+                return Ok(*pkg_id);
             }
         }
         Err(format_err!(
@@ -164,7 +163,7 @@ impl<'ela> ElaborateWorkspace<'ela> {
         latest: &ElaborateWorkspace<'_>,
         options: &Options,
         _config: &Config,
-        root: &'ela PackageId,
+        root: PackageId,
     ) -> CargoResult<()> {
         self.pkg_status.borrow_mut().clear();
         let (compat_root, latest_root) = if self.workspace_mode {
@@ -183,8 +182,8 @@ impl<'ela> ElaborateWorkspace<'ela> {
             let depth = path.len() as i32 - 1;
             // generate pkg_status
             let status = PkgStatus {
-                compat: Status::from_versions(pkg.version(), compat_pkg.map(|p| p.version())),
-                latest: Status::from_versions(pkg.version(), latest_pkg.map(|p| p.version())),
+                compat: Status::from_versions(pkg.version(), compat_pkg.map(PackageId::version)),
+                latest: Status::from_versions(pkg.version(), latest_pkg.map(PackageId::version)),
             };
             debug!(
                 _config,
@@ -201,16 +200,18 @@ impl<'ela> ElaborateWorkspace<'ela> {
                 self.pkg_deps[pkg]
                     .keys()
                     .filter(|dep| !path.contains(dep))
-                    .for_each(|dep| {
+                    .for_each(|&dep| {
                         let name = dep.name();
                         let compat_pkg = compat_pkg
-                            .and_then(|id| compat.pkg_deps.get(id))
-                            .map(|dep_map| dep_map.keys())
-                            .and_then(|ref mut deps| deps.find(|dep| dep.name() == name));
+                            .and_then(|id| compat.pkg_deps.get(&id))
+                            .map(HashMap::keys)
+                            .and_then(|mut deps| deps.find(|dep| dep.name() == name))
+                            .cloned();
                         let latest_pkg = latest_pkg
-                            .and_then(|id| latest.pkg_deps.get(id))
-                            .map(|dep_map| dep_map.keys())
-                            .and_then(|ref mut deps| deps.find(|dep| dep.name() == name));
+                            .and_then(|id| latest.pkg_deps.get(&id))
+                            .map(HashMap::keys)
+                            .and_then(|mut deps| deps.find(|dep| dep.name() == name))
+                            .cloned();
                         let mut path = path.clone();
                         path.push(dep);
                         queue.push_back((path, compat_pkg, latest_pkg));
@@ -225,7 +226,7 @@ impl<'ela> ElaborateWorkspace<'ela> {
     pub fn print_list(
         &'ela self,
         options: &Options,
-        root: &'ela PackageId,
+        root: PackageId,
         preceding_line: bool,
     ) -> CargoResult<i32> {
         let mut lines = BTreeSet::new();
@@ -260,7 +261,7 @@ impl<'ela> ElaborateWorkspace<'ela> {
                         dependency.kind(),
                         dependency
                             .platform()
-                            .map(|p| p.to_string())
+                            .map(ToString::to_string)
                             .unwrap_or_else(|| "---".to_owned())
                     );
                     lines.insert(line);
@@ -280,11 +281,11 @@ impl<'ela> ElaborateWorkspace<'ela> {
                 self.pkg_deps[pkg]
                     .keys()
                     .filter(|dep| !path.contains(dep))
-                    .filter(|dep| {
+                    .filter(|&dep| {
                         !self.workspace_mode
                             || !self.workspace.members().any(|mem| &mem.package_id() == dep)
                     })
-                    .for_each(|dep| {
+                    .for_each(|&dep| {
                         let mut path = path.clone();
                         path.push(dep);
                         queue.push_back(path);

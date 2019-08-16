@@ -120,6 +120,7 @@ impl<'tmp> TempProject<'tmp> {
             &options.flag_color,
             options.frozen(),
             options.locked(),
+            false,
             &None,
             &[],
         )?;
@@ -133,6 +134,7 @@ impl<'tmp> TempProject<'tmp> {
             precise: None,
             to_update: Vec::new(),
             config: &self.config,
+            dry_run: false,
         };
         update_lockfile(self.workspace.borrow().as_ref().unwrap(), &update_opts)?;
         Ok(())
@@ -159,7 +161,7 @@ impl<'tmp> TempProject<'tmp> {
             f(dep)?;
         }
         if let Some(t) = manifest.target.as_mut() {
-            for target in t.values_mut() {
+            for (_key, target) in t.iter_mut() {
                 if let Value::Table(ref mut target) = *target {
                     for dependency_tables in
                         &["dependencies", "dev-dependencies", "build-dependencies"]
@@ -280,12 +282,14 @@ impl<'tmp> TempProject<'tmp> {
         let package_id = workspace.find_direct_dependency(name, dependent_package_name)?;
         let version = package_id.version();
         let source_id = package_id.source_id().with_precise(None);
-        let mut source = source_id.load(&self.config)?;
+        let mut source = source_id.load(&self.config, &HashSet::new())?;
         if !source_id.is_default_registry() {
+            let _lock = self.config.acquire_package_cache_lock()?;
             source.update()?;
         }
-        let dependency = Dependency::parse_no_deprecated(name, None, &source_id)?;
+        let dependency = Dependency::parse_no_deprecated(name, None, source_id)?;
         let query_result = {
+            let _lock = self.config.acquire_package_cache_lock()?;
             let mut query_result = source.query_vec(&dependency)?;
             query_result.sort_by(|a, b| b.version().cmp(a.version()));
             query_result
@@ -308,10 +312,12 @@ impl<'tmp> TempProject<'tmp> {
                     version_req.as_ref().unwrap().matches(summary.version())
                 }
             })
-            .unwrap_or_else(|| panic!(
-                "Cannot find matched versions of package {} from source {}",
-                name, source_id
-            ));
+            .unwrap_or_else(|| {
+                panic!(
+                    "Cannot find matched versions of package {} from source {}",
+                    name, source_id
+                )
+            });
         Ok(latest_result.clone())
     }
 
@@ -434,9 +440,8 @@ impl<'tmp> TempProject<'tmp> {
                         workspace,
                         version_to_latest,
                     );
-                    let mut summary;
-                    match r_summary {
-                        Result::Ok(val) => summary = val,
+                    let summary = match r_summary {
+                        Result::Ok(val) => val,
                         Result::Err(_) => {
                             eprintln!("Update for {} could not be found!", name.clone());
                             return Ok(());
@@ -482,7 +487,10 @@ impl<'tmp> TempProject<'tmp> {
                     }
                     dependencies.insert(name.clone(), Value::Table(replaced));
                 }
-                _ => panic!("Dependency spec is neither a string nor a table {}", dep_key),
+                _ => panic!(
+                    "Dependency spec is neither a string nor a table {}",
+                    dep_key
+                ),
             }
         }
         Ok(())
@@ -567,23 +575,23 @@ fn manifest_paths(elab: &ElaborateWorkspace<'_>) -> CargoResult<Vec<PathBuf>> {
     let mut manifest_paths = vec![];
 
     fn manifest_paths_recursive(
-        pkg_id: &PackageId,
+        pkg_id: PackageId,
         elab: &ElaborateWorkspace<'_>,
         workspace_path: &str,
         visited: &mut HashSet<PackageId>,
         manifest_paths: &mut Vec<PathBuf>,
     ) -> CargoResult<()> {
-        if visited.contains(pkg_id) {
+        if visited.contains(&pkg_id) {
             return Ok(());
         }
-        visited.insert(pkg_id.clone());
-        let pkg = &elab.pkgs[pkg_id];
+        visited.insert(pkg_id);
+        let pkg = &elab.pkgs[&pkg_id];
         let pkg_path = pkg.root().to_string_lossy();
         if pkg_path.starts_with(workspace_path) {
             manifest_paths.push(pkg.manifest_path().to_owned());
         }
 
-        for dep in elab.pkg_deps[pkg_id].keys() {
+        for &dep in elab.pkg_deps[&pkg_id].keys() {
             manifest_paths_recursive(dep, elab, workspace_path, visited, manifest_paths)?;
         }
 
