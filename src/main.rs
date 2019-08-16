@@ -214,7 +214,7 @@ pub fn execute(options: Options, config: &mut Config) -> CargoResult<i32> {
                 member.package_id(),
             )?;
             if options.flag_format == Some("list".to_string()) {
-                sum += ela_curr.print_list(&options, &member.package_id(), sum > 0)?;
+                sum += ela_curr.print_list(&options, member.package_id(), sum > 0)?;
             } else if options.flag_format == Some("json".to_string()) {
                 sum += ela_curr.print_json(&options, &member.package_id(), sum > 0)?;
             }
