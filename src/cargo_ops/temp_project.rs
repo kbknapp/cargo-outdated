@@ -57,6 +57,25 @@ impl<'tmp> TempProject<'tmp> {
                 temp_dir.path().to_owned()
             };
             fs::create_dir_all(&dest)?;
+
+            let om: Manifest = {
+                let mut buf = String::new();
+                let mut file = File::open(orig_manifest)?;
+                file.read_to_string(&mut buf)?;
+                ::toml::from_str(&buf)?
+            };
+
+           if om.package.contains_key("default-run") {
+                let mut dest_bin = temp_dir.path().to_owned();
+                dest_bin.push("src/bin");
+                fs::create_dir_all(&dest_bin)?;
+                let run_file = om.package["default-run"].to_string();
+                let n: Vec<&str> = run_file.split("\"").collect();
+                let default_run_location: PathBuf = from_dir.join(format!("src/{}/{}.rs", "bin", &n[1]));
+                dest_bin.push(format!("{}.rs", n[1]));
+                fs::copy(default_run_location, &dest_bin)?;
+            }   
+
             // e.g. /tmp/cargo.xxx/src/sub/Cargo.toml
             dest.push("Cargo.toml");
             tmp_manifest_paths.push(dest.clone());
@@ -191,6 +210,7 @@ impl<'tmp> TempProject<'tmp> {
             bin.insert("path".to_owned(), Value::String("test.rs".to_owned()));
             bin
         };
+
         for manifest_path in &self.manifest_paths {
             let mut manifest: Manifest = {
                 let mut buf = String::new();
@@ -198,6 +218,7 @@ impl<'tmp> TempProject<'tmp> {
                 file.read_to_string(&mut buf)?;
                 ::toml::from_str(&buf)?
             };
+
             manifest.bin = Some(vec![bin.clone()]);
             // provide lib.path
             if let Some(lib) = manifest.lib.as_mut() {
@@ -211,14 +232,18 @@ impl<'tmp> TempProject<'tmp> {
                     manifest_path,
                 )
             })?;
+
             let package_name = manifest.name();
             let features = manifest.features.clone();
             Self::manipulate_dependencies(&mut manifest, &|deps| {
                 self.update_version_and_feature(deps, &features, workspace, &package_name, false)
             })?;
+
+
             Self::write_manifest(&manifest, manifest_path)?;
         }
         let root_manifest = self.temp_dir.path().join(&self.relative_manifest);
+        
         *self.workspace.borrow_mut() =
             Some(Workspace::new(Path::new(&root_manifest), &self.config)?);
         Ok(())
@@ -244,6 +269,7 @@ impl<'tmp> TempProject<'tmp> {
                 file.read_to_string(&mut buf)?;
                 ::toml::from_str(&buf)?
             };
+
             manifest.bin = Some(vec![bin.clone()]);
             // provide lib.path
             if let Some(lib) = manifest.lib.as_mut() {
