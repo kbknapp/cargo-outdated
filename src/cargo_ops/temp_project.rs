@@ -1,7 +1,7 @@
 use std::cell::RefCell;
 use std::collections::HashSet;
 use std::env;
-use std::fs::{self, File};
+use std::fs::{self, File, OpenOptions};
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
@@ -43,11 +43,13 @@ impl<'tmp> TempProject<'tmp> {
         let temp_dir = Builder::new().prefix("cargo-outdated").tempdir()?;
         let manifest_paths = manifest_paths(orig_workspace)?;
         let mut tmp_manifest_paths = vec![];
+        
         for from in &manifest_paths {
             // e.g. /path/to/project/src/sub
             let mut from_dir = from.clone();
             from_dir.pop();
             let from_dir_str = from_dir.to_string_lossy();
+            
             // e.g. /tmp/cargo.xxx/src/sub
             let mut dest = if workspace_root_str.len() < from_dir_str.len() {
                 temp_dir
@@ -56,11 +58,29 @@ impl<'tmp> TempProject<'tmp> {
             } else {
                 temp_dir.path().to_owned()
             };
+            
             fs::create_dir_all(&dest)?;
+            
             // e.g. /tmp/cargo.xxx/src/sub/Cargo.toml
             dest.push("Cargo.toml");
             tmp_manifest_paths.push(dest.clone());
             fs::copy(from, &dest)?;
+
+            //removing default-run key if it exists to check dependencies 
+            let mut om: Manifest = {
+                let mut buf = String::new();
+                let mut file = File::open(&dest)?;
+                file.read_to_string(&mut buf)?;
+                ::toml::from_str(&buf)?
+            };
+
+            if om.package.contains_key("default-run") {
+                om.package.remove("default-run");
+                let om_serialized = ::toml::to_string(&om).expect("Cannot format as toml file");
+                let mut cargo_toml = OpenOptions::new().read(true).write(true).truncate(true).open(&dest)?;
+                write!(cargo_toml, "{}", om_serialized)?;
+            }
+
             let lockfile = from_dir.join("Cargo.lock");
             if lockfile.is_file() {
                 dest.pop();
@@ -82,6 +102,7 @@ impl<'tmp> TempProject<'tmp> {
 
         let relative_manifest = String::from(&orig_manifest[workspace_root_str.len() + 1..]);
         let config = Self::generate_config(temp_dir.path(), &relative_manifest, options)?;
+        
         Ok(TempProject {
             workspace: Rc::new(RefCell::new(None)),
             temp_dir,
@@ -191,6 +212,7 @@ impl<'tmp> TempProject<'tmp> {
             bin.insert("path".to_owned(), Value::String("test.rs".to_owned()));
             bin
         };
+
         for manifest_path in &self.manifest_paths {
             let mut manifest: Manifest = {
                 let mut buf = String::new();
@@ -198,6 +220,7 @@ impl<'tmp> TempProject<'tmp> {
                 file.read_to_string(&mut buf)?;
                 ::toml::from_str(&buf)?
             };
+
             manifest.bin = Some(vec![bin.clone()]);
             // provide lib.path
             if let Some(lib) = manifest.lib.as_mut() {
@@ -211,14 +234,18 @@ impl<'tmp> TempProject<'tmp> {
                     manifest_path,
                 )
             })?;
+
             let package_name = manifest.name();
             let features = manifest.features.clone();
             Self::manipulate_dependencies(&mut manifest, &|deps| {
                 self.update_version_and_feature(deps, &features, workspace, &package_name, false)
             })?;
+
+
             Self::write_manifest(&manifest, manifest_path)?;
         }
         let root_manifest = self.temp_dir.path().join(&self.relative_manifest);
+        
         *self.workspace.borrow_mut() =
             Some(Workspace::new(Path::new(&root_manifest), &self.config)?);
         Ok(())
@@ -244,6 +271,7 @@ impl<'tmp> TempProject<'tmp> {
                 file.read_to_string(&mut buf)?;
                 ::toml::from_str(&buf)?
             };
+
             manifest.bin = Some(vec![bin.clone()]);
             // provide lib.path
             if let Some(lib) = manifest.lib.as_mut() {
