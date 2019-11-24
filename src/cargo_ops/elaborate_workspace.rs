@@ -48,14 +48,15 @@ impl<'ela> ElaborateWorkspace<'ela> {
         workspace: &'ela Workspace<'_>,
         options: &Options,
     ) -> CargoResult<ElaborateWorkspace<'ela>> {
+        use cargo::core::resolver::ResolveOpts;
         let specs = Packages::All.to_package_id_specs(workspace)?;
-        let (packages, resolve) = ops::resolve_ws_precisely(
-            workspace,
+        let opts = ResolveOpts::new(
+            true,
             &options.flag_features,
             options.all_features(),
             options.no_default_features(),
-            &specs,
-        )?;
+        );
+        let (packages, resolve) = ops::resolve_ws_with_opts(workspace, opts, &specs)?;
         let mut pkgs = HashMap::new();
         let mut pkg_deps = HashMap::new();
         for pkg in packages.get_many(packages.package_ids())? {
