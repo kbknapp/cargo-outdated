@@ -625,14 +625,12 @@ fn valid_latest_version(requirement: &str, version: &Version) -> bool {
         (false, false) | (true, false) => true,
         // both are unstable, must be in the same channel
         (true, true) => {
-            let requirement_channel = {
-                let pre = requirement.split(&['-', '+'][..]).nth(1).unwrap();
-                pre.trim_matches(|c| !char::is_alphabetic(c))
-            };
+            let requirement_version = Version::parse(requirement).expect("Error could not parse requirement into a semantic version"); 
+            let requirement_channel = requirement_version.pre[0].to_string();
             match (requirement_channel.is_empty(), &version.pre[0]) {
                 (true, &Identifier::Numeric(_)) => true,
-                (false, &Identifier::AlphaNumeric(ref pre)) => {
-                    requirement_channel == pre.trim_matches(char::is_numeric)
+                (false, &Identifier::AlphaNumeric(_)) => {
+                    Identifier::AlphaNumeric(requirement_channel) == version.pre[0]
                 }
                 _ => false,
             }
