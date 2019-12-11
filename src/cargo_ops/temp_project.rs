@@ -653,7 +653,8 @@ fn valid_latest_version(requirement: &str, version: &Version) -> bool {
         (false, false) | (true, false) => true,
         // both are unstable, must be in the same channel
         (true, true) => {
-            let requirement_version = Version::parse(requirement).expect("Error could not parse requirement into a semantic version"); 
+            let requirement_mod = requirement.replace("=", "").replace(" ", "");
+            let requirement_version = Version::parse(&requirement_mod).expect("Error could not parse requirement into a semantic version"); 
             let requirement_channel = requirement_version.pre[0].to_string();
             match (requirement_channel.is_empty(), &version.pre[0]) {
                 (true, &Identifier::Numeric(_)) => true,
