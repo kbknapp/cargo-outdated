@@ -643,7 +643,7 @@ fn manifest_paths(elab: &ElaborateWorkspace<'_>) -> CargoResult<Vec<PathBuf>> {
     Ok(manifest_paths)
 }
 
-fn valid_latest_version(requirement: &str, version: &Version) -> bool {
+fn valid_latest_version(mut requirement: &str, version: &Version) -> bool {
     match (requirement.contains('-'), version.is_prerelease()) {
         // if user was on a stable channel, it's unlikely for him to update to an unstable one
         (false, true) => false,
@@ -653,7 +653,8 @@ fn valid_latest_version(requirement: &str, version: &Version) -> bool {
         (false, false) | (true, false) => true,
         // both are unstable, must be in the same channel
         (true, true) => {
-            let requirement_version = Version::parse(requirement).expect("Error could not parse requirement into a semantic version"); 
+            requirement = requirement.trim_start_matches(&['=',' ','~','^'][..]);
+            let requirement_version = Version::parse(&requirement).expect("Error could not parse requirement into a semantic version"); 
             let requirement_channel = requirement_version.pre[0].to_string();
             match (requirement_channel.is_empty(), &version.pre[0]) {
                 (true, &Identifier::Numeric(_)) => true,

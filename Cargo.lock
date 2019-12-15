@@ -142,7 +142,7 @@ dependencies = [
 
 [[package]]
 name = "cargo-outdated"
-version = "0.9.1"
+version = "0.9.2"
 dependencies = [
  "cargo 0.40.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "docopt 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
