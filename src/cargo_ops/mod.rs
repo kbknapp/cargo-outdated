@@ -43,6 +43,11 @@ struct Manifest {
     )]
     pub target: Option<Table>,
     pub features: Option<Value>,
+    #[serde(
+        skip_serializing_if = "Option::is_none",
+        serialize_with = "opt_tables_last"
+    )]
+    pub net: Option<Table>,
 }
 
 impl Manifest {

@@ -74,6 +74,19 @@ impl<'tmp> TempProject<'tmp> {
                 ::toml::from_str(&buf)?
             };
 
+            // Check for network configurations in the net module that will affect how
+            // We get the packages updated
+            match om.net {
+                Some(ref x) => {
+                    if x.contains_key("git-fetch-with-cli") {
+                        std::env::set_var("CARGO_NET_GIT_FETCH_WITH_CLI", "true");
+                    }
+
+                    //We should check for more options that need set proxy? any others? 
+                },
+                _ => continue,
+            }
+
             if om.package.contains_key("default-run") {
                 om.package.remove("default-run");
                 let om_serialized = ::toml::to_string(&om).expect("Cannot format as toml file");
@@ -102,7 +115,13 @@ impl<'tmp> TempProject<'tmp> {
 
         let relative_manifest = String::from(&orig_manifest[workspace_root_str.len() + 1..]);
         let config = Self::generate_config(temp_dir.path(), &relative_manifest, options)?;
-        
+
+        //checking to see if we have net git_fetch_with_cli set
+        //if so, update the environment variable so we can properly fetch the package
+       // if om.net.is_some("git-fetch-with-cli") {
+       //     config.env.insert("CARGO_NET_GIT_FETCH_WITH_CLI".to_string(), "true".to_string());
+       // }
+
         Ok(TempProject {
             workspace: Rc::new(RefCell::new(None)),
             temp_dir,
@@ -408,7 +427,7 @@ impl<'tmp> TempProject<'tmp> {
         let dep_keys: Vec<_> = dependencies.keys().cloned().collect();
         for dep_key in dep_keys {
             let original = dependencies.get(&dep_key).cloned().unwrap();
-
+            
             match original {
                 Value::String(requirement) => {
                     let name = dep_key;
