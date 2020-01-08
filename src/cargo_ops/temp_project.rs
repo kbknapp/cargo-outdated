@@ -100,6 +100,12 @@ impl<'tmp> TempProject<'tmp> {
             }
         }
 
+        //.cargo/config 
+        if workspace_root.join(".cargo/config").is_file() {
+            fs::create_dir_all( temp_dir.path().join(".cargo"))?;
+            fs::copy(&workspace_root.join(".cargo/config"), temp_dir.path().join(".cargo/config"))?;
+        }
+
         let relative_manifest = String::from(&orig_manifest[workspace_root_str.len() + 1..]);
         let config = Self::generate_config(temp_dir.path(), &relative_manifest, options)?;
         
