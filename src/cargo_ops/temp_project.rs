@@ -81,12 +81,30 @@ impl<'tmp> TempProject<'tmp> {
                 write!(cargo_toml, "{}", om_serialized)?;
             }
 
+            // if build script is specified in the original Cargo.toml (from links or build) remove it as we do not need
+            // it for checking dependencies
+            if om.package.contains_key("links") {
+                om.package.remove("links");
+                let om_serialized = ::toml::to_string(&om).expect("Cannot format as toml file");
+                let mut cargo_toml = OpenOptions::new().read(true).write(true).truncate(true).open(&dest)?;
+                write!(cargo_toml, "{}", om_serialized)?;
+            }
+
+            if om.package.contains_key("build") {
+                om.package.remove("build");
+                let om_serialized = ::toml::to_string(&om).expect("Cannot format as toml file");
+                let mut cargo_toml = OpenOptions::new().read(true).write(true).truncate(true).open(&dest)?;
+                write!(cargo_toml, "{}", om_serialized)?;
+            }
+
             let lockfile = from_dir.join("Cargo.lock");
             if lockfile.is_file() {
                 dest.pop();
                 dest.push("Cargo.lock");
                 fs::copy(lockfile, dest)?;
             }
+
+
         }
 
         // virtual root
