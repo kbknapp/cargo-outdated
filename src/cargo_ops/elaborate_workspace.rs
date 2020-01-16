@@ -56,7 +56,9 @@ impl<'ela> ElaborateWorkspace<'ela> {
             options.all_features(),
             options.no_default_features(),
         );
-        let (packages, resolve) = ops::resolve_ws_with_opts(workspace, opts, &specs)?;
+        let ws_resolve = ops::resolve_ws_with_opts(workspace, opts, &specs)?;
+        let packages = ws_resolve.pkg_set;
+        let resolve = ws_resolve.workspace_resolve.expect("Error getting workspace resolved");
         let mut pkgs = HashMap::new();
         let mut pkg_deps = HashMap::new();
         for pkg in packages.get_many(packages.package_ids())? {
