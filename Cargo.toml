@@ -1,6 +1,6 @@
 [package]
 name = "cargo-outdated"
-version = "0.9.3"
+version = "0.9.4"
 authors = [
     "Kevin K. <kbknapp@gmail.com>",
     "Frederick Z. <frederick888@tsundere.moe>",
@@ -27,7 +27,7 @@ travis-ci = {repository = "kbknapp/cargo-outdated"}
 name = "cargo-outdated"
 
 [dependencies]
-cargo = "0.40"
+cargo = "0.42"
 docopt = "1.0.0"
 env_logger = "0.7.0"
 failure = "0.1.1"
@@ -35,7 +35,7 @@ semver = "0.9.0"
 serde = {version="1.0.11", features = ["derive"]}
 serde_derive = "1.0.11"
 serde_json = "1.0.3"
-tabwriter = "~1.1.0"
+tabwriter = "1.2.1"
 tempfile = "3"
 toml = "~0.5.0"
 
