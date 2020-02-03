@@ -38,7 +38,7 @@ Options:
                                 (Defaults to all dependencies when omitted)
         --exit-code NUM         The exit code to return on new versions found [default: 0]
         --features FEATURES     Space-separated list of features
-    -m, --manifest-path FILE    An absolute path to the Cargo.toml file to use
+    -m, --manifest-path FILE    Path to the Cargo.toml file to use
                                 (Defaults to Cargo.toml in project root)
     -p, --packages PKGS         Packages to inspect for updates
     -r, --root ROOT             Package to treat as the root package
@@ -144,8 +144,14 @@ pub fn execute(options: Options, config: &mut Config) -> CargoResult<i32> {
 
     verbose!(config, "Parsing...", "current workspace");
     // the Cargo.toml that we are actually working on
+    let mut manifest_abspath: std::path::PathBuf;
     let curr_manifest = if let Some(ref manifest_path) = options.flag_manifest_path {
-        manifest_path.into()
+        manifest_abspath = manifest_path.into();
+        if manifest_abspath.is_relative() {
+            verbose!(config, "Resolving...", "absolute path of manifest");
+            manifest_abspath = std::env::current_dir()?.join(manifest_path);
+        }
+        manifest_abspath
     } else {
         find_root_manifest_for_wd(config.cwd())?
     };
