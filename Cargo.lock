@@ -171,7 +171,7 @@ dependencies = [
 
 [[package]]
 name = "cargo-outdated"
-version = "0.9.4"
+version = "0.9.5"
 dependencies = [
  "cargo",
  "docopt",
@@ -1190,9 +1190,9 @@ checksum = "826e7639553986605ec5979c7dd957c7895e93eabed50ab2ffa7f6128a75097c"
 
 [[package]]
 name = "url"
-version = "2.1.1"
+version = "2.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "829d4a8476c35c9bf0bbce5a3b23f4106f79728039b726d292bb93bc106787cb"
+checksum = "75b414f6c464c879d7f9babf951f23bc3743fb7313c081b2e6ca719067ea9d61"
 dependencies = [
  "idna",
  "matches",
