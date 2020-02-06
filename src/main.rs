@@ -11,9 +11,11 @@ use crate::cargo_ops::{ElaborateWorkspace, TempProject};
 use cargo::core::maybe_allow_nightly_features;
 use cargo::core::shell::Verbosity;
 use cargo::core::Workspace;
+use cargo::ops::needs_custom_http_transport;
 use cargo::util::important_paths::find_root_manifest_for_wd;
 use cargo::util::{CargoResult, CliError, Config};
 use docopt::Docopt;
+use git2_curl;
 
 pub const USAGE: &str = "
 Displays information about project dependency versions
@@ -117,6 +119,27 @@ fn main() {
             cargo::exit_with_error(e.into(), &mut shell)
         }
     };
+
+    // Only use a custom transport if any HTTP options are specified,
+    // such as proxies or custom certificate authorities. The custom
+    // transport, however, is not as well battle-tested.
+    // See cargo-outdated issue #197 and 
+    // https://github.com/rust-lang/cargo/blob/master/src/bin/cargo/main.rs#L181 
+    // fn init_git_transports()
+    match needs_custom_http_transport(&config) {
+        Ok(true) => {
+            match cargo::ops::http_handle(&config) {
+                Ok(handle) => {
+                    unsafe {
+                        git2_curl::register(handle);
+                    }
+                },
+                Err(_) => {}
+            }
+        },
+        _ => {},
+    }
+
     let exit_code = options.flag_exit_code;
     let result = execute(options, &mut config);
     match result {
