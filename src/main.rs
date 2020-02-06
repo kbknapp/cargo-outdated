@@ -101,6 +101,15 @@ fn main() {
         options
     };
 
+    // Check if $CARGO_HOME is set before capturing the config environment 
+    // if it is, remove it, we build the project in a temporary directory
+    match std::env::var("CARGO_HOME") {
+        Ok(_) => {
+            std::env::remove_var("CARGO_HOME");
+        },
+        Err(_) => {},
+    }
+
     let mut config = match Config::default() {
         Ok(cfg) => cfg,
         Err(e) => {
