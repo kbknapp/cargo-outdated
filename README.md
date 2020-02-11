@@ -42,12 +42,12 @@ term_size->libc  0.2.18   0.2.29  0.2.29   Normal       cfg(not(target_os = "win
 The latest version of `cargo-outdated` can be installed or updated with `cargo install`:
 
 ```sh
-cargo install --force cargo-outdated
+cargo install --force cargo-outdated --locked
 ```
 or
 
 ```sh
-cargo install --force --git https://github.com/kbknapp/cargo-outdated
+cargo install --force --git https://github.com/kbknapp/cargo-outdated --locked
 ```
 
 ## Compiling
