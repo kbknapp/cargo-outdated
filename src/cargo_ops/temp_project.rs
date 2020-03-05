@@ -43,7 +43,7 @@ impl<'tmp> TempProject<'tmp> {
         let temp_dir = Builder::new().prefix("cargo-outdated").tempdir()?;
         let manifest_paths = manifest_paths(orig_workspace)?;
         let mut tmp_manifest_paths = vec![];
-        
+
         for from in &manifest_paths {
             // e.g. /path/to/project/src/sub
             let mut from_dir = from.clone();
@@ -457,11 +457,17 @@ impl<'tmp> TempProject<'tmp> {
                     }
                 }
                 Value::Table(ref t) => {
-                    let name = match t.get("package") {
+                    let mut name = match t.get("package") {
                         Some(&Value::String(ref s)) => s,
                         Some(_) => panic!("'package' of dependency {} is not a string", dep_key),
                         None => &dep_key,
                     };
+
+                    let mut orig_name = "";
+                    if t.contains_key("package") {
+                        orig_name = name;
+                        name = &dep_key;
+                    }
 
                     if !(version_to_latest || t.contains_key("features")) {
                         continue;
@@ -486,7 +492,7 @@ impl<'tmp> TempProject<'tmp> {
                         _ => None,
                     };
                     let r_summary = self.find_update(
-                        &name,
+                        if orig_name == "" { &name } else { &orig_name },
                         package_name,
                         requirement,
                         workspace,
