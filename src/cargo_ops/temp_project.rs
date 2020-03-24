@@ -154,6 +154,14 @@ impl<'tmp> TempProject<'tmp> {
         })?;
         let mut cwd = Path::new(root).join(relative_manifest);
         cwd.pop();
+        
+        // Check if $CARGO_HOME is set before capturing the config environment 
+        // if it is, set it in the configure options 
+        let cargo_home_path = match std::env::var_os("CARGO_HOME") {
+            Some(path) => Some(std::path::PathBuf::from(path)),
+            None => None
+        };
+
         let mut config = Config::new(shell, cwd, homedir);
         config.configure(
             0,
@@ -166,7 +174,7 @@ impl<'tmp> TempProject<'tmp> {
             options.frozen(),
             options.locked(),
             false,
-            &None,
+            &cargo_home_path,
             &[],
             &[],
         )?;

@@ -103,11 +103,7 @@ fn main() {
         options
     };
 
-    // Check if $CARGO_HOME is set before capturing the config environment 
-    // if it is, remove it, we build the project in a temporary directory
-    if std::env::var_os("CARGO_HOME").is_some() {
-        std::env::remove_var("CARGO_HOME");
-    }
+
 
     let mut config = match Config::default() {
         Ok(cfg) => cfg,
@@ -156,6 +152,13 @@ fn main() {
 }
 
 pub fn execute(options: Options, config: &mut Config) -> CargoResult<i32> {
+    // Check if $CARGO_HOME is set before capturing the config environment 
+    // if it is, set it in the configure options 
+    let cargo_home_path = match std::env::var_os("CARGO_HOME") {
+        Some(path) => Some(std::path::PathBuf::from(path)),
+        None => None
+    };
+
     config.configure(
         options.flag_verbose,
         None,
@@ -163,7 +166,7 @@ pub fn execute(options: Options, config: &mut Config) -> CargoResult<i32> {
         options.frozen(),
         options.locked(),
         false,
-        &None,
+        &cargo_home_path,
         &[],
         &[],
     )?;
