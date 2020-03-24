@@ -159,11 +159,12 @@ pub fn execute(options: Options, config: &mut Config) -> CargoResult<i32> {
     config.configure(
         options.flag_verbose,
         None,
-        &options.flag_color,
+        options.flag_color.as_deref(),
         options.frozen(),
         options.locked(),
         false,
         &None,
+        &[],
         &[],
     )?;
     debug!(config, format!("options: {:?}", options));

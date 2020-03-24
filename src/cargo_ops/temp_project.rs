@@ -6,11 +6,11 @@ use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
+use anyhow::anyhow;
 use cargo::core::{Dependency, PackageId, Summary, Verbosity, Workspace};
 use cargo::ops::{update_lockfile, UpdateOptions};
 use cargo::util::errors::CargoResultExt;
 use cargo::util::{CargoResult, Config};
-use failure::err_msg;
 use semver::{Identifier, Version, VersionReq};
 use tempfile::{Builder, TempDir};
 use toml::value::Table;
@@ -147,7 +147,7 @@ impl<'tmp> TempProject<'tmp> {
             .chain_err(|| "Cargo couldn't get the current directory of the process")?;
 
         let homedir = ::cargo::util::homedir(&cwd).ok_or_else(|| {
-            err_msg(
+            anyhow!(
                 "Cargo couldn't find your home directory. \
                  This probably means that $HOME was not set.",
             )
@@ -162,11 +162,12 @@ impl<'tmp> TempProject<'tmp> {
             } else {
                 Some(true)
             },
-            &options.flag_color,
+            options.flag_color.as_deref(),
             options.frozen(),
             options.locked(),
             false,
             &None,
+            &[],
             &[],
         )?;
         Ok(config)
