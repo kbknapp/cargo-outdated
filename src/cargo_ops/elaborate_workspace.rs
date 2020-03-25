@@ -2,10 +2,10 @@ use std::cell::RefCell;
 use std::collections::{BTreeSet, HashMap, HashSet, VecDeque};
 use std::io::{self, Write};
 
-use cargo::core::{dependency::Kind, Dependency, Package, PackageId, Workspace};
+use anyhow::anyhow;
+use cargo::core::{dependency::DepKind, Dependency, Package, PackageId, Workspace};
 use cargo::ops::{self, Packages};
 use cargo::util::{CargoResult, Config};
-use failure::{err_msg, format_err};
 use serde::{Deserialize, Serialize};
 use serde_json;
 use tabwriter::TabWriter;
@@ -98,12 +98,12 @@ impl<'ela> ElaborateWorkspace<'ela> {
                             return Ok(*direct_dep);
                         }
                     }
-                    return Err(err_msg(
+                    return Err(anyhow!(
                         "Root is neither the workspace root nor a direct dependency",
                     ));
                 }
             } else {
-                Err(err_msg(
+                Err(anyhow!(
                     "--root is not allowed when running against a virtual manifest",
                 ))
             }
@@ -121,7 +121,7 @@ impl<'ela> ElaborateWorkspace<'ela> {
                 return Ok(m.package_id());
             }
         }
-        Err(format_err!("Workspace member {} not found", member.name()))
+        Err(anyhow!("Workspace member {} not found", member.name()))
     }
 
     /// Find a contained package, which is a member or dependency inside the workspace
@@ -132,7 +132,7 @@ impl<'ela> ElaborateWorkspace<'ela> {
                 return Ok(*pkg_id);
             }
         }
-        Err(format_err!("Cannot find package {} in workspace", name))
+        Err(anyhow!("Cannot find package {} in workspace", name))
     }
 
     /// Find a direct dependency of a contained package
@@ -152,7 +152,7 @@ impl<'ela> ElaborateWorkspace<'ela> {
                 return Ok(*pkg_id);
             }
         }
-        Err(format_err!(
+        Err(anyhow!(
             "Direct dependency {} not found for package {}",
             dependency_name,
             dependent_package_name
@@ -358,9 +358,9 @@ impl<'ela> ElaborateWorkspace<'ela> {
                     };
 
                     let dependency_type = match dependency.kind() {
-                        Kind::Normal => "Normal",
-                        Kind::Development => "Development",
-                        Kind::Build => "Build",
+                        DepKind::Normal => "Normal",
+                        DepKind::Development => "Development",
+                        DepKind::Build => "Build",
                     };
 
                     line = Metadata {
