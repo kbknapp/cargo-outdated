@@ -154,6 +154,14 @@ impl<'tmp> TempProject<'tmp> {
         })?;
         let mut cwd = Path::new(root).join(relative_manifest);
         cwd.pop();
+        
+        // Check if $CARGO_HOME is set before capturing the config environment 
+        // if it is, set it in the configure options 
+        let cargo_home_path = match std::env::var_os("CARGO_HOME") {
+            Some(path) => Some(std::path::PathBuf::from(path)),
+            None => None
+        };
+
         let mut config = Config::new(shell, cwd, homedir);
         config.configure(
             0,
@@ -166,7 +174,7 @@ impl<'tmp> TempProject<'tmp> {
             options.frozen(),
             options.locked(),
             false,
-            &None,
+            &cargo_home_path,
             &[],
             &[],
         )?;
@@ -646,9 +654,16 @@ fn manifest_paths(elab: &ElaborateWorkspace<'_>) -> CargoResult<Vec<PathBuf>> {
         visited.insert(pkg_id);
         let pkg = &elab.pkgs[&pkg_id];
         let pkg_path = pkg.root().to_string_lossy();
-        if pkg_path.starts_with(workspace_path) {
-            manifest_paths.push(pkg.manifest_path().to_owned());
-        }
+        let cargo_home_path = match std::env::var_os("CARGO_HOME") {
+             Some(path) => path.into_string().expect("Error getting string from OsString"),
+             None => "".to_string(),
+         };
+
+         if pkg_path.starts_with(workspace_path) {
+             if !pkg_path.starts_with(&cargo_home_path){
+                 manifest_paths.push(pkg.manifest_path().to_owned());
+             }
+         }        
 
         for &dep in elab.pkg_deps[&pkg_id].keys() {
             manifest_paths_recursive(dep, elab, workspace_path, visited, manifest_paths)?;
