@@ -1,6 +1,6 @@
 [package]
 name = "cargo-outdated"
-version = "0.9.9"
+version = "0.9.10"
 authors = [
     "Kevin K. <kbknapp@gmail.com>",
     "Frederick Z. <frederick888@tsundere.moe>",

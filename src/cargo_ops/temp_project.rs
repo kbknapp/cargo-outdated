@@ -654,13 +654,17 @@ fn manifest_paths(elab: &ElaborateWorkspace<'_>) -> CargoResult<Vec<PathBuf>> {
         visited.insert(pkg_id);
         let pkg = &elab.pkgs[&pkg_id];
         let pkg_path = pkg.root().to_string_lossy();
+
+        // Checking if there's a CARGO_HOME set and that it is not an empty string
         let cargo_home_path = match std::env::var_os("CARGO_HOME") {
-             Some(path) => path.into_string().expect("Error getting string from OsString"),
-             None => "".to_string(),
+             Some(path) if !path.is_empty() => Some(path.into_string().expect("Error getting string from OsString")),
+             _ => None,
          };
 
+         // If there is a CARGO_HOME make sure we do not crawl the registry for more Cargo.toml files
+         // Otherwise add all Cargo.toml files to the manifest paths 
          if pkg_path.starts_with(workspace_path) {
-             if !pkg_path.starts_with(&cargo_home_path){
+             if cargo_home_path.is_none() || !pkg_path.starts_with(&cargo_home_path.expect("Error extracting CARGO_HOME string")) {
                  manifest_paths.push(pkg.manifest_path().to_owned());
              }
          }        
