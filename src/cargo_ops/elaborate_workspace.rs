@@ -59,11 +59,12 @@ impl<'ela> ElaborateWorkspace<'ela> {
             options.no_default_features(),
         );
         
-        //TODO lookup if this is host or target via Cargo.toml
+        //The CompileKind, this has no target since it's the temp workspace 
         let compile_kind = CompileKind::from_requested_target(workspace.config(), None)?;
         let target_data = RustcTargetData::new(&workspace, compile_kind)?;
-        //TODO lookup if this has dev units 
-        let dev_units = HasDevUnits::No;
+        //This allows for tests and dev dependencies check, it should not affect if you do not have them 
+        //Will check dev dependencies if they are in the original Cargo.toml as well 
+        let dev_units = HasDevUnits::Yes;
 
         let ws_resolve = ops::resolve_ws_with_opts(&workspace, &target_data, CompileKind::Host, &opts, &specs, dev_units)?;
         let packages = ws_resolve.pkg_set;
