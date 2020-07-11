@@ -237,12 +237,18 @@ impl<'ela> ElaborateWorkspace<'ela> {
         queue.push_back(vec![root]);
         while let Some(path) = queue.pop_front() {
             let pkg = path.last().unwrap();
+            let name = pkg.name().to_string();
+
+            if options.flag_ignore.contains(&name) {
+                continue;
+            }
+
             let depth = path.len() as i32 - 1;
             // generate lines
             let status = &self.pkg_status.borrow_mut()[&path];
             if (status.compat.is_changed() || status.latest.is_changed())
                 && (options.flag_packages.is_empty()
-                    || options.flag_packages.contains(&pkg.name().to_string()))
+                    || options.flag_packages.contains(&name))
             {
                 // name version compatible latest kind platform
                 let parent = path.get(path.len() - 2);
@@ -251,9 +257,9 @@ impl<'ela> ElaborateWorkspace<'ela> {
                     let label = if self.workspace_mode
                         || parent == &self.workspace.current()?.package_id()
                     {
-                        pkg.name().to_string()
+                        name
                     } else {
-                        format!("{}->{}", self.pkgs[parent].name(), pkg.name())
+                        format!("{}->{}", self.pkgs[parent].name(), name)
                     };
                     let line = format!(
                         "{}\t{}\t{}\t{}\t{:?}\t{}\n",
@@ -271,7 +277,7 @@ impl<'ela> ElaborateWorkspace<'ela> {
                 } else {
                     let line = format!(
                         "{}\t{}\t{}\t{}\t---\t---\n",
-                        pkg.name(),
+                        name,
                         pkg.version(),
                         status.compat.to_string(),
                         status.latest.to_string()
@@ -335,12 +341,18 @@ impl<'ela> ElaborateWorkspace<'ela> {
 
         while let Some(path) = queue.pop_front() {
             let pkg = path.last().unwrap();
+            let name = pkg.name().to_string();
+
+            if options.flag_ignore.contains(&name) {
+                continue;
+            }
+
             let depth = path.len() as i32 - 1;
             // generate lines
             let status = &self.pkg_status.borrow_mut()[&path];
             if (status.compat.is_changed() || status.latest.is_changed())
                 && (options.flag_packages.is_empty()
-                    || options.flag_packages.contains(&pkg.name().to_string()))
+                    || options.flag_packages.contains(&name))
             {
                 // name version compatible latest kind platform
                 let parent = path.get(path.len() - 2);
@@ -352,9 +364,9 @@ impl<'ela> ElaborateWorkspace<'ela> {
                     let label = if self.workspace_mode
                         || parent == &self.workspace.current()?.package_id()
                     {
-                        pkg.name().to_string()
+                        name
                     } else {
-                        format!("{}->{}", self.pkgs[parent].name(), pkg.name())
+                        format!("{}->{}", self.pkgs[parent].name(), name)
                     };
 
                     let dependency_type = match dependency.kind() {
@@ -373,7 +385,7 @@ impl<'ela> ElaborateWorkspace<'ela> {
                     };
                 } else {
                     line = Metadata {
-                        name: pkg.name().to_string(),
+                        name,
                         project: pkg.version().to_string(),
                         compat: status.compat.to_string(),
                         latest: status.latest.to_string(),
