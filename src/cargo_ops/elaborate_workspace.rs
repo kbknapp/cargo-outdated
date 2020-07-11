@@ -4,7 +4,9 @@ use std::io::{self, Write};
 
 use anyhow::anyhow;
 use cargo::core::{dependency::DepKind, Dependency, Package, PackageId, Workspace};
+use cargo::core::compiler::{RustcTargetData, CompileKind};
 use cargo::ops::{self, Packages};
+use cargo::core::resolver::features::HasDevUnits;
 use cargo::util::{CargoResult, Config};
 use serde::{Deserialize, Serialize};
 use serde_json;
@@ -56,7 +58,14 @@ impl<'ela> ElaborateWorkspace<'ela> {
             options.all_features(),
             options.no_default_features(),
         );
-        let ws_resolve = ops::resolve_ws_with_opts(workspace, opts, &specs)?;
+        
+        //TODO lookup if this is host or target via Cargo.toml
+        let compile_kind = CompileKind::from_requested_target(workspace.config(), None)?;
+        let target_data = RustcTargetData::new(&workspace, compile_kind)?;
+        //TODO lookup if this has dev units 
+        let dev_units = HasDevUnits::No;
+
+        let ws_resolve = ops::resolve_ws_with_opts(&workspace, &target_data, CompileKind::Host, &opts, &specs, dev_units)?;
         let packages = ws_resolve.pkg_set;
         let resolve = ws_resolve.workspace_resolve.expect("Error getting workspace resolved");
         let mut pkgs = HashMap::new();
@@ -237,12 +246,18 @@ impl<'ela> ElaborateWorkspace<'ela> {
         queue.push_back(vec![root]);
         while let Some(path) = queue.pop_front() {
             let pkg = path.last().unwrap();
+            let name = pkg.name().to_string();
+
+            if options.flag_ignore.contains(&name) {
+                continue;
+            }
+
             let depth = path.len() as i32 - 1;
             // generate lines
             let status = &self.pkg_status.borrow_mut()[&path];
             if (status.compat.is_changed() || status.latest.is_changed())
                 && (options.flag_packages.is_empty()
-                    || options.flag_packages.contains(&pkg.name().to_string()))
+                    || options.flag_packages.contains(&name))
             {
                 // name version compatible latest kind platform
                 let parent = path.get(path.len() - 2);
@@ -251,9 +266,9 @@ impl<'ela> ElaborateWorkspace<'ela> {
                     let label = if self.workspace_mode
                         || parent == &self.workspace.current()?.package_id()
                     {
-                        pkg.name().to_string()
+                        name
                     } else {
-                        format!("{}->{}", self.pkgs[parent].name(), pkg.name())
+                        format!("{}->{}", self.pkgs[parent].name(), name)
                     };
                     let line = format!(
                         "{}\t{}\t{}\t{}\t{:?}\t{}\n",
@@ -271,7 +286,7 @@ impl<'ela> ElaborateWorkspace<'ela> {
                 } else {
                     let line = format!(
                         "{}\t{}\t{}\t{}\t---\t---\n",
-                        pkg.name(),
+                        name,
                         pkg.version(),
                         status.compat.to_string(),
                         status.latest.to_string()
@@ -335,12 +350,18 @@ impl<'ela> ElaborateWorkspace<'ela> {
 
         while let Some(path) = queue.pop_front() {
             let pkg = path.last().unwrap();
+            let name = pkg.name().to_string();
+
+            if options.flag_ignore.contains(&name) {
+                continue;
+            }
+
             let depth = path.len() as i32 - 1;
             // generate lines
             let status = &self.pkg_status.borrow_mut()[&path];
             if (status.compat.is_changed() || status.latest.is_changed())
                 && (options.flag_packages.is_empty()
-                    || options.flag_packages.contains(&pkg.name().to_string()))
+                    || options.flag_packages.contains(&name))
             {
                 // name version compatible latest kind platform
                 let parent = path.get(path.len() - 2);
@@ -352,9 +373,9 @@ impl<'ela> ElaborateWorkspace<'ela> {
                     let label = if self.workspace_mode
                         || parent == &self.workspace.current()?.package_id()
                     {
-                        pkg.name().to_string()
+                        name
                     } else {
-                        format!("{}->{}", self.pkgs[parent].name(), pkg.name())
+                        format!("{}->{}", self.pkgs[parent].name(), name)
                     };
 
                     let dependency_type = match dependency.kind() {
@@ -373,7 +394,7 @@ impl<'ela> ElaborateWorkspace<'ela> {
                     };
                 } else {
                     line = Metadata {
-                        name: pkg.name().to_string(),
+                        name,
                         project: pkg.version().to_string(),
                         compat: status.compat.to_string(),
                         latest: status.latest.to_string(),

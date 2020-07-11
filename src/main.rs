@@ -28,6 +28,7 @@ Options:
     -h, --help                  Prints help information
         --format FORMAT         Output formatting [default: list]
                                 [values: list, json]
+    -i, --ignore DEPENDENCIES   Space separated list of dependencies to ignore
     -q, --quiet                 Suppresses warnings
     -R, --root-deps-only        Only check root dependencies (Equivalent to --depth=1)
     -V, --version               Prints version information
@@ -52,6 +53,7 @@ pub struct Options {
     flag_format: Option<String>,
     flag_color: Option<String>,
     flag_features: Vec<String>,
+    flag_ignore: Vec<String>,
     flag_manifest_path: Option<String>,
     flag_quiet: bool,
     flag_verbose: u32,
@@ -96,6 +98,7 @@ fn main() {
                 .collect()
         }
         options.flag_features = flat_split(&options.flag_features);
+        options.flag_ignore = flat_split(&options.flag_ignore);
         options.flag_packages = flat_split(&options.flag_packages);
         if options.flag_root_deps_only {
             options.flag_depth = Some(1);
@@ -161,7 +164,7 @@ pub fn execute(options: Options, config: &mut Config) -> CargoResult<i32> {
 
     config.configure(
         options.flag_verbose,
-        None,
+        options.flag_quiet,
         options.flag_color.as_deref(),
         options.frozen(),
         options.locked(),
