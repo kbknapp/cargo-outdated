@@ -166,9 +166,9 @@ impl<'tmp> TempProject<'tmp> {
         config.configure(
             0,
             if options.flag_verbose > 0 {
-                None
+                false
             } else {
-                Some(true)
+                true
             },
             options.flag_color.as_deref(),
             options.frozen(),
@@ -374,10 +374,9 @@ impl<'tmp> TempProject<'tmp> {
                 }
             })
             .unwrap_or_else(|| {
-                panic!(
-                    "Cannot find matched versions of package {} from source {}",
-                    name, source_id
-                )
+                self.warn(format!("cannot compare {} crate version found in toml {} with crates.io latest {}", name, version_req.as_ref().unwrap(), query_result[0].version())).unwrap();
+                //this returns the latest version 
+                &query_result[0]
             });
         Ok(latest_result.clone())
     }
