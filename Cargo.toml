@@ -28,14 +28,14 @@ name = "cargo-outdated"
 
 [dependencies]
 anyhow = "1.0"
-cargo = "0.45.1"
-docopt = "1.0.0"
-env_logger = "0.7.0"
+cargo = "0.46.0"
+docopt = "1.1.0"
+env_logger = "0.7.1"
 git2-curl = "0.14.0"
-semver = "0.9.0"
-serde = {version="1.0.11", features = ["derive"]}
-serde_derive = "1.0.11"
-serde_json = "1.0.3"
+semver = "0.10.0"
+serde = {version="1.0.114", features = ["derive"]}
+serde_derive = "1.0.114"
+serde_json = "1.0.56"
 tabwriter = "1.2.1"
 tempfile = "3"
 toml = "~0.5.0"

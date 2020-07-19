@@ -6,7 +6,7 @@ use anyhow::anyhow;
 use cargo::core::{dependency::DepKind, Dependency, Package, PackageId, Workspace};
 use cargo::core::compiler::{RustcTargetData, CompileKind};
 use cargo::ops::{self, Packages};
-use cargo::core::resolver::features::HasDevUnits;
+use cargo::core::resolver::features::{HasDevUnits, ForceAllTargets};
 use cargo::util::{CargoResult, Config};
 use serde::{Deserialize, Serialize};
 use serde_json;
@@ -58,15 +58,11 @@ impl<'ela> ElaborateWorkspace<'ela> {
             options.all_features(),
             options.no_default_features(),
         );
-        
-        //The CompileKind, this has no target since it's the temp workspace 
-        let compile_kind = CompileKind::from_requested_target(workspace.config(), None)?;
-        let target_data = RustcTargetData::new(&workspace, compile_kind)?;
-        //This allows for tests and dev dependencies check, it should not affect if you do not have them 
-        //Will check dev dependencies if they are in the original Cargo.toml as well 
-        let dev_units = HasDevUnits::Yes;
-
-        let ws_resolve = ops::resolve_ws_with_opts(&workspace, &target_data, CompileKind::Host, &opts, &specs, dev_units)?;
+        //The CompileKind, this has no target since it's the temp workspace
+        //targets are blank since we don't need to fully build for the targets to get the dependencies
+        let compile_kind = CompileKind::from_requested_targets(workspace.config(), &[])?;
+        let target_data = RustcTargetData::new(&workspace, &compile_kind)?;
+        let ws_resolve = ops::resolve_ws_with_opts(&workspace, &target_data, &compile_kind, &opts, &specs, HasDevUnits::Yes, ForceAllTargets::Yes)?;
         let packages = ws_resolve.pkg_set;
         let resolve = ws_resolve.workspace_resolve.expect("Error getting workspace resolved");
         let mut pkgs = HashMap::new();
@@ -152,16 +148,19 @@ impl<'ela> ElaborateWorkspace<'ela> {
         dependent_package_name: &str,
     ) -> CargoResult<PackageId> {
         let dependent_package = self.find_contained_package(dependent_package_name)?;
+
         for direct_dep in self.pkg_deps[&dependent_package].keys() {
             if direct_dep.name().as_str() == dependency_name {
                 return Ok(*direct_dep);
             }
         }
+
         for (pkg_id, pkg) in &self.pkgs {
             if pkg.name().as_str() == dependency_name {
                 return Ok(*pkg_id);
             }
         }
+
         Err(anyhow!(
             "Direct dependency {} not found for package {}",
             dependency_name,
