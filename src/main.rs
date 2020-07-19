@@ -164,7 +164,7 @@ pub fn execute(options: Options, config: &mut Config) -> CargoResult<i32> {
 
     config.configure(
         options.flag_verbose,
-        None,
+        options.flag_quiet,
         options.flag_color.as_deref(),
         options.frozen(),
         options.locked(),
