@@ -661,12 +661,12 @@ fn manifest_paths(elab: &ElaborateWorkspace<'_>) -> CargoResult<Vec<PathBuf>> {
          };
 
          // If there is a CARGO_HOME make sure we do not crawl the registry for more Cargo.toml files
-         // Otherwise add all Cargo.toml files to the manifest paths 
-         if pkg_path.starts_with(workspace_path) {
+         // Otherwise add all Cargo.toml files to the manifest paths
+         if pkg.root().starts_with(PathBuf::from(workspace_path.clone())) {
              if cargo_home_path.is_none() || !pkg_path.starts_with(&cargo_home_path.expect("Error extracting CARGO_HOME string")) {
                  manifest_paths.push(pkg.manifest_path().to_owned());
              }
-         }        
+         }
 
         for &dep in elab.pkg_deps[&pkg_id].keys() {
             manifest_paths_recursive(dep, elab, workspace_path, visited, manifest_paths)?;
