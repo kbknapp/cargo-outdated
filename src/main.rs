@@ -83,9 +83,15 @@ fn main() {
     let options = {
         let mut options: Options = Docopt::new(USAGE)
             .and_then(|d| {
+                let mut args: Vec<_> = std::env::args().collect();
+                if args[1] != "outdated" {
+                    args.insert(1, "outdated".to_owned());
+                }
+
                 d.version(Some(
                     concat!(env!("CARGO_PKG_NAME"), " v", env!("CARGO_PKG_VERSION")).to_owned(),
                 ))
+                .argv(args)
                 .deserialize()
             })
             .unwrap_or_else(|e| e.exit());

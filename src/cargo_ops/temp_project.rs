@@ -118,15 +118,30 @@ impl<'tmp> TempProject<'tmp> {
             }
         }
 
-        //.cargo/config 
-        if workspace_root.join(".cargo/config").is_file() {
-            fs::create_dir_all( temp_dir.path().join(".cargo"))?;
-            fs::copy(&workspace_root.join(".cargo/config"), temp_dir.path().join(".cargo/config"))?;
+        // .cargo/config<.toml>
+        // Note: Cargo also reads config files without the .toml extension, such
+        // as .cargo/config. Support for the .toml extension was added in version
+        // 1.39 and is the preferred form. If both files exist, Cargo will use
+        // the file without the extension.
+        let mut cargo_cfg = workspace_root.join(".cargo/config");
+        if !cargo_cfg.is_file() {
+            cargo_cfg.set_extension("toml");
+        }
+
+        if cargo_cfg.is_file() {
+            fs::create_dir_all(temp_dir.path().join(".cargo"))?;
+
+            let mut temp_cfg = temp_dir.path().join(".cargo/config");
+            if let Some(ext) = cargo_cfg.extension() {
+                temp_cfg.set_extension(ext);
+            }
+
+            fs::copy(cargo_cfg, temp_cfg)?;
         }
 
         let relative_manifest = String::from(&orig_manifest[workspace_root_str.len() + 1..]);
         let config = Self::generate_config(temp_dir.path(), &relative_manifest, options)?;
-        
+
         Ok(TempProject {
             workspace: Rc::new(RefCell::new(None)),
             temp_dir,
