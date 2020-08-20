@@ -374,7 +374,16 @@ impl<'tmp> TempProject<'tmp> {
                 }
             })
             .unwrap_or_else(|| {
-                self.warn(format!("cannot compare {} crate version found in toml {} with crates.io latest {}", name, version_req.as_ref().unwrap(), query_result[0].version())).unwrap();
+
+                // If the version_req cannot be found use the version
+                // this happens when we use a git repository as a dependency, without specifying
+                // the version in Cargo.toml, preventing us from needing an unwrap below in the warn
+                let ver_req = match version_req {
+                    Some(v_r) => format!("{}", v_r),
+                    None => format!("{}", version),
+                };
+
+                self.warn(format!("cannot compare {} crate version found in toml {} with crates.io latest {}", name, ver_req, query_result[0].version())).unwrap();
                 //this returns the latest version 
                 &query_result[0]
             });
