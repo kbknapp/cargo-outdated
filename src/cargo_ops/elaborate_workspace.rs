@@ -1,5 +1,6 @@
 use std::cell::RefCell;
-use std::collections::{BTreeSet, HashMap, HashSet, VecDeque};
+use std::cmp::Ordering;
+use std::collections::{BTreeSet, HashMap, VecDeque};
 use std::io::{self, Write};
 
 use anyhow::anyhow;
@@ -31,10 +32,10 @@ pub struct ElaborateWorkspace<'ela> {
 #[derive(Serialize, Deserialize)]
 pub struct CrateMetadata {
     pub crate_name: String,
-    pub dependencies: HashSet<Metadata>,
+    pub dependencies: BTreeSet<Metadata>,
 }
 
-#[derive(Serialize, Deserialize, Eq, Hash, PartialEq)]
+#[derive(Serialize, Deserialize, Eq, PartialEq)]
 pub struct Metadata {
     pub name: String,
     pub project: String,
@@ -42,6 +43,19 @@ pub struct Metadata {
     pub latest: String,
     pub kind: Option<String>,
     pub platform: Option<String>,
+}
+
+
+impl Ord for Metadata {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.name.cmp(&other.name)
+    }
+}
+
+impl PartialOrd for Metadata {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
 }
 
 impl<'ela> ElaborateWorkspace<'ela> {
@@ -343,7 +357,7 @@ impl<'ela> ElaborateWorkspace<'ela> {
     pub fn print_json(&'ela self, options: &Options, root: PackageId) -> CargoResult<i32> {
         let mut crate_graph = CrateMetadata {
             crate_name: root.name().to_string(),
-            dependencies: HashSet::new(),
+            dependencies: BTreeSet::new(),
         };
         let mut queue = VecDeque::new();
         queue.push_back(vec![root]);
@@ -425,7 +439,7 @@ impl<'ela> ElaborateWorkspace<'ela> {
             }
         }
 
-        serde_json::to_writer(io::stdout(), &crate_graph)?;
+        println!("{}", serde_json::to_string(&crate_graph)?);
 
         Ok(crate_graph.dependencies.len() as i32)
     }
