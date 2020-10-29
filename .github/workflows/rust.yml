@@ -3,6 +3,7 @@ name: Rust
   push:
     branches:
       - master
+      - main
   pull_request:
     branches:
       - "**"
