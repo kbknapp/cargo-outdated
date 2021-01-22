@@ -28,9 +28,9 @@ name = "cargo-outdated"
 
 [dependencies]
 anyhow = "1.0"
-cargo = "0.46.0"
+cargo = "0.50.0"
 docopt = "1.1.0"
-env_logger = "0.7.1"
+env_logger = "0.8.0"
 git2-curl = "0.14.0"
 semver = "0.10.0"
 serde = {version="1.0.114", features = ["derive"]}
@@ -46,6 +46,7 @@ version = "1.0"
 
 [features]
 debug = ["termcolor"]
+vendored-openssl = ["cargo/vendored-openssl"]
 default = []
 
 [profile.release]

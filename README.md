@@ -82,6 +82,10 @@ cp cargo-outdated ~/bin
 source ~/.bashrc
 ```
 
+### MacOS
+
+This library depends on OpenSSL. On MacOS a newer version of OpenSSL than is installed by default is needed. This can be installed with Homebrew via `brew install openssl` or openssl can be vendored in with `--features vendored-openssl`. [Learn more about building OpenSSL here](https://docs.rs/openssl/0.10.30/openssl/#building),
+
 ### Windows
 
 On Windows 7/8 you can add directory to the `PATH` variable by opening a command line as an administrator and running
