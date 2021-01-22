@@ -1,9 +1,10 @@
 [package]
 name = "cargo-outdated"
-version = "0.9.13"
+version = "0.9.14"
 authors = [
     "Kevin K. <kbknapp@gmail.com>",
     "Frederick Z. <frederick888@tsundere.moe>",
+    "Ricky H. <ricky.hosfelt@gmail.com>",
 ]
 categories = ["development-tools", "development-tools::cargo-plugins"]
 edition = "2018"
