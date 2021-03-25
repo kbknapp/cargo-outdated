@@ -49,7 +49,7 @@ impl<'tmp> TempProject<'tmp> {
             let mut from_dir = from.clone();
             from_dir.pop();
             let from_dir_str = from_dir.to_string_lossy();
-            
+
             // e.g. /tmp/cargo.xxx/src/sub
             let mut dest = if workspace_root_str.len() < from_dir_str.len() {
                 temp_dir
@@ -58,15 +58,15 @@ impl<'tmp> TempProject<'tmp> {
             } else {
                 temp_dir.path().to_owned()
             };
-            
+
             fs::create_dir_all(&dest)?;
-            
+
             // e.g. /tmp/cargo.xxx/src/sub/Cargo.toml
             dest.push("Cargo.toml");
             tmp_manifest_paths.push(dest.clone());
             fs::copy(from, &dest)?;
 
-            //removing default-run key if it exists to check dependencies 
+            //removing default-run key if it exists to check dependencies
             let mut om: Manifest = {
                 let mut buf = String::new();
                 let mut file = File::open(&dest)?;
@@ -118,7 +118,7 @@ impl<'tmp> TempProject<'tmp> {
             }
         }
 
-        //.cargo/config 
+        //.cargo/config
         if workspace_root.join(".cargo/config").is_file() {
             fs::create_dir_all( temp_dir.path().join(".cargo"))?;
             fs::copy(&workspace_root.join(".cargo/config"), temp_dir.path().join(".cargo/config"))?;
@@ -126,7 +126,7 @@ impl<'tmp> TempProject<'tmp> {
 
         let relative_manifest = String::from(&orig_manifest[workspace_root_str.len() + 1..]);
         let config = Self::generate_config(temp_dir.path(), &relative_manifest, options)?;
-        
+
         Ok(TempProject {
             workspace: Rc::new(RefCell::new(None)),
             temp_dir,
@@ -154,9 +154,9 @@ impl<'tmp> TempProject<'tmp> {
         })?;
         let mut cwd = Path::new(root).join(relative_manifest);
         cwd.pop();
-        
-        // Check if $CARGO_HOME is set before capturing the config environment 
-        // if it is, set it in the configure options 
+
+        // Check if $CARGO_HOME is set before capturing the config environment
+        // if it is, set it in the configure options
         let cargo_home_path = match std::env::var_os("CARGO_HOME") {
             Some(path) => Some(std::path::PathBuf::from(path)),
             None => None
@@ -189,6 +189,7 @@ impl<'tmp> TempProject<'tmp> {
             to_update: Vec::new(),
             config: &self.config,
             dry_run: false,
+            workspace: false,
         };
         update_lockfile(self.workspace.borrow().as_ref().unwrap(), &update_opts)?;
         Ok(())
@@ -278,7 +279,7 @@ impl<'tmp> TempProject<'tmp> {
             Self::write_manifest(&manifest, manifest_path)?;
         }
         let root_manifest = self.temp_dir.path().join(&self.relative_manifest);
-        
+
         *self.workspace.borrow_mut() =
             Some(Workspace::new(Path::new(&root_manifest), &self.config)?);
         Ok(())
@@ -384,7 +385,7 @@ impl<'tmp> TempProject<'tmp> {
                 };
 
                 self.warn(format!("cannot compare {} crate version found in toml {} with crates.io latest {}", name, ver_req, query_result[0].version())).unwrap();
-                //this returns the latest version 
+                //this returns the latest version
                 &query_result[0]
             });
         Ok(latest_result.clone())
@@ -682,7 +683,7 @@ fn manifest_paths(elab: &ElaborateWorkspace<'_>) -> CargoResult<Vec<PathBuf>> {
         }
 
         Ok(())
-    };
+    }
 
     // executed against a virtual manifest
     let workspace_path = elab.workspace.root().to_string_lossy();
@@ -712,7 +713,7 @@ fn valid_latest_version(mut requirement: &str, version: &Version) -> bool {
         // both are unstable, must be in the same channel
         (true, true) => {
             requirement = requirement.trim_start_matches(&['=',' ','~','^'][..]);
-            let requirement_version = Version::parse(&requirement).expect("Error could not parse requirement into a semantic version"); 
+            let requirement_version = Version::parse(&requirement).expect("Error could not parse requirement into a semantic version");
             let requirement_channel = requirement_version.pre[0].to_string();
             match (requirement_channel.is_empty(), &version.pre[0]) {
                 (true, &Identifier::Numeric(_)) => true,
