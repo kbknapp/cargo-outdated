@@ -64,13 +64,14 @@ impl<'ela> ElaborateWorkspace<'ela> {
         workspace: &'ela Workspace<'_>,
         options: &Options,
     ) -> CargoResult<ElaborateWorkspace<'ela>> {
-        use cargo::core::resolver::ResolveOpts;
+        use cargo::core::resolver::{features::RequestedFeatures, ResolveOpts};
         let specs = Packages::All.to_package_id_specs(workspace)?;
+        let features = RequestedFeatures::from_command_line(
+            &options.flag_features, options.all_features(), options.no_default_features()
+        );
         let opts = ResolveOpts::new(
             true,
-            &options.flag_features,
-            options.all_features(),
-            options.no_default_features(),
+            features,
         );
         //The CompileKind, this has no target since it's the temp workspace
         //targets are blank since we don't need to fully build for the targets to get the dependencies
