@@ -40,9 +40,6 @@ impl<'tmp> TempProject<'tmp> {
         // e.g. /path/to/project
         let workspace_root = orig_workspace.workspace.root();
         let workspace_root_str = workspace_root.to_string_lossy();
-
-        println!("WORKSPACE MODE: {}", orig_workspace.workspace_mode);
-
         let temp_dir = Builder::new().prefix("cargo-outdated").tempdir()?;
         let manifest_paths = manifest_paths(orig_workspace)?;
         let mut tmp_manifest_paths = vec![];
