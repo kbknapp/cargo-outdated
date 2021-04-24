@@ -116,7 +116,16 @@ impl<'tmp> TempProject<'tmp> {
             }
         }
 
+        //.cargo/config.toml
+        // this is the preferred way
+        // https://doc.rust-lang.org/cargo/reference/config.html
+        if workspace_root.join(".cargo/config.toml").is_file() {
+            fs::create_dir_all( temp_dir.path().join(".cargo"))?;
+            fs::copy(&workspace_root.join(".cargo/config.toml"), temp_dir.path().join(".cargo/config.toml"))?;
+        }
+
         //.cargo/config
+        // this is legacy support for config files without the `.toml` extension
         if workspace_root.join(".cargo/config").is_file() {
             fs::create_dir_all( temp_dir.path().join(".cargo"))?;
             fs::copy(&workspace_root.join(".cargo/config"), temp_dir.path().join(".cargo/config"))?;
