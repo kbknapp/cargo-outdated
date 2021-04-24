@@ -27,6 +27,7 @@ pub struct TempProject<'tmp> {
     config: Config,
     relative_manifest: String,
     options: &'tmp Options,
+    is_workspace_project: bool,
 }
 
 impl<'tmp> TempProject<'tmp> {
@@ -39,7 +40,6 @@ impl<'tmp> TempProject<'tmp> {
         // e.g. /path/to/project
         let workspace_root = orig_workspace.workspace.root();
         let workspace_root_str = workspace_root.to_string_lossy();
-
         let temp_dir = Builder::new().prefix("cargo-outdated").tempdir()?;
         let manifest_paths = manifest_paths(orig_workspace)?;
         let mut tmp_manifest_paths = vec![];
@@ -103,8 +103,6 @@ impl<'tmp> TempProject<'tmp> {
                 dest.push("Cargo.lock");
                 fs::copy(lockfile, dest)?;
             }
-
-
         }
 
         // virtual root
@@ -118,7 +116,16 @@ impl<'tmp> TempProject<'tmp> {
             }
         }
 
+        //.cargo/config.toml
+        // this is the preferred way
+        // https://doc.rust-lang.org/cargo/reference/config.html
+        if workspace_root.join(".cargo/config.toml").is_file() {
+            fs::create_dir_all( temp_dir.path().join(".cargo"))?;
+            fs::copy(&workspace_root.join(".cargo/config.toml"), temp_dir.path().join(".cargo/config.toml"))?;
+        }
+
         //.cargo/config
+        // this is legacy support for config files without the `.toml` extension
         if workspace_root.join(".cargo/config").is_file() {
             fs::create_dir_all( temp_dir.path().join(".cargo"))?;
             fs::copy(&workspace_root.join(".cargo/config"), temp_dir.path().join(".cargo/config"))?;
@@ -134,6 +141,7 @@ impl<'tmp> TempProject<'tmp> {
             config,
             relative_manifest,
             options,
+            is_workspace_project: orig_workspace.workspace_mode,
         })
     }
 
@@ -189,7 +197,7 @@ impl<'tmp> TempProject<'tmp> {
             to_update: Vec::new(),
             config: &self.config,
             dry_run: false,
-            workspace: false,
+            workspace: self.is_workspace_project,
         };
         update_lockfile(self.workspace.borrow().as_ref().unwrap(), &update_opts)?;
         Ok(())
