@@ -77,7 +77,11 @@ impl<'tmp> TempProject<'tmp> {
             if om.package.contains_key("default-run") {
                 om.package.remove("default-run");
                 let om_serialized = ::toml::to_string(&om).expect("Cannot format as toml file");
-                let mut cargo_toml = OpenOptions::new().read(true).write(true).truncate(true).open(&dest)?;
+                let mut cargo_toml = OpenOptions::new()
+                    .read(true)
+                    .write(true)
+                    .truncate(true)
+                    .open(&dest)?;
                 write!(cargo_toml, "{}", om_serialized)?;
             }
 
@@ -86,14 +90,22 @@ impl<'tmp> TempProject<'tmp> {
             if om.package.contains_key("links") {
                 om.package.remove("links");
                 let om_serialized = ::toml::to_string(&om).expect("Cannot format as toml file");
-                let mut cargo_toml = OpenOptions::new().read(true).write(true).truncate(true).open(&dest)?;
+                let mut cargo_toml = OpenOptions::new()
+                    .read(true)
+                    .write(true)
+                    .truncate(true)
+                    .open(&dest)?;
                 write!(cargo_toml, "{}", om_serialized)?;
             }
 
             if om.package.contains_key("build") {
                 om.package.remove("build");
                 let om_serialized = ::toml::to_string(&om).expect("Cannot format as toml file");
-                let mut cargo_toml = OpenOptions::new().read(true).write(true).truncate(true).open(&dest)?;
+                let mut cargo_toml = OpenOptions::new()
+                    .read(true)
+                    .write(true)
+                    .truncate(true)
+                    .open(&dest)?;
                 write!(cargo_toml, "{}", om_serialized)?;
             }
 
@@ -120,15 +132,21 @@ impl<'tmp> TempProject<'tmp> {
         // this is the preferred way
         // https://doc.rust-lang.org/cargo/reference/config.html
         if workspace_root.join(".cargo/config.toml").is_file() {
-            fs::create_dir_all( temp_dir.path().join(".cargo"))?;
-            fs::copy(&workspace_root.join(".cargo/config.toml"), temp_dir.path().join(".cargo/config.toml"))?;
+            fs::create_dir_all(temp_dir.path().join(".cargo"))?;
+            fs::copy(
+                &workspace_root.join(".cargo/config.toml"),
+                temp_dir.path().join(".cargo/config.toml"),
+            )?;
         }
 
         //.cargo/config
         // this is legacy support for config files without the `.toml` extension
         if workspace_root.join(".cargo/config").is_file() {
-            fs::create_dir_all( temp_dir.path().join(".cargo"))?;
-            fs::copy(&workspace_root.join(".cargo/config"), temp_dir.path().join(".cargo/config"))?;
+            fs::create_dir_all(temp_dir.path().join(".cargo"))?;
+            fs::copy(
+                &workspace_root.join(".cargo/config"),
+                temp_dir.path().join(".cargo/config"),
+            )?;
         }
 
         let relative_manifest = String::from(&orig_manifest[workspace_root_str.len() + 1..]);
@@ -165,19 +183,12 @@ impl<'tmp> TempProject<'tmp> {
 
         // Check if $CARGO_HOME is set before capturing the config environment
         // if it is, set it in the configure options
-        let cargo_home_path = match std::env::var_os("CARGO_HOME") {
-            Some(path) => Some(std::path::PathBuf::from(path)),
-            None => None
-        };
+        let cargo_home_path = std::env::var_os("CARGO_HOME").map(std::path::PathBuf::from);
 
         let mut config = Config::new(shell, cwd, homedir);
         config.configure(
             0,
-            if options.flag_verbose > 0 {
-                false
-            } else {
-                true
-            },
+            options.flag_verbose == 0,
             options.flag_color.as_deref(),
             options.frozen(),
             options.locked(),
@@ -283,7 +294,6 @@ impl<'tmp> TempProject<'tmp> {
                 self.update_version_and_feature(deps, &features, workspace, &package_name, false)
             })?;
 
-
             Self::write_manifest(&manifest, manifest_path)?;
         }
         let root_manifest = self.temp_dir.path().join(&self.relative_manifest);
@@ -383,7 +393,6 @@ impl<'tmp> TempProject<'tmp> {
                 }
             })
             .unwrap_or_else(|| {
-
                 // If the version_req cannot be found use the version
                 // this happens when we use a git repository as a dependency, without specifying
                 // the version in Cargo.toml, preventing us from needing an unwrap below in the warn
@@ -392,7 +401,13 @@ impl<'tmp> TempProject<'tmp> {
                     None => format!("{}", version),
                 };
 
-                self.warn(format!("cannot compare {} crate version found in toml {} with crates.io latest {}", name, ver_req, query_result[0].version())).unwrap();
+                self.warn(format!(
+                    "cannot compare {} crate version found in toml {} with crates.io latest {}",
+                    name,
+                    ver_req,
+                    query_result[0].version()
+                ))
+                .unwrap();
                 //this returns the latest version
                 &query_result[0]
             });
@@ -518,7 +533,11 @@ impl<'tmp> TempProject<'tmp> {
                         _ => None,
                     };
                     let r_summary = self.find_update(
-                        if orig_name == "" { &name } else { &orig_name },
+                        if orig_name.is_empty() {
+                            &name
+                        } else {
+                            &orig_name
+                        },
                         package_name,
                         requirement,
                         workspace,
@@ -674,17 +693,22 @@ fn manifest_paths(elab: &ElaborateWorkspace<'_>) -> CargoResult<Vec<PathBuf>> {
 
         // Checking if there's a CARGO_HOME set and that it is not an empty string
         let cargo_home_path = match std::env::var_os("CARGO_HOME") {
-             Some(path) if !path.is_empty() => Some(path.into_string().expect("Error getting string from OsString")),
-             _ => None,
-         };
+            Some(path) if !path.is_empty() => Some(
+                path.into_string()
+                    .expect("Error getting string from OsString"),
+            ),
+            _ => None,
+        };
 
-         // If there is a CARGO_HOME make sure we do not crawl the registry for more Cargo.toml files
-         // Otherwise add all Cargo.toml files to the manifest paths
-         if pkg.root().starts_with(PathBuf::from(workspace_path.clone())) {
-             if cargo_home_path.is_none() || !pkg_path.starts_with(&cargo_home_path.expect("Error extracting CARGO_HOME string")) {
-                 manifest_paths.push(pkg.manifest_path().to_owned());
-             }
-         }
+        // If there is a CARGO_HOME make sure we do not crawl the registry for more Cargo.toml files
+        // Otherwise add all Cargo.toml files to the manifest paths
+        if pkg.root().starts_with(PathBuf::from(workspace_path))
+            && (cargo_home_path.is_none()
+                || !pkg_path
+                    .starts_with(&cargo_home_path.expect("Error extracting CARGO_HOME string")))
+        {
+            manifest_paths.push(pkg.manifest_path().to_owned());
+        }
 
         for &dep in elab.pkg_deps[&pkg_id].keys() {
             manifest_paths_recursive(dep, elab, workspace_path, visited, manifest_paths)?;
@@ -720,8 +744,9 @@ fn valid_latest_version(mut requirement: &str, version: &Version) -> bool {
         (false, false) | (true, false) => true,
         // both are unstable, must be in the same channel
         (true, true) => {
-            requirement = requirement.trim_start_matches(&['=',' ','~','^'][..]);
-            let requirement_version = Version::parse(&requirement).expect("Error could not parse requirement into a semantic version");
+            requirement = requirement.trim_start_matches(&['=', ' ', '~', '^'][..]);
+            let requirement_version = Version::parse(&requirement)
+                .expect("Error could not parse requirement into a semantic version");
             let requirement_channel = requirement_version.pre[0].to_string();
             match (requirement_channel.is_empty(), &version.pre[0]) {
                 (true, &Identifier::Numeric(_)) => true,
