@@ -4,13 +4,12 @@ use std::collections::{BTreeSet, HashMap, VecDeque};
 use std::io::{self, Write};
 
 use anyhow::anyhow;
+use cargo::core::compiler::{CompileKind, RustcTargetData};
+use cargo::core::resolver::features::{ForceAllTargets, HasDevUnits};
 use cargo::core::{dependency::DepKind, Dependency, Package, PackageId, Workspace};
-use cargo::core::compiler::{RustcTargetData, CompileKind};
 use cargo::ops::{self, Packages};
-use cargo::core::resolver::features::{HasDevUnits, ForceAllTargets};
 use cargo::util::{CargoResult, Config};
 use serde::{Deserialize, Serialize};
-use serde_json;
 use tabwriter::TabWriter;
 
 use super::pkg_status::*;
@@ -45,17 +44,12 @@ pub struct Metadata {
     pub platform: Option<String>,
 }
 
-
 impl Ord for Metadata {
-    fn cmp(&self, other: &Self) -> Ordering {
-        self.name.cmp(&other.name)
-    }
+    fn cmp(&self, other: &Self) -> Ordering { self.name.cmp(&other.name) }
 }
 
 impl PartialOrd for Metadata {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> { Some(self.cmp(other)) }
 }
 
 impl<'ela> ElaborateWorkspace<'ela> {
@@ -67,19 +61,28 @@ impl<'ela> ElaborateWorkspace<'ela> {
         use cargo::core::resolver::{features::RequestedFeatures, ResolveOpts};
         let specs = Packages::All.to_package_id_specs(workspace)?;
         let features = RequestedFeatures::from_command_line(
-            &options.flag_features, options.all_features(), options.no_default_features()
+            &options.flag_features,
+            options.all_features(),
+            options.no_default_features(),
         );
-        let opts = ResolveOpts::new(
-            true,
-            features,
-        );
+        let opts = ResolveOpts::new(true, features);
         //The CompileKind, this has no target since it's the temp workspace
         //targets are blank since we don't need to fully build for the targets to get the dependencies
         let compile_kind = CompileKind::from_requested_targets(workspace.config(), &[])?;
         let target_data = RustcTargetData::new(&workspace, &compile_kind)?;
-        let ws_resolve = ops::resolve_ws_with_opts(&workspace, &target_data, &compile_kind, &opts, &specs, HasDevUnits::Yes, ForceAllTargets::Yes)?;
+        let ws_resolve = ops::resolve_ws_with_opts(
+            &workspace,
+            &target_data,
+            &compile_kind,
+            &opts,
+            &specs,
+            HasDevUnits::Yes,
+            ForceAllTargets::Yes,
+        )?;
         let packages = ws_resolve.pkg_set;
-        let resolve = ws_resolve.workspace_resolve.expect("Error getting workspace resolved");
+        let resolve = ws_resolve
+            .workspace_resolve
+            .expect("Error getting workspace resolved");
         let mut pkgs = HashMap::new();
         let mut pkg_deps = HashMap::new();
         for pkg in packages.get_many(packages.package_ids())? {
@@ -119,9 +122,9 @@ impl<'ela> ElaborateWorkspace<'ela> {
                             return Ok(*direct_dep);
                         }
                     }
-                    return Err(anyhow!(
+                    Err(anyhow!(
                         "Root is neither the workspace root nor a direct dependency",
-                    ));
+                    ))
                 }
             } else {
                 Err(anyhow!(
@@ -271,8 +274,7 @@ impl<'ela> ElaborateWorkspace<'ela> {
             // generate lines
             let status = &self.pkg_status.borrow_mut()[&path];
             if (status.compat.is_changed() || status.latest.is_changed())
-                && (options.flag_packages.is_empty()
-                    || options.flag_packages.contains(&name))
+                && (options.flag_packages.is_empty() || options.flag_packages.contains(&name))
             {
                 // name version compatible latest kind platform
                 let parent = path.get(path.len() - 2);
@@ -375,8 +377,7 @@ impl<'ela> ElaborateWorkspace<'ela> {
             // generate lines
             let status = &self.pkg_status.borrow_mut()[&path];
             if (status.compat.is_changed() || status.latest.is_changed())
-                && (options.flag_packages.is_empty()
-                    || options.flag_packages.contains(&name))
+                && (options.flag_packages.is_empty() || options.flag_packages.contains(&name))
             {
                 // name version compatible latest kind platform
                 let parent = path.get(path.len() - 2);
