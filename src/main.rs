@@ -8,7 +8,6 @@ mod macros;
 mod cargo_ops;
 use crate::cargo_ops::{ElaborateWorkspace, TempProject};
 
-use cargo::core::maybe_allow_nightly_features;
 use cargo::core::shell::Verbosity;
 use cargo::core::Workspace;
 use cargo::ops::needs_custom_http_transport;
@@ -162,6 +161,9 @@ pub fn execute(options: Options, config: &mut Config) -> CargoResult<i32> {
         None => None
     };
 
+    // enabling nightly features
+    config.nightly_features_allowed = true;
+
     config.configure(
         options.flag_verbose,
         options.flag_quiet,
@@ -174,9 +176,6 @@ pub fn execute(options: Options, config: &mut Config) -> CargoResult<i32> {
         &[],
     )?;
     debug!(config, format!("options: {:?}", options));
-
-    // Needed to allow nightly features
-    maybe_allow_nightly_features();
 
     verbose!(config, "Parsing...", "current workspace");
     // the Cargo.toml that we are actually working on

@@ -2,12 +2,16 @@ use std::cell::RefCell;
 use std::cmp::Ordering;
 use std::collections::{BTreeSet, HashMap, VecDeque};
 use std::io::{self, Write};
+use std::rc::Rc;
 
 use anyhow::anyhow;
+use cargo::core::FeatureValue;
+use cargo::core::resolver::CliFeatures;
 use cargo::core::{dependency::DepKind, Dependency, Package, PackageId, Workspace};
 use cargo::core::compiler::{RustcTargetData, CompileKind};
 use cargo::ops::{self, Packages};
 use cargo::core::resolver::features::{HasDevUnits, ForceAllTargets};
+use cargo::util::interning::InternedString;
 use cargo::util::{CargoResult, Config};
 use serde::{Deserialize, Serialize};
 use serde_json;
@@ -64,20 +68,21 @@ impl<'ela> ElaborateWorkspace<'ela> {
         workspace: &'ela Workspace<'_>,
         options: &Options,
     ) -> CargoResult<ElaborateWorkspace<'ela>> {
-        use cargo::core::resolver::{features::RequestedFeatures, ResolveOpts};
+        // new in cargo 0.54.0 
+        let flag_features: BTreeSet<FeatureValue> = options.flag_features.iter().map(|feature| FeatureValue::new(InternedString::from(feature))).collect();
         let specs = Packages::All.to_package_id_specs(workspace)?;
-        let features = RequestedFeatures::from_command_line(
-            &options.flag_features, options.all_features(), options.no_default_features()
-        );
-        let opts = ResolveOpts::new(
-            true,
-            features,
-        );
+
+        let cli_features = CliFeatures{
+            features: Rc::new(flag_features), 
+            all_features: options.all_features(), 
+            uses_default_features: options.no_default_features(),
+        };
+
         //The CompileKind, this has no target since it's the temp workspace
         //targets are blank since we don't need to fully build for the targets to get the dependencies
         let compile_kind = CompileKind::from_requested_targets(workspace.config(), &[])?;
         let target_data = RustcTargetData::new(&workspace, &compile_kind)?;
-        let ws_resolve = ops::resolve_ws_with_opts(&workspace, &target_data, &compile_kind, &opts, &specs, HasDevUnits::Yes, ForceAllTargets::Yes)?;
+        let ws_resolve = ops::resolve_ws_with_opts(&workspace, &target_data, &compile_kind, &cli_features, &specs, HasDevUnits::Yes, ForceAllTargets::Yes)?;
         let packages = ws_resolve.pkg_set;
         let resolve = ws_resolve.workspace_resolve.expect("Error getting workspace resolved");
         let mut pkgs = HashMap::new();
@@ -210,7 +215,7 @@ impl<'ela> ElaborateWorkspace<'ela> {
             // generate pkg_status
             let status = PkgStatus {
                 compat: Status::from_versions(pkg.version(), compat_pkg.map(PackageId::version)),
-                latest: Status::from_versions(pkg.version(), latest_pkg.map(PackageId::version)),
+                latest: Status::from_versions(&pkg.version(), latest_pkg.map(PackageId::version)),
             };
             debug!(
                 _config,
