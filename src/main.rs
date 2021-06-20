@@ -105,8 +105,6 @@ fn main() {
         options
     };
 
-
-
     let mut config = match Config::default() {
         Ok(cfg) => cfg,
         Err(e) => {
@@ -118,21 +116,17 @@ fn main() {
     // Only use a custom transport if any HTTP options are specified,
     // such as proxies or custom certificate authorities. The custom
     // transport, however, is not as well battle-tested.
-    // See cargo-outdated issue #197 and 
-    // https://github.com/rust-lang/cargo/blob/master/src/bin/cargo/main.rs#L181 
+    // See cargo-outdated issue #197 and
+    // https://github.com/rust-lang/cargo/blob/master/src/bin/cargo/main.rs#L181
     // fn init_git_transports()
     match needs_custom_http_transport(&config) {
-        Ok(true) => {
-            match cargo::ops::http_handle(&config) {
-                Ok(handle) => {
-                    unsafe {
-                        git2_curl::register(handle);
-                    }
-                },
-                Err(_) => {}
-            }
+        Ok(true) => match cargo::ops::http_handle(&config) {
+            Ok(handle) => unsafe {
+                git2_curl::register(handle);
+            },
+            Err(_) => {}
         },
-        _ => {},
+        _ => {}
     }
 
     let exit_code = options.flag_exit_code;
@@ -154,11 +148,11 @@ fn main() {
 }
 
 pub fn execute(options: Options, config: &mut Config) -> CargoResult<i32> {
-    // Check if $CARGO_HOME is set before capturing the config environment 
-    // if it is, set it in the configure options 
+    // Check if $CARGO_HOME is set before capturing the config environment
+    // if it is, set it in the configure options
     let cargo_home_path = match std::env::var_os("CARGO_HOME") {
         Some(path) => Some(std::path::PathBuf::from(path)),
-        None => None
+        None => None,
     };
 
     // enabling nightly features

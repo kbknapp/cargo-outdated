@@ -5,12 +5,12 @@ use std::io::{self, Write};
 use std::rc::Rc;
 
 use anyhow::anyhow;
-use cargo::core::FeatureValue;
+use cargo::core::compiler::{CompileKind, RustcTargetData};
+use cargo::core::resolver::features::{ForceAllTargets, HasDevUnits};
 use cargo::core::resolver::CliFeatures;
+use cargo::core::FeatureValue;
 use cargo::core::{dependency::DepKind, Dependency, Package, PackageId, Workspace};
-use cargo::core::compiler::{RustcTargetData, CompileKind};
 use cargo::ops::{self, Packages};
-use cargo::core::resolver::features::{HasDevUnits, ForceAllTargets};
 use cargo::util::interning::InternedString;
 use cargo::util::{CargoResult, Config};
 use serde::{Deserialize, Serialize};
@@ -49,17 +49,12 @@ pub struct Metadata {
     pub platform: Option<String>,
 }
 
-
 impl Ord for Metadata {
-    fn cmp(&self, other: &Self) -> Ordering {
-        self.name.cmp(&other.name)
-    }
+    fn cmp(&self, other: &Self) -> Ordering { self.name.cmp(&other.name) }
 }
 
 impl PartialOrd for Metadata {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> { Some(self.cmp(other)) }
 }
 
 impl<'ela> ElaborateWorkspace<'ela> {
@@ -68,13 +63,17 @@ impl<'ela> ElaborateWorkspace<'ela> {
         workspace: &'ela Workspace<'_>,
         options: &Options,
     ) -> CargoResult<ElaborateWorkspace<'ela>> {
-        // new in cargo 0.54.0 
-        let flag_features: BTreeSet<FeatureValue> = options.flag_features.iter().map(|feature| FeatureValue::new(InternedString::from(feature))).collect();
+        // new in cargo 0.54.0
+        let flag_features: BTreeSet<FeatureValue> = options
+            .flag_features
+            .iter()
+            .map(|feature| FeatureValue::new(InternedString::from(feature)))
+            .collect();
         let specs = Packages::All.to_package_id_specs(workspace)?;
 
-        let cli_features = CliFeatures{
-            features: Rc::new(flag_features), 
-            all_features: options.all_features(), 
+        let cli_features = CliFeatures {
+            features: Rc::new(flag_features),
+            all_features: options.all_features(),
             uses_default_features: options.no_default_features(),
         };
 
@@ -82,9 +81,19 @@ impl<'ela> ElaborateWorkspace<'ela> {
         //targets are blank since we don't need to fully build for the targets to get the dependencies
         let compile_kind = CompileKind::from_requested_targets(workspace.config(), &[])?;
         let target_data = RustcTargetData::new(&workspace, &compile_kind)?;
-        let ws_resolve = ops::resolve_ws_with_opts(&workspace, &target_data, &compile_kind, &cli_features, &specs, HasDevUnits::Yes, ForceAllTargets::Yes)?;
+        let ws_resolve = ops::resolve_ws_with_opts(
+            &workspace,
+            &target_data,
+            &compile_kind,
+            &cli_features,
+            &specs,
+            HasDevUnits::Yes,
+            ForceAllTargets::Yes,
+        )?;
         let packages = ws_resolve.pkg_set;
-        let resolve = ws_resolve.workspace_resolve.expect("Error getting workspace resolved");
+        let resolve = ws_resolve
+            .workspace_resolve
+            .expect("Error getting workspace resolved");
         let mut pkgs = HashMap::new();
         let mut pkg_deps = HashMap::new();
         for pkg in packages.get_many(packages.package_ids())? {
@@ -276,8 +285,7 @@ impl<'ela> ElaborateWorkspace<'ela> {
             // generate lines
             let status = &self.pkg_status.borrow_mut()[&path];
             if (status.compat.is_changed() || status.latest.is_changed())
-                && (options.flag_packages.is_empty()
-                    || options.flag_packages.contains(&name))
+                && (options.flag_packages.is_empty() || options.flag_packages.contains(&name))
             {
                 // name version compatible latest kind platform
                 let parent = path.get(path.len() - 2);
@@ -380,8 +388,7 @@ impl<'ela> ElaborateWorkspace<'ela> {
             // generate lines
             let status = &self.pkg_status.borrow_mut()[&path];
             if (status.compat.is_changed() || status.latest.is_changed())
-                && (options.flag_packages.is_empty()
-                    || options.flag_packages.contains(&name))
+                && (options.flag_packages.is_empty() || options.flag_packages.contains(&name))
             {
                 // name version compatible latest kind platform
                 let parent = path.get(path.len() - 2);
