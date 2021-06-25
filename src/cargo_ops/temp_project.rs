@@ -473,6 +473,11 @@ impl<'tmp> TempProject<'tmp> {
     ) -> CargoResult<()> {
         let dep_keys: Vec<_> = dependencies.keys().cloned().collect();
         for dep_key in dep_keys {
+            // this, by brute force, allows a user to ignore a dependency by not writing
+            // it to the temp project's manifest
+            // In short this allows cargo to build the package with semver minor compatibilities issues
+            // https://github.com/rust-lang/cargo/issues/6584
+            // https://github.com/kbknapp/cargo-outdated/issues/230
             if self.options.flag_ignore.contains(&dep_key) {
                 continue;
             }
@@ -612,9 +617,6 @@ impl<'tmp> TempProject<'tmp> {
     ) -> CargoResult<()> {
         let dep_names: Vec<_> = dependencies.keys().cloned().collect();
         for name in dep_names {
-           /* if self.options.flag_ignore.contains(&name) {
-                continue;
-            }*/
             let original = dependencies.get(&name).cloned().unwrap();
             match original {
                 Value::Table(ref t) if t.contains_key("path") => {
