@@ -182,19 +182,12 @@ impl<'tmp> TempProject<'tmp> {
 
         // Check if $CARGO_HOME is set before capturing the config environment
         // if it is, set it in the configure options
-        let cargo_home_path = match std::env::var_os("CARGO_HOME") {
-            Some(path) => Some(std::path::PathBuf::from(path)),
-            None => None,
-        };
+        let cargo_home_path = std::env::var_os("CARGO_HOME").map(std::path::PathBuf::from);
 
         let mut config = Config::new(shell, cwd, homedir);
         config.configure(
             0,
-            if options.flag_verbose > 0 {
-                false
-            } else {
-                true
-            },
+            options.flag_verbose == 0,
             options.flag_color.as_deref(),
             options.frozen(),
             options.locked(),
@@ -539,7 +532,11 @@ impl<'tmp> TempProject<'tmp> {
                         _ => None,
                     };
                     let r_summary = self.find_update(
-                        if orig_name == "" { &name } else { &orig_name },
+                        if orig_name.is_empty() {
+                            &name
+                        } else {
+                            &orig_name
+                        },
                         package_name,
                         requirement,
                         workspace,
@@ -704,16 +701,12 @@ fn manifest_paths(elab: &ElaborateWorkspace<'_>) -> CargoResult<Vec<PathBuf>> {
 
         // If there is a CARGO_HOME make sure we do not crawl the registry for more Cargo.toml files
         // Otherwise add all Cargo.toml files to the manifest paths
-        if pkg
-            .root()
-            .starts_with(PathBuf::from(workspace_path.clone()))
-        {
-            if cargo_home_path.is_none()
+        if pkg.root().starts_with(PathBuf::from(workspace_path))
+            && (cargo_home_path.is_none()
                 || !pkg_path
-                    .starts_with(&cargo_home_path.expect("Error extracting CARGO_HOME string"))
-            {
-                manifest_paths.push(pkg.manifest_path().to_owned());
-            }
+                    .starts_with(&cargo_home_path.expect("Error extracting CARGO_HOME string")))
+        {
+            manifest_paths.push(pkg.manifest_path().to_owned());
         }
 
         for &dep in elab.pkg_deps[&pkg_id].keys() {

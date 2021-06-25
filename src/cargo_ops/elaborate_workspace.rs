@@ -14,7 +14,6 @@ use cargo::ops::{self, Packages};
 use cargo::util::interning::InternedString;
 use cargo::util::{CargoResult, Config};
 use serde::{Deserialize, Serialize};
-use serde_json;
 use tabwriter::TabWriter;
 
 use super::pkg_status::*;
@@ -133,9 +132,9 @@ impl<'ela> ElaborateWorkspace<'ela> {
                             return Ok(*direct_dep);
                         }
                     }
-                    return Err(anyhow!(
+                    Err(anyhow!(
                         "Root is neither the workspace root nor a direct dependency",
-                    ));
+                    ))
                 }
             } else {
                 Err(anyhow!(

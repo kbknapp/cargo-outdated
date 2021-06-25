@@ -1,8 +1,5 @@
 #![deny(bare_trait_objects, anonymous_parameters, elided_lifetimes_in_paths)]
 
-use cargo;
-use env_logger;
-
 #[macro_use]
 mod macros;
 mod cargo_ops;
@@ -14,7 +11,6 @@ use cargo::ops::needs_custom_http_transport;
 use cargo::util::important_paths::find_root_manifest_for_wd;
 use cargo::util::{CargoResult, CliError, Config};
 use docopt::Docopt;
-use git2_curl;
 
 pub const USAGE: &str = "
 Displays information about project dependency versions
@@ -119,14 +115,12 @@ fn main() {
     // See cargo-outdated issue #197 and
     // https://github.com/rust-lang/cargo/blob/master/src/bin/cargo/main.rs#L181
     // fn init_git_transports()
-    match needs_custom_http_transport(&config) {
-        Ok(true) => match cargo::ops::http_handle(&config) {
-            Ok(handle) => unsafe {
+    if let Ok(true) = needs_custom_http_transport(&config) {
+        if let Ok(handle) = cargo::ops::http_handle(&config) {
+            unsafe {
                 git2_curl::register(handle);
-            },
-            Err(_) => {}
-        },
-        _ => {}
+            }
+        }
     }
 
     let exit_code = options.flag_exit_code;
@@ -150,10 +144,7 @@ fn main() {
 pub fn execute(options: Options, config: &mut Config) -> CargoResult<i32> {
     // Check if $CARGO_HOME is set before capturing the config environment
     // if it is, set it in the configure options
-    let cargo_home_path = match std::env::var_os("CARGO_HOME") {
-        Some(path) => Some(std::path::PathBuf::from(path)),
-        None => None,
-    };
+    let cargo_home_path = std::env::var_os("CARGO_HOME").map(std::path::PathBuf::from);
 
     // enabling nightly features
     config.nightly_features_allowed = true;
