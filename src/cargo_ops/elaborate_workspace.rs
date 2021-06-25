@@ -49,11 +49,15 @@ pub struct Metadata {
 }
 
 impl Ord for Metadata {
-    fn cmp(&self, other: &Self) -> Ordering { self.name.cmp(&other.name) }
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.name.cmp(&other.name)
+    }
 }
 
 impl PartialOrd for Metadata {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> { Some(self.cmp(other)) }
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
 }
 
 impl<'ela> ElaborateWorkspace<'ela> {

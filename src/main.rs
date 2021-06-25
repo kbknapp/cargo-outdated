@@ -62,15 +62,21 @@ pub struct Options {
 }
 
 impl Options {
-    fn all_features(&self) -> bool { self.flag_features.is_empty() }
+    fn all_features(&self) -> bool {
+        self.flag_features.is_empty()
+    }
 
     fn no_default_features(&self) -> bool {
         !(self.flag_features.is_empty() || self.flag_features.contains(&"default".to_owned()))
     }
 
-    fn locked(&self) -> bool { false }
+    fn locked(&self) -> bool {
+        false
+    }
 
-    fn frozen(&self) -> bool { false }
+    fn frozen(&self) -> bool {
+        false
+    }
 }
 
 fn main() {
