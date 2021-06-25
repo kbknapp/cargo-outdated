@@ -280,6 +280,7 @@ impl<'tmp> TempProject<'tmp> {
             }
             Self::manipulate_dependencies(&mut manifest, &|deps| {
                 Self::replace_path_with_absolute(
+                    &self,
                     deps,
                     orig_root.as_ref(),
                     tmp_root.as_ref(),
@@ -330,6 +331,7 @@ impl<'tmp> TempProject<'tmp> {
             }
             Self::manipulate_dependencies(&mut manifest, &|deps| {
                 Self::replace_path_with_absolute(
+                    &self,
                     deps,
                     orig_root.as_ref(),
                     tmp_root.as_ref(),
@@ -471,6 +473,9 @@ impl<'tmp> TempProject<'tmp> {
     ) -> CargoResult<()> {
         let dep_keys: Vec<_> = dependencies.keys().cloned().collect();
         for dep_key in dep_keys {
+            if self.options.flag_ignore.contains(&dep_key) {
+                continue;
+            }
             let original = dependencies.get(&dep_key).cloned().unwrap();
 
             match original {
@@ -599,6 +604,7 @@ impl<'tmp> TempProject<'tmp> {
     }
 
     fn replace_path_with_absolute(
+        &self,
         dependencies: &mut Table,
         orig_root: &Path,
         tmp_root: &Path,
@@ -606,6 +612,9 @@ impl<'tmp> TempProject<'tmp> {
     ) -> CargoResult<()> {
         let dep_names: Vec<_> = dependencies.keys().cloned().collect();
         for name in dep_names {
+           /* if self.options.flag_ignore.contains(&name) {
+                continue;
+            }*/
             let original = dependencies.get(&name).cloned().unwrap();
             match original {
                 Value::Table(ref t) if t.contains_key("path") => {
