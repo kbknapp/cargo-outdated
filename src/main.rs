@@ -5,7 +5,6 @@ mod macros;
 mod cargo_ops;
 use crate::cargo_ops::{ElaborateWorkspace, TempProject};
 
-use cargo::core::maybe_allow_nightly_features;
 use cargo::core::shell::Verbosity;
 use cargo::core::Workspace;
 use cargo::ops::needs_custom_http_transport;
@@ -63,15 +62,21 @@ pub struct Options {
 }
 
 impl Options {
-    fn all_features(&self) -> bool { self.flag_features.is_empty() }
+    fn all_features(&self) -> bool {
+        self.flag_features.is_empty()
+    }
 
     fn no_default_features(&self) -> bool {
         !(self.flag_features.is_empty() || self.flag_features.contains(&"default".to_owned()))
     }
 
-    fn locked(&self) -> bool { false }
+    fn locked(&self) -> bool {
+        false
+    }
 
-    fn frozen(&self) -> bool { false }
+    fn frozen(&self) -> bool {
+        false
+    }
 }
 
 fn main() {
@@ -147,6 +152,9 @@ pub fn execute(options: Options, config: &mut Config) -> CargoResult<i32> {
     // if it is, set it in the configure options
     let cargo_home_path = std::env::var_os("CARGO_HOME").map(std::path::PathBuf::from);
 
+    // enabling nightly features
+    config.nightly_features_allowed = true;
+
     config.configure(
         options.flag_verbose,
         options.flag_quiet,
@@ -159,9 +167,6 @@ pub fn execute(options: Options, config: &mut Config) -> CargoResult<i32> {
         &[],
     )?;
     debug!(config, format!("options: {:?}", options));
-
-    // Needed to allow nightly features
-    maybe_allow_nightly_features();
 
     verbose!(config, "Parsing...", "current workspace");
     // the Cargo.toml that we are actually working on

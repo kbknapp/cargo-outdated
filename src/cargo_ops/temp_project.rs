@@ -6,10 +6,9 @@ use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
-use anyhow::anyhow;
+use anyhow::{anyhow, Context};
 use cargo::core::{Dependency, PackageId, Summary, Verbosity, Workspace};
 use cargo::ops::{update_lockfile, UpdateOptions};
-use cargo::util::errors::CargoResultExt;
 use cargo::util::{CargoResult, Config};
 use semver::{Identifier, Version, VersionReq};
 use tempfile::{Builder, TempDir};
@@ -170,7 +169,7 @@ impl<'tmp> TempProject<'tmp> {
     ) -> CargoResult<Config> {
         let shell = ::cargo::core::Shell::new();
         let cwd = env::current_dir()
-            .chain_err(|| "Cargo couldn't get the current directory of the process")?;
+            .with_context(|| "Cargo couldn't get the current directory of the process")?;
 
         let homedir = ::cargo::util::homedir(&cwd).ok_or_else(|| {
             anyhow!(

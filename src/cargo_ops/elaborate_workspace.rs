@@ -2,12 +2,16 @@ use std::cell::RefCell;
 use std::cmp::Ordering;
 use std::collections::{BTreeSet, HashMap, VecDeque};
 use std::io::{self, Write};
+use std::rc::Rc;
 
 use anyhow::anyhow;
 use cargo::core::compiler::{CompileKind, RustcTargetData};
 use cargo::core::resolver::features::{ForceAllTargets, HasDevUnits};
+use cargo::core::resolver::CliFeatures;
+use cargo::core::FeatureValue;
 use cargo::core::{dependency::DepKind, Dependency, Package, PackageId, Workspace};
 use cargo::ops::{self, Packages};
+use cargo::util::interning::InternedString;
 use cargo::util::{CargoResult, Config};
 use serde::{Deserialize, Serialize};
 use tabwriter::TabWriter;
@@ -45,11 +49,15 @@ pub struct Metadata {
 }
 
 impl Ord for Metadata {
-    fn cmp(&self, other: &Self) -> Ordering { self.name.cmp(&other.name) }
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.name.cmp(&other.name)
+    }
 }
 
 impl PartialOrd for Metadata {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> { Some(self.cmp(other)) }
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
 }
 
 impl<'ela> ElaborateWorkspace<'ela> {
@@ -58,14 +66,20 @@ impl<'ela> ElaborateWorkspace<'ela> {
         workspace: &'ela Workspace<'_>,
         options: &Options,
     ) -> CargoResult<ElaborateWorkspace<'ela>> {
-        use cargo::core::resolver::{features::RequestedFeatures, ResolveOpts};
+        // new in cargo 0.54.0
+        let flag_features: BTreeSet<FeatureValue> = options
+            .flag_features
+            .iter()
+            .map(|feature| FeatureValue::new(InternedString::from(feature)))
+            .collect();
         let specs = Packages::All.to_package_id_specs(workspace)?;
-        let features = RequestedFeatures::from_command_line(
-            &options.flag_features,
-            options.all_features(),
-            options.no_default_features(),
-        );
-        let opts = ResolveOpts::new(true, features);
+
+        let cli_features = CliFeatures {
+            features: Rc::new(flag_features),
+            all_features: options.all_features(),
+            uses_default_features: options.no_default_features(),
+        };
+
         //The CompileKind, this has no target since it's the temp workspace
         //targets are blank since we don't need to fully build for the targets to get the dependencies
         let compile_kind = CompileKind::from_requested_targets(workspace.config(), &[])?;
@@ -74,7 +88,7 @@ impl<'ela> ElaborateWorkspace<'ela> {
             &workspace,
             &target_data,
             &compile_kind,
-            &opts,
+            &cli_features,
             &specs,
             HasDevUnits::Yes,
             ForceAllTargets::Yes,
@@ -213,7 +227,7 @@ impl<'ela> ElaborateWorkspace<'ela> {
             // generate pkg_status
             let status = PkgStatus {
                 compat: Status::from_versions(pkg.version(), compat_pkg.map(PackageId::version)),
-                latest: Status::from_versions(pkg.version(), latest_pkg.map(PackageId::version)),
+                latest: Status::from_versions(&pkg.version(), latest_pkg.map(PackageId::version)),
             };
             debug!(
                 _config,

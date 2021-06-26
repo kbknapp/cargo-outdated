@@ -21,7 +21,9 @@ impl Status {
         }
     }
 
-    pub fn is_changed(&self) -> bool { !matches!(*self, Status::Unchanged) }
+    pub fn is_changed(&self) -> bool {
+        !matches!(*self, Status::Unchanged)
+    }
 }
 
 impl ::std::string::ToString for Status {
