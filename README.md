@@ -112,7 +112,8 @@ Options:
     -h, --help                  Prints help information
         --format FORMAT         Output formatting [default: list]
                                 [values: list, json]
-    -i, --ignore DEPENDENCIES   Space separated list of dependencies to ignore
+    -i, --ignore DEPENDENCIES   Comma separated list of dependencies to not print in the output
+    -x, --exclude DEPENDENCIES  Comma separated list of dependencies to exclude from building
     -q, --quiet                 Suppresses warnings
     -R, --root-deps-only        Only check root dependencies (Equivalent to --depth=1)
     -V, --version               Prints version information
