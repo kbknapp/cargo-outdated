@@ -140,7 +140,7 @@ dependencies = [
 
 [[package]]
 name = "cargo-outdated"
-version = "0.9.16"
+version = "0.9.17"
 dependencies = [
  "anyhow",
  "cargo",

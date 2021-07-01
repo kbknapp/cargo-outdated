@@ -280,6 +280,7 @@ impl<'tmp> TempProject<'tmp> {
             }
             Self::manipulate_dependencies(&mut manifest, &|deps| {
                 Self::replace_path_with_absolute(
+                    &self,
                     deps,
                     orig_root.as_ref(),
                     tmp_root.as_ref(),
@@ -330,6 +331,7 @@ impl<'tmp> TempProject<'tmp> {
             }
             Self::manipulate_dependencies(&mut manifest, &|deps| {
                 Self::replace_path_with_absolute(
+                    &self,
                     deps,
                     orig_root.as_ref(),
                     tmp_root.as_ref(),
@@ -471,6 +473,15 @@ impl<'tmp> TempProject<'tmp> {
     ) -> CargoResult<()> {
         let dep_keys: Vec<_> = dependencies.keys().cloned().collect();
         for dep_key in dep_keys {
+            // this, by brute force, allows a user to exclude a dependency by not writing
+            // it to the temp project's manifest
+            // In short this allows cargo to build the package with semver minor compatibilities issues
+            // https://github.com/rust-lang/cargo/issues/6584
+            // https://github.com/kbknapp/cargo-outdated/issues/230
+            if self.options.flag_exclude.contains(&dep_key) {
+                continue;
+            }
+
             let original = dependencies.get(&dep_key).cloned().unwrap();
 
             match original {
@@ -599,6 +610,7 @@ impl<'tmp> TempProject<'tmp> {
     }
 
     fn replace_path_with_absolute(
+        &self,
         dependencies: &mut Table,
         orig_root: &Path,
         tmp_root: &Path,
