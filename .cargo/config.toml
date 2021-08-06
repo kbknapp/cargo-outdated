@@ -1,0 +1,2 @@
+[alias]
+clippy-outdated = "clippy --all-features --all-targets --all -- --deny clippy::dbg_macro --deny clippy::unimplemented --deny clippy::todo --deny warnings --deny missing_docs --deny broken_intra_doc_links --forbid unused_must_use --deny clippy::result_unit_err"

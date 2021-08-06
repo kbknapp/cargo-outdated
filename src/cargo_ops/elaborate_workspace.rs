@@ -49,15 +49,11 @@ pub struct Metadata {
 }
 
 impl Ord for Metadata {
-    fn cmp(&self, other: &Self) -> Ordering {
-        self.name.cmp(&other.name)
-    }
+    fn cmp(&self, other: &Self) -> Ordering { self.name.cmp(&other.name) }
 }
 
 impl PartialOrd for Metadata {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> { Some(self.cmp(other)) }
 }
 
 impl<'ela> ElaborateWorkspace<'ela> {
@@ -83,9 +79,9 @@ impl<'ela> ElaborateWorkspace<'ela> {
         //The CompileKind, this has no target since it's the temp workspace
         //targets are blank since we don't need to fully build for the targets to get the dependencies
         let compile_kind = CompileKind::from_requested_targets(workspace.config(), &[])?;
-        let target_data = RustcTargetData::new(&workspace, &compile_kind)?;
+        let target_data = RustcTargetData::new(workspace, &compile_kind)?;
         let ws_resolve = ops::resolve_ws_with_opts(
-            &workspace,
+            workspace,
             &target_data,
             &compile_kind,
             &cli_features,
@@ -227,7 +223,7 @@ impl<'ela> ElaborateWorkspace<'ela> {
             // generate pkg_status
             let status = PkgStatus {
                 compat: Status::from_versions(pkg.version(), compat_pkg.map(PackageId::version)),
-                latest: Status::from_versions(&pkg.version(), latest_pkg.map(PackageId::version)),
+                latest: Status::from_versions(pkg.version(), latest_pkg.map(PackageId::version)),
             };
             debug!(
                 _config,
