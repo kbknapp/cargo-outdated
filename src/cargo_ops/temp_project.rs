@@ -280,7 +280,7 @@ impl<'tmp> TempProject<'tmp> {
             }
             Self::manipulate_dependencies(&mut manifest, &|deps| {
                 Self::replace_path_with_absolute(
-                    &self,
+                    self,
                     deps,
                     orig_root.as_ref(),
                     tmp_root.as_ref(),
@@ -331,7 +331,7 @@ impl<'tmp> TempProject<'tmp> {
             }
             Self::manipulate_dependencies(&mut manifest, &|deps| {
                 Self::replace_path_with_absolute(
-                    &self,
+                    self,
                     deps,
                     orig_root.as_ref(),
                     tmp_root.as_ref(),
@@ -533,7 +533,7 @@ impl<'tmp> TempProject<'tmp> {
                             }
                         })
                         .unwrap_or(false);
-                    if !self.feature_includes(&name, optional, features) {
+                    if !self.feature_includes(name, optional, features) {
                         continue;
                     }
                     let mut replaced = t.clone();
@@ -544,9 +544,9 @@ impl<'tmp> TempProject<'tmp> {
                     };
                     let r_summary = self.find_update(
                         if orig_name.is_empty() {
-                            &name
+                            name
                         } else {
-                            &orig_name
+                            orig_name
                         },
                         package_name,
                         requirement,
@@ -756,7 +756,7 @@ fn valid_latest_version(mut requirement: &str, version: &Version) -> bool {
         // both are unstable, must be in the same channel
         (true, true) => {
             requirement = requirement.trim_start_matches(&['=', ' ', '~', '^'][..]);
-            let requirement_version = Version::parse(&requirement)
+            let requirement_version = Version::parse(requirement)
                 .expect("Error could not parse requirement into a semantic version");
             let requirement_channel = requirement_version.pre[0].to_string();
             match (requirement_channel.is_empty(), &version.pre[0]) {

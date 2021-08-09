@@ -1,3 +1,6 @@
+//! cargo-outdated
+//! A subcommand for cargo that checks if your dependencies are up-to-date
+
 #![deny(bare_trait_objects, anonymous_parameters, elided_lifetimes_in_paths)]
 
 #[macro_use]
@@ -12,6 +15,7 @@ use cargo::util::important_paths::find_root_manifest_for_wd;
 use cargo::util::{CargoResult, CliError, Config};
 use docopt::Docopt;
 
+/// usage message for --help
 pub const USAGE: &str = "
 Displays information about project dependency versions
 
@@ -50,7 +54,7 @@ pub struct Options {
     flag_color: Option<String>,
     flag_features: Vec<String>,
     flag_ignore: Vec<String>,
-    flag_exclude: Vec<String>, 
+    flag_exclude: Vec<String>,
     flag_manifest_path: Option<String>,
     flag_quiet: bool,
     flag_verbose: u32,
@@ -64,21 +68,15 @@ pub struct Options {
 }
 
 impl Options {
-    fn all_features(&self) -> bool {
-        self.flag_features.is_empty()
-    }
+    fn all_features(&self) -> bool { self.flag_features.is_empty() }
 
     fn no_default_features(&self) -> bool {
         !(self.flag_features.is_empty() || self.flag_features.contains(&"default".to_owned()))
     }
 
-    fn locked(&self) -> bool {
-        false
-    }
+    fn locked(&self) -> bool { false }
 
-    fn frozen(&self) -> bool {
-        false
-    }
+    fn frozen(&self) -> bool { false }
 }
 
 fn main() {
@@ -150,6 +148,7 @@ fn main() {
     }
 }
 
+/// executes the cargo-outdate command with the cargo configuration and options
 pub fn execute(options: Options, config: &mut Config) -> CargoResult<i32> {
     // Check if $CARGO_HOME is set before capturing the config environment
     // if it is, set it in the configure options

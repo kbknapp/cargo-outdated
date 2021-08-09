@@ -9,19 +9,54 @@ name: Rust
       - "**"
 jobs:
   build:
+    name: Build and Test
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         rust_version: ['stable', 'beta', 'nightly']
         os: [ubuntu-latest, macOS-latest, windows-latest]
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v2
     - name: Install Rust
-      if: startsWith(matrix.os, 'macOS')
       uses: actions-rs/toolchain@v1
       with:
+        profile: minimal
         toolchain: ${{ matrix.rust_version }}
     - name: Build
       run: cargo build --verbose
-    - name: Run tests
+    - name: Test
       run: cargo test --verbose
+  lint:
+    name: Lint Check
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        rust_version: ['nightly']
+        os: [ubuntu-latest, macOS-latest, windows-latest]
+    steps:
+    - uses: actions/checkout@v2
+    - name: Lint
+      uses: actions-rs/toolchain@v1
+      with:
+        profile: minimal
+        toolchain: nightly
+        components: rustfmt
+    - name: Lint
+      run: cargo +nightly fmt -- --check
+  clippy:
+    name: Clippy Check
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        rust_version: ['stable']
+        os: [ubuntu-latest, macOS-latest, windows-latest]
+    steps:
+    - uses: actions/checkout@v2
+    - name: Clippy
+      uses: actions-rs/toolchain@v1
+      with:
+        profile: minimal
+        toolchain: stable
+        components: clippy
+    - name: Clippy
+      run: cargo clippy-outdated
