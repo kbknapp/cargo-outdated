@@ -11,10 +11,7 @@ pub use self::temp_project::TempProject;
 /// A continent struct for quick parsing and manipulating manifest
 #[derive(Debug, serde_derive::Serialize, serde_derive::Deserialize)]
 struct Manifest {
-    #[serde(
-        rename = "cargo-features",
-        skip_serializing_if = "Option::is_none"
-    )]
+    #[serde(rename = "cargo-features", skip_serializing_if = "Option::is_none")]
     pub cargo_features: Option<Value>,
     #[serde(serialize_with = "::toml::ser::tables_last")]
     pub package: Table,
