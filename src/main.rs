@@ -50,6 +50,7 @@ Options:
                                 (Defaults to Cargo.toml in project root)
     -p, --packages PKGS         Packages to inspect for updates
     -r, --root ROOT             Package to treat as the root package
+    -o, --offline               Run without accessing the network (useful for testing w/ local registries)
 ";
 
 /// Options from CLI arguments
@@ -70,6 +71,7 @@ pub struct Options {
     flag_root_deps_only: bool,
     flag_workspace: bool,
     flag_aggressive: bool,
+    flag_offline: bool,
 }
 
 impl Options {
@@ -168,7 +170,7 @@ pub fn execute(options: Options, config: &mut Config) -> CargoResult<i32> {
         options.flag_color.as_deref(),
         options.frozen(),
         options.locked(),
-        false,
+        options.flag_offline,
         &cargo_home_path,
         &[],
         &[],

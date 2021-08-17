@@ -192,7 +192,7 @@ impl<'tmp> TempProject<'tmp> {
             options.flag_color.as_deref(),
             options.frozen(),
             options.locked(),
-            false,
+            options.flag_offline,
             &cargo_home_path,
             &[],
             &[],
