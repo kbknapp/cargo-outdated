@@ -16,6 +16,7 @@ use toml::value::Table;
 use toml::Value;
 
 use super::{ElaborateWorkspace, Manifest};
+use crate::error::OutdatedError;
 use crate::Options;
 
 /// A temporary project
@@ -209,7 +210,13 @@ impl<'tmp> TempProject<'tmp> {
             dry_run: false,
             workspace: self.is_workspace_project,
         };
-        update_lockfile(self.workspace.borrow().as_ref().unwrap(), &update_opts)?;
+        update_lockfile(
+            self.workspace
+                .borrow()
+                .as_ref()
+                .ok_or(OutdatedError::NoWorkspace)?,
+            &update_opts,
+        )?;
         Ok(())
     }
 
@@ -379,21 +386,25 @@ impl<'tmp> TempProject<'tmp> {
             Some(requirement) => Some(VersionReq::parse(requirement)?),
             None => None,
         };
-        let latest_result = query_result
-            .iter()
-            .find(|summary| {
-                if summary.version() < version {
-                    false
-                } else if version_req.is_none() {
-                    true
-                } else if find_latest {
-                    self.options.flag_aggressive
-                        || valid_latest_version(requirement.unwrap(), summary.version())
-                } else {
-                    version_req.as_ref().unwrap().matches(summary.version())
-                }
-            })
-            .unwrap_or_else(|| {
+        let latest_result = query_result.iter().find(|summary| {
+            if summary.version() < version {
+                false
+            } else if version_req.is_none() {
+                true
+            } else if find_latest {
+                // this unwrap is safe since we check if `version_req` is `None` before this
+                // (which is only `None` if `requirement` is `None`)
+                self.options.flag_aggressive
+                    || valid_latest_version(requirement.unwrap(), summary.version())
+            } else {
+                // this unwrap is safe since we check if `version_req` is `None` before this
+                version_req.as_ref().unwrap().matches(summary.version())
+            }
+        });
+
+        let latest_summary = match latest_result {
+            Some(summary) => summary,
+            None => {
                 // If the version_req cannot be found use the version
                 // this happens when we use a git repository as a dependency, without specifying
                 // the version in Cargo.toml, preventing us from needing an unwrap below in the warn
@@ -401,18 +412,22 @@ impl<'tmp> TempProject<'tmp> {
                     Some(v_r) => format!("{}", v_r),
                     None => format!("{}", version),
                 };
-
+                // this should be safe it should only fail if we cannot get
+                // access to write to the terminal
+                // if this fails it's a cargo (as a dependency) issue
                 self.warn(format!(
                     "cannot compare {} crate version found in toml {} with crates.io latest {}",
                     name,
                     ver_req,
                     query_result[0].version()
-                ))
-                .unwrap();
+                ))?;
+
                 //this returns the latest version
                 &query_result[0]
-            });
-        Ok(latest_result.clone())
+            }
+        };
+
+        Ok(latest_summary.clone())
     }
 
     fn feature_includes(&self, name: &str, optional: bool, features_table: &Option<Value>) -> bool {
@@ -482,7 +497,10 @@ impl<'tmp> TempProject<'tmp> {
                 continue;
             }
 
-            let original = dependencies.get(&dep_key).cloned().unwrap();
+            let original = dependencies
+                .get(&dep_key)
+                .cloned()
+                .ok_or(OutdatedError::NoMatchingDependency)?;
 
             match original {
                 Value::String(requirement) => {
@@ -580,6 +598,9 @@ impl<'tmp> TempProject<'tmp> {
                                     };
                                     let retained =
                                         features_and_options(&summary).contains(feature.as_str());
+                                    // this unwrap should be safe it should only fail if we cannot get
+                                    // access to write to the terminal
+                                    // if this fails it's a cargo (as a dependency) issue
                                     if !retained {
                                         self.warn(format!(
                                             "Feature {} of package {} \
@@ -618,7 +639,10 @@ impl<'tmp> TempProject<'tmp> {
     ) -> CargoResult<()> {
         let dep_names: Vec<_> = dependencies.keys().cloned().collect();
         for name in dep_names {
-            let original = dependencies.get(&name).cloned().unwrap();
+            let original = dependencies
+                .get(&name)
+                .cloned()
+                .ok_or(OutdatedError::NoMatchingDependency)?;
             match original {
                 Value::Table(ref t) if t.contains_key("path") => {
                     if let Value::String(ref orig_path) = t["path"] {
