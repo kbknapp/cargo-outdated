@@ -9,6 +9,7 @@ use std::rc::Rc;
 use anyhow::{anyhow, Context};
 use cargo::core::{Dependency, PackageId, Summary, Verbosity, Workspace};
 use cargo::ops::{update_lockfile, UpdateOptions};
+use cargo::sources::config::SourceConfigMap;
 use cargo::util::{CargoResult, Config};
 use semver::{Version, VersionReq};
 use tempfile::{Builder, TempDir};
@@ -370,7 +371,8 @@ impl<'tmp> TempProject<'tmp> {
         let package_id = workspace.find_direct_dependency(name, dependent_package_name)?;
         let version = package_id.version();
         let source_id = package_id.source_id().with_precise(None);
-        let mut source = source_id.load(&self.config, &HashSet::new())?;
+        let source_config = SourceConfigMap::new(workspace.workspace.config())?;
+        let mut source = source_config.load(source_id, &HashSet::new())?;
         if !source_id.is_default_registry() {
             let _lock = self.config.acquire_package_cache_lock()?;
             source.update()?;
