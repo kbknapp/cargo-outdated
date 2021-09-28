@@ -39,6 +39,8 @@ term_size->libc  0.2.18   0.2.29  0.2.29   Normal       cfg(not(target_os = "win
 
 ## Installing
 
+<a href="https://repology.org/project/cargo-outdated/versions"><img align="right" src="https://repology.org/badge/vertical-allrepos/cargo-outdated.svg" alt="Packaging status"></a>
+
 The latest version of `cargo-outdated` can be installed or updated with `cargo install`:
 
 ```sh
