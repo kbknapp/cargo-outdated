@@ -6,7 +6,12 @@
 #[macro_use]
 mod macros;
 mod cargo_ops;
-use crate::cargo_ops::{ElaborateWorkspace, TempProject};
+mod error;
+
+use crate::{
+    cargo_ops::{ElaborateWorkspace, TempProject},
+    error::OutdatedError,
+};
 
 use cargo::core::shell::Verbosity;
 use cargo::core::Workspace;
@@ -207,8 +212,12 @@ pub fn execute(options: Options, config: &mut Config) -> CargoResult<i32> {
     compat_proj.cargo_update()?;
     verbose!(config, "Resolving...", "compat workspace");
     let compat_workspace = compat_proj.workspace.borrow();
-    let ela_compat =
-        ElaborateWorkspace::from_workspace(compat_workspace.as_ref().unwrap(), &options)?;
+    let ela_compat = ElaborateWorkspace::from_workspace(
+        compat_workspace
+            .as_ref()
+            .ok_or(OutdatedError::CannotElaborateWorkspace)?,
+        &options,
+    )?;
 
     verbose!(config, "Parsing...", "latest workspace");
     let latest_proj =
@@ -222,8 +231,12 @@ pub fn execute(options: Options, config: &mut Config) -> CargoResult<i32> {
     latest_proj.cargo_update()?;
     verbose!(config, "Resolving...", "latest workspace");
     let latest_workspace = latest_proj.workspace.borrow();
-    let ela_latest =
-        ElaborateWorkspace::from_workspace(latest_workspace.as_ref().unwrap(), &options)?;
+    let ela_latest = ElaborateWorkspace::from_workspace(
+        latest_workspace
+            .as_ref()
+            .ok_or(OutdatedError::CannotElaborateWorkspace)?,
+        &options,
+    )?;
 
     if ela_curr.workspace_mode {
         let mut sum = 0;

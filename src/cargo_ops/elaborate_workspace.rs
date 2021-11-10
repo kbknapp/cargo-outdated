@@ -16,6 +16,8 @@ use cargo::util::{CargoResult, Config};
 use serde::{Deserialize, Serialize};
 use tabwriter::TabWriter;
 
+use crate::error::OutdatedError;
+
 use super::pkg_status::*;
 use super::Options;
 
@@ -218,7 +220,7 @@ impl<'ela> ElaborateWorkspace<'ela> {
         let mut queue = VecDeque::new();
         queue.push_back((vec![root], Some(compat_root), Some(latest_root)));
         while let Some((path, compat_pkg, latest_pkg)) = queue.pop_front() {
-            let pkg = path.last().unwrap();
+            let pkg = path.last().ok_or(OutdatedError::EmptyPath)?;
             let depth = path.len() as i32 - 1;
             // generate pkg_status
             let status = PkgStatus {
@@ -236,6 +238,7 @@ impl<'ela> ElaborateWorkspace<'ela> {
             );
             self.pkg_status.borrow_mut().insert(path.clone(), status);
             // next layer
+            // this unwrap is safe since we first check if it is None :)
             if options.flag_depth.is_none() || depth < options.flag_depth.unwrap() {
                 self.pkg_deps[pkg]
                     .keys()
@@ -273,7 +276,7 @@ impl<'ela> ElaborateWorkspace<'ela> {
         let mut queue = VecDeque::new();
         queue.push_back(vec![root]);
         while let Some(path) = queue.pop_front() {
-            let pkg = path.last().unwrap();
+            let pkg = path.last().ok_or(OutdatedError::EmptyPath)?;
             let name = pkg.name().to_string();
 
             if options.flag_ignore.contains(&name) {
@@ -322,6 +325,7 @@ impl<'ela> ElaborateWorkspace<'ela> {
                 }
             }
             // next layer
+            // this unwrap is safe since we first check if it is None :)
             if options.flag_depth.is_none() || depth < options.flag_depth.unwrap() {
                 self.pkg_deps[pkg]
                     .keys()
@@ -356,11 +360,7 @@ impl<'ela> ElaborateWorkspace<'ela> {
                 write!(&mut tw, "{}", line)?;
             }
             tw.flush()?;
-            write!(
-                io::stdout(),
-                "{}",
-                String::from_utf8(tw.into_inner().unwrap()).unwrap()
-            )?;
+            write!(io::stdout(), "{}", String::from_utf8(tw.into_inner()?)?)?;
             io::stdout().flush()?;
         }
 
@@ -376,7 +376,7 @@ impl<'ela> ElaborateWorkspace<'ela> {
         queue.push_back(vec![root]);
 
         while let Some(path) = queue.pop_front() {
-            let pkg = path.last().unwrap();
+            let pkg = path.last().ok_or(OutdatedError::EmptyPath)?;
             let name = pkg.name().to_string();
 
             if options.flag_ignore.contains(&name) {
@@ -390,7 +390,12 @@ impl<'ela> ElaborateWorkspace<'ela> {
                 && (options.flag_packages.is_empty() || options.flag_packages.contains(&name))
             {
                 // name version compatible latest kind platform
-                let parent = path.get(path.len() - 2);
+                // safely get the parent index
+                let parent = if path.len() > 1 {
+                    path.get(path.len() - 2)
+                } else {
+                    None
+                };
 
                 let line;
 
@@ -432,6 +437,7 @@ impl<'ela> ElaborateWorkspace<'ela> {
                 crate_graph.dependencies.insert(line);
             }
             // next layer
+            // this unwrap is safe since we first check if it is None :)
             if options.flag_depth.is_none() || depth < options.flag_depth.unwrap() {
                 self.pkg_deps[pkg]
                     .keys()
