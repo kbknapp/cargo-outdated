@@ -1,3 +1,15 @@
+<a name="v0.9.18"></a>
+## v0.9.18 (2021-11-10)
+
+* Improve errors and unwraps (`4585424 `)
+* Upgrade cargo to support the 2021 edition (`235ad47`)
+* Add packaging status for cargo-outdated in README (`f39c8de `)
+* Update dependencies for openssl 3.0 support (`a22e1cd `)
+* Fix lints (`8a74214 `)
+* Add the missing `cargo-features` entry in `Manifest`. (`a3f732e `)
+* Added new CI stages for linting and clippy, ran rustfmt and clippy to fix any current issues, added .cargo/config.toml for a clippy alias (`99bc8a6 `)
+* This patch fixes the feature issue where package is used to redirect a feature to a specific version of the dependency (`97a2e29 `)
+
 <a name="0.8.0"></a>
 ## 0.8.0
 
