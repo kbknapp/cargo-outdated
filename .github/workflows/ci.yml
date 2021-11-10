@@ -1,0 +1,168 @@
+name: CI
+on:
+  push:
+    branches: [staging, trying]
+jobs:
+  ci:
+    name: CI
+    needs: [test]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Done
+        run: exit 0
+  test:
+    name: Tests
+    strategy:
+      fail-fast: false
+      matrix:
+        rust: [stable, beta]
+        os: [windows-latest, macOS-latest, ubuntu-latest]
+        target:
+          - i686-pc-windows-msvc
+          - x86_64-pc-windows-msvc
+          - i686-pc-windows-gnu
+          - x86_64-pc-windows-gnu
+          - x86_64-unknown-linux-gnu
+          - i686-unknown-linux-gnu
+          - x86_64-apple-darwin
+        features:
+          - none
+          - all
+          - release
+        exclude:
+          - features: release
+            rust: stable
+          - features: release
+            rust: beta
+          # Vendored OpenSSL only supported on Linux
+          - os: macOS-latest
+            features: all
+          - os: windows-latest
+            features: all
+          # There's some cross-compile issues with libssl (for now?)
+          - os: ubuntu-latest
+            target: i686-unknown-linux-gnu
+          # Exclude combinations that don't make sense
+          - os: windows-latest
+            target: x86_64-apple-darwin
+          - os: windows-latest
+            target: x86_64-unknown-linux-gnu
+          - os: windows-latest
+            target: i686-unknown-linux-gnu
+          - os: macos-latest
+            target: i686-pc-windows-msvc
+          - os: macos-latest
+            target: x86_64-pc-windows-msvc
+          - os: macos-latest
+            target: i686-pc-windows-gnu
+          - os: macos-latest
+            target: x86_64-pc-windows-gnu
+          - os: macos-latest
+            target: x86_64-unknown-linux-gnu
+          - os: macos-latest
+            target: i686-unknown-linux-gnu
+          - os: ubuntu-latest
+            target: i686-pc-windows-msvc
+          - os: ubuntu-latest
+            target: x86_64-pc-windows-msvc
+          - os: ubuntu-latest
+            target: i686-pc-windows-gnu
+          - os: ubuntu-latest
+            target: x86_64-pc-windows-gnu
+          - os: ubuntu-latest
+            target: x86_64-apple-darwin
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Install rust
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: ${{ matrix.rust }}
+          target: ${{ matrix.target }}
+          override: true
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Install linker
+        if: matrix.target == 'i686-pc-windows-gnu'
+        uses: egor-tensin/setup-mingw@v2
+        with:
+          platform: x86
+      - name: Install linker
+        if: matrix.target == 'x86_64-pc-windows-gnu'
+        uses: egor-tensin/setup-mingw@v2
+      - name: Install linker
+        if: matrix.target == 'i686-unknown-linux-gnu'
+        run: |
+          sudo apt-get update
+          sudo apt-get install gcc-multilib
+      - name: OpenSSL Libs
+        if: matrix.os == 'ubuntu-latest' && matrix.features == 'all'
+        run: |
+          sudo apt-get update
+          sudo apt-get install libssl-dev
+      - name: Test almost no features
+        uses: actions-rs/cargo@v1
+        if: matrix.features == 'none'
+        with:
+          command: test
+          args: --target ${{ matrix.target }} --no-default-features
+      - name: Test all features
+        uses: actions-rs/cargo@v1
+        if: matrix.features == 'all'
+        with:
+          command: test
+          args: --target ${{ matrix.target }} --all-features
+      - name: Check debug
+        uses: actions-rs/cargo@v1
+        if: matrix.features == 'all'
+        with:
+          command: check
+          args: --target ${{ matrix.target }} --all-features
+      - name: Test release
+        uses: actions-rs/cargo@v1
+        if: matrix.features == 'release'
+        with:
+          command: test
+          args: --target ${{ matrix.target }} --all-features --release
+  nightly:
+    name: Nightly Tests
+    strategy:
+      fail-fast: false
+      matrix:
+        features:
+          - none
+          - all
+          - release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly
+          override: true
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Test almost no features
+        uses: actions-rs/cargo@v1
+        if: matrix.features == 'none'
+        with:
+          command: test
+          args: --no-default-features
+      - name: Test all features
+        uses: actions-rs/cargo@v1
+        if: matrix.features == 'all'
+        with:
+          command: test
+          args: --all-features
+      - name: Check debug
+        uses: actions-rs/cargo@v1
+        if: matrix.features == 'all'
+        with:
+          command: check
+          args: --all-features
+      - name: Test release
+        uses: actions-rs/cargo@v1
+        if: matrix.features == 'release'
+        with:
+          command: test
+          args: --all-features --release
