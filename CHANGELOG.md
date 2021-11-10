@@ -1,3 +1,8 @@
+<a name="v0.10.0"></a>
+## v0.10.0 (2021-11-10)
+
+* Adds the ability to run offline against a local registry via `--offline` (`2a5bf77`)
+
 <a name="v0.9.18"></a>
 ## v0.9.18 (2021-11-10)
 
