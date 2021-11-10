@@ -10,7 +10,7 @@ use anyhow::{anyhow, Context};
 use cargo::core::{Dependency, PackageId, Summary, Verbosity, Workspace};
 use cargo::ops::{update_lockfile, UpdateOptions};
 use cargo::util::{CargoResult, Config};
-use semver::{Identifier, Version, VersionReq};
+use semver::{Version, VersionReq};
 use tempfile::{Builder, TempDir};
 use toml::value::Table;
 use toml::Value;
@@ -368,7 +368,7 @@ impl<'tmp> TempProject<'tmp> {
             let _lock = self.config.acquire_package_cache_lock()?;
             source.update()?;
         }
-        let dependency = Dependency::parse_no_deprecated(name, None, source_id)?;
+        let dependency = Dependency::parse(name, None, source_id)?;
         let query_result = {
             let _lock = self.config.acquire_package_cache_lock()?;
             let mut query_result = source.query_vec(&dependency)?;
@@ -746,7 +746,7 @@ fn manifest_paths(elab: &ElaborateWorkspace<'_>) -> CargoResult<Vec<PathBuf>> {
 }
 
 fn valid_latest_version(mut requirement: &str, version: &Version) -> bool {
-    match (requirement.contains('-'), version.is_prerelease()) {
+    match (requirement.contains('-'), !version.pre.is_empty()) {
         // if user was on a stable channel, it's unlikely for him to update to an unstable one
         (false, true) => false,
         // both are stable, leave for further filters
@@ -758,12 +758,16 @@ fn valid_latest_version(mut requirement: &str, version: &Version) -> bool {
             requirement = requirement.trim_start_matches(&['=', ' ', '~', '^'][..]);
             let requirement_version = Version::parse(requirement)
                 .expect("Error could not parse requirement into a semantic version");
-            let requirement_channel = requirement_version.pre[0].to_string();
-            match (requirement_channel.is_empty(), &version.pre[0]) {
-                (true, &Identifier::Numeric(_)) => true,
-                (false, &Identifier::AlphaNumeric(_)) => {
-                    Identifier::AlphaNumeric(requirement_channel) == version.pre[0]
-                }
+            let requirement_channel = requirement_version.pre.split('.').next().unwrap();
+            let requirement_channel_numeric =
+                requirement_channel.bytes().all(|b| b.is_ascii_digit());
+
+            let version_channel = version.pre.split('.').next().unwrap();
+            let version_channel_numeric = version_channel.bytes().all(|b| b.is_ascii_digit());
+
+            match (requirement_channel_numeric, version_channel_numeric) {
+                (false, false) => requirement_channel == version_channel,
+                (true, true) => true,
                 _ => false,
             }
         }
