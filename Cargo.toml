@@ -7,7 +7,7 @@ authors = [
     "Ricky H. <ricky.hosfelt@gmail.com>",
 ]
 categories = ["development-tools", "development-tools::cargo-plugins"]
-edition = "2018"
+edition = "2021"
 exclude = ["*.png"]
 keywords = [
     "cargo",
