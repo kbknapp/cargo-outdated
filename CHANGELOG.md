@@ -1,3 +1,8 @@
+<a name="v0.10.1"></a>
+## v0.10.1 (2021-11-16)
+
+* Fix acquiring package cache lock (`d38926b`)
+
 <a name="v0.10.0"></a>
 ## v0.10.0 (2021-11-10)
 
