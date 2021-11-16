@@ -371,15 +371,15 @@ impl<'tmp> TempProject<'tmp> {
         let package_id = workspace.find_direct_dependency(name, dependent_package_name)?;
         let version = package_id.version();
         let source_id = package_id.source_id().with_precise(None);
-        let source_config = SourceConfigMap::new(workspace.workspace.config())?;
-        let mut source = source_config.load(source_id, &HashSet::new())?;
-        if !source_id.is_default_registry() {
-            let _lock = self.config.acquire_package_cache_lock()?;
-            source.update()?;
-        }
-        let dependency = Dependency::parse(name, None, source_id)?;
         let query_result = {
-            let _lock = self.config.acquire_package_cache_lock()?;
+            let ws_config = workspace.workspace.config();
+            let _lock = ws_config.acquire_package_cache_lock()?;
+            let source_config = SourceConfigMap::new(ws_config)?;
+            let mut source = source_config.load(source_id, &HashSet::new())?;
+            if !source_id.is_default_registry() {
+                source.update()?;
+            }
+            let dependency = Dependency::parse(name, None, source_id)?;
             let mut query_result = source.query_vec(&dependency)?;
             query_result.sort_by(|a, b| b.version().cmp(a.version()));
             query_result
