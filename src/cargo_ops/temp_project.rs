@@ -189,11 +189,11 @@ impl<'tmp> TempProject<'tmp> {
         let mut config = Config::new(shell, cwd, homedir);
         config.configure(
             0,
-            options.flag_verbose == 0,
-            options.flag_color.as_deref(),
+            options.verbose == 0,
+            Some(&options.color.to_string().to_ascii_lowercase()),
             options.frozen(),
             options.locked(),
-            options.flag_offline,
+            options.offline,
             &cargo_home_path,
             &[],
             &[],
@@ -396,7 +396,7 @@ impl<'tmp> TempProject<'tmp> {
             } else if find_latest {
                 // this unwrap is safe since we check if `version_req` is `None` before this
                 // (which is only `None` if `requirement` is `None`)
-                self.options.flag_aggressive
+                self.options.aggressive
                     || valid_latest_version(requirement.unwrap(), summary.version())
             } else {
                 // this unwrap is safe since we check if `version_req` is `None` before this
@@ -436,12 +436,7 @@ impl<'tmp> TempProject<'tmp> {
         if self.options.all_features() {
             return true;
         }
-        if !optional
-            && self
-                .options
-                .flag_features
-                .contains(&String::from("default"))
-        {
+        if !optional && self.options.features.contains(&String::from("default")) {
             return true;
         }
         let features_table = match *features_table {
@@ -450,7 +445,7 @@ impl<'tmp> TempProject<'tmp> {
         };
         let mut to_resolve: Vec<&str> = self
             .options
-            .flag_features
+            .features
             .iter()
             .filter(|f| !f.is_empty())
             .map(String::as_str)
@@ -495,7 +490,7 @@ impl<'tmp> TempProject<'tmp> {
             // In short this allows cargo to build the package with semver minor compatibilities issues
             // https://github.com/rust-lang/cargo/issues/6584
             // https://github.com/kbknapp/cargo-outdated/issues/230
-            if self.options.flag_exclude.contains(&dep_key) {
+            if self.options.exclude.contains(&dep_key) {
                 continue;
             }
 
@@ -682,13 +677,11 @@ impl<'tmp> TempProject<'tmp> {
 
     fn warn<T: ::std::fmt::Display>(&self, message: T) -> CargoResult<()> {
         let original_verbosity = self.config.shell().verbosity();
-        self.config
-            .shell()
-            .set_verbosity(if self.options.flag_quiet {
-                Verbosity::Quiet
-            } else {
-                Verbosity::Normal
-            });
+        self.config.shell().set_verbosity(if self.options.quiet {
+            Verbosity::Quiet
+        } else {
+            Verbosity::Normal
+        });
         self.config.shell().warn(message)?;
         self.config.shell().set_verbosity(original_verbosity);
         Ok(())

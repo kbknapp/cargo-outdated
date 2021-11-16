@@ -66,7 +66,7 @@ impl<'ela> ElaborateWorkspace<'ela> {
     ) -> CargoResult<ElaborateWorkspace<'ela>> {
         // new in cargo 0.54.0
         let flag_features: BTreeSet<FeatureValue> = options
-            .flag_features
+            .features
             .iter()
             .map(|feature| FeatureValue::new(InternedString::from(feature)))
             .collect();
@@ -118,13 +118,13 @@ impl<'ela> ElaborateWorkspace<'ela> {
             pkgs,
             pkg_deps,
             pkg_status: RefCell::new(HashMap::new()),
-            workspace_mode: options.flag_workspace || workspace.current().is_err(),
+            workspace_mode: options.workspace || workspace.current().is_err(),
         })
     }
 
     /// Determine root package based on current workspace and CLI options
     pub fn determine_root(&self, options: &Options) -> CargoResult<PackageId> {
-        if let Some(ref root_name) = options.flag_root {
+        if let Some(ref root_name) = options.root {
             if let Ok(workspace_root) = self.workspace.current() {
                 if root_name == workspace_root.name().as_str() {
                     Ok(workspace_root.package_id())
@@ -239,7 +239,7 @@ impl<'ela> ElaborateWorkspace<'ela> {
             self.pkg_status.borrow_mut().insert(path.clone(), status);
             // next layer
             // this unwrap is safe since we first check if it is None :)
-            if options.flag_depth.is_none() || depth < options.flag_depth.unwrap() {
+            if options.depth.is_none() || depth < options.depth.unwrap() {
                 self.pkg_deps[pkg]
                     .keys()
                     .filter(|dep| !path.contains(dep))
@@ -279,7 +279,7 @@ impl<'ela> ElaborateWorkspace<'ela> {
             let pkg = path.last().ok_or(OutdatedError::EmptyPath)?;
             let name = pkg.name().to_string();
 
-            if options.flag_ignore.contains(&name) {
+            if options.ignore.contains(&name) {
                 continue;
             }
 
@@ -287,7 +287,7 @@ impl<'ela> ElaborateWorkspace<'ela> {
             // generate lines
             let status = &self.pkg_status.borrow_mut()[&path];
             if (status.compat.is_changed() || status.latest.is_changed())
-                && (options.flag_packages.is_empty() || options.flag_packages.contains(&name))
+                && (options.packages.is_empty() || options.packages.contains(&name))
             {
                 // name version compatible latest kind platform
                 let parent = path.get(path.len() - 2);
@@ -326,7 +326,7 @@ impl<'ela> ElaborateWorkspace<'ela> {
             }
             // next layer
             // this unwrap is safe since we first check if it is None :)
-            if options.flag_depth.is_none() || depth < options.flag_depth.unwrap() {
+            if options.depth.is_none() || depth < options.depth.unwrap() {
                 self.pkg_deps[pkg]
                     .keys()
                     .filter(|dep| !path.contains(dep))
@@ -379,7 +379,7 @@ impl<'ela> ElaborateWorkspace<'ela> {
             let pkg = path.last().ok_or(OutdatedError::EmptyPath)?;
             let name = pkg.name().to_string();
 
-            if options.flag_ignore.contains(&name) {
+            if options.ignore.contains(&name) {
                 continue;
             }
 
@@ -387,7 +387,7 @@ impl<'ela> ElaborateWorkspace<'ela> {
             // generate lines
             let status = &self.pkg_status.borrow_mut()[&path];
             if (status.compat.is_changed() || status.latest.is_changed())
-                && (options.flag_packages.is_empty() || options.flag_packages.contains(&name))
+                && (options.packages.is_empty() || options.packages.contains(&name))
             {
                 // name version compatible latest kind platform
                 // safely get the parent index
@@ -438,7 +438,7 @@ impl<'ela> ElaborateWorkspace<'ela> {
             }
             // next layer
             // this unwrap is safe since we first check if it is None :)
-            if options.flag_depth.is_none() || depth < options.flag_depth.unwrap() {
+            if options.depth.is_none() || depth < options.depth.unwrap() {
                 self.pkg_deps[pkg]
                     .keys()
                     .filter(|dep| !path.contains(dep))
