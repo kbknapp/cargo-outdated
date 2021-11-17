@@ -41,6 +41,9 @@ tempfile = "3"
 toml = "~0.5.0"
 clap = "2.33.3"
 
+[dev-dependencies]
+trycmd = "0.7"
+
 [dependencies.termcolor]
 optional = true
 version = "1.0"

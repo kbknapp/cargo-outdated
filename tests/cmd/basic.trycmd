@@ -1,0 +1,43 @@
+```bash
+$ cargo-outdated
+? 1
+error: 'cargo' requires a subcommand, but one was not provided
+
+USAGE:
+    cargo <SUBCOMMAND>
+
+For more information try --help
+```
+
+
+```bash
+$ cargo-outdated outdated -h
+cargo-outdated [..]
+Displays information about project dependency versions
+
+USAGE:
+    cargo outdated [OPTIONS]
+
+OPTIONS:
+    -a, --aggresssive               Ignores channels for latest updates
+        --color <COLOR>             Output coloring [default: auto]  [possible values: Auto, Never, Always]
+    -d, --depth <NUM>               How deep in the dependency chain to search (Defaults to all dependencies when
+                                    omitted)
+    -x, --exclude <DEPENDENCIES>    Dependencies to exclude from building (comma separated or one per '--exclude'
+                                    argument)
+        --exit-code <NUM>           The exit code to return on new versions found [default: 0]
+        --features <FEATURES>...    Space-separated list of features
+        --format <FORMAT>           Output formatting [default: list]  [possible values: List, Json]
+    -h, --help                      Prints help information
+    -i, --ignore <DEPENDENCIES>     Dependencies to not print in the output (comma separated or one per '--ignore'
+                                    argument)
+    -m, --manifest-path <PATH>      Path to the Cargo.toml file to use (Defaults to Cargo.toml in project root)
+    -o, --offline                   Run without accessing the network (useful for testing w/ local registries)
+    -p, --packages <PKGS>           Packages to inspect for updates (comma separated or one per '--packages' argument)
+    -q, --quiet                     Suppresses warnings
+    -r, --root <ROOT>               Package to treat as the root package
+    -R, --root-deps-only            Only check root dependencies (Equivalent to --depth=1)
+    -V, --version                   Prints version information
+    -v, --verbose                   Use verbose output
+    -w, --workspace                 Checks updates for all workspace members rather than only the root package
+```
