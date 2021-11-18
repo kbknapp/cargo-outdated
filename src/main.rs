@@ -295,33 +295,30 @@ mod test {
         if !args.is_empty() {
             argv.extend(args);
         }
-        let options = {
-            let mut options: Options = Docopt::new(USAGE)
-                .and_then(|d| {
-                    d.version(Some(
-                        concat!(env!("CARGO_PKG_NAME"), " v", env!("CARGO_PKG_VERSION")).to_owned(),
-                    ))
-                    .argv(argv)
-                    .deserialize()
-                })
-                .unwrap_or_else(|e| e.exit());
-            fn flat_split(arg: &[String]) -> Vec<String> {
-                arg.iter()
-                    .flat_map(|s| s.split_whitespace())
-                    .flat_map(|s| s.split(','))
-                    .filter(|s| !s.is_empty())
-                    .map(ToString::to_string)
-                    .collect()
-            }
-            options.flag_features = flat_split(&options.flag_features);
-            options.flag_ignore = flat_split(&options.flag_ignore);
-            options.flag_exclude = flat_split(&options.flag_exclude);
-            options.flag_packages = flat_split(&options.flag_packages);
-            if options.flag_root_deps_only {
-                options.flag_depth = Some(1);
-            }
-            options
-        };
+        let mut options: Options = Docopt::new(USAGE)
+            .and_then(|d| {
+                d.version(Some(
+                    concat!(env!("CARGO_PKG_NAME"), " v", env!("CARGO_PKG_VERSION")).to_owned(),
+                ))
+                .argv(argv)
+                .deserialize()
+            })
+            .unwrap_or_else(|e| e.exit());
+        fn flat_split(arg: &[String]) -> Vec<String> {
+            arg.iter()
+                .flat_map(|s| s.split_whitespace())
+                .flat_map(|s| s.split(','))
+                .filter(|s| !s.is_empty())
+                .map(ToString::to_string)
+                .collect()
+        }
+        options.flag_features = flat_split(&options.flag_features);
+        options.flag_ignore = flat_split(&options.flag_ignore);
+        options.flag_exclude = flat_split(&options.flag_exclude);
+        options.flag_packages = flat_split(&options.flag_packages);
+        if options.flag_root_deps_only {
+            options.flag_depth = Some(1);
+        }
         options
     }
 
