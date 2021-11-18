@@ -183,10 +183,10 @@ jobs:
         if: matrix.features == 'none'
         with:
           command: run
-          args: --target ${{ matrix.target }} --no-default-features -- outdated
+          args: --no-default-features -- outdated
       - name: Run release
         uses: actions-rs/cargo@v1
         if: matrix.features == 'release'
         with:
           command: run
-          args: --target ${{ matrix.target }} --all-features --release -- outdated
+          args: --all-features --release -- outdated
