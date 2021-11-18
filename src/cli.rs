@@ -11,6 +11,10 @@ arg_enum! {
     }
 }
 
+impl Default for Format {
+    fn default() -> Self { Format::List }
+}
+
 arg_enum! {
     #[derive(Copy, Clone, Debug, PartialEq)]
     pub enum Color {
@@ -20,8 +24,12 @@ arg_enum! {
     }
 }
 
+impl Default for Color {
+    fn default() -> Self { Color::Auto }
+}
+
 /// Options from CLI arguments
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Default)]
 pub struct Options {
     pub format: Format,
     pub color: Color,
@@ -110,8 +118,8 @@ impl<'a> From<&ArgMatches<'a>> for Options {
     }
 }
 
-pub fn parse() -> Options {
-    let matches = App::new("cargo-outdated")
+fn build() -> App<'static, 'static> {
+    App::new("cargo-outdated")
         .bin_name("cargo")
         .setting(AppSettings::SubcommandRequired)
         .subcommand(
@@ -237,7 +245,232 @@ pub fn parse() -> Options {
                         .number_of_values(1)
                         .value_name("FEATURES"))
             )
-        .get_matches();
+}
+
+pub fn parse() -> Options {
+    let matches = build().get_matches();
 
     Options::from(matches.subcommand_matches("outdated").unwrap())
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    fn options(args: &[&str]) -> Options {
+        let mut argv = vec!["cargo", "outdated"];
+        argv.extend(args);
+        let m = build().get_matches_from(argv);
+        Options::from(m.subcommand_matches("outdated").unwrap())
+    }
+
+    fn options_fail(args: &[&str]) -> clap::Result<ArgMatches<'static>> {
+        let mut argv = vec!["cargo", "outdated"];
+        argv.extend(args);
+        build().get_matches_from_safe(argv)
+    }
+
+    #[test]
+    fn default() {
+        let opts = options(&[]);
+        assert_eq!(Options::default(), opts)
+    }
+
+    #[test]
+    fn root_only() {
+        let opts = options(&["--root-deps-only"]);
+        assert_eq!(
+            Options {
+                depth: Some(1),
+                root_deps_only: true,
+                ..Options::default()
+            },
+            opts
+        )
+    }
+
+    #[test]
+    fn features() {
+        let opts1 = options(&["--features=one,two,three"]);
+        let opts2 = options(&["--features", "one,two,three"]);
+        let opts3 = options(&["--features", "one two three"]);
+        let opts4 = options(&[
+            "--features",
+            "one",
+            "--features",
+            "two",
+            "--features",
+            "three",
+        ]);
+        let opts5 = options(&["--features", "one", "--features", "two,three"]);
+
+        let correct = Options {
+            features: vec!["one".into(), "two".into(), "three".into()],
+            ..Options::default()
+        };
+
+        assert_eq!(correct, opts1);
+        assert_eq!(correct, opts2);
+        assert_eq!(correct, opts3);
+        assert_eq!(correct, opts4);
+        assert_eq!(correct, opts5);
+    }
+
+    #[test]
+    fn features_fail() {
+        let res = options_fail(&["--features", "one", "two"]);
+        assert!(res.is_err());
+        assert_eq!(
+            res.as_ref().unwrap_err().kind,
+            clap::ErrorKind::UnknownArgument,
+            "{:?}",
+            res.as_ref().unwrap_err().kind
+        );
+    }
+
+    #[test]
+    fn exclude() {
+        let opts1 = options(&["--exclude=one,two,three"]);
+        let opts2 = options(&["--exclude", "one,two,three"]);
+        let opts3 = options(&["--exclude", "one two three"]);
+        let opts4 = options(&["--exclude", "one", "--exclude", "two", "--exclude", "three"]);
+        let opts5 = options(&["--exclude", "one", "--exclude", "two,three"]);
+        let correct = Options {
+            exclude: vec!["one".into(), "two".into(), "three".into()],
+            ..Options::default()
+        };
+
+        assert_eq!(correct, opts1);
+        assert_eq!(correct, opts2);
+        assert_eq!(correct, opts3);
+        assert_eq!(correct, opts4);
+        assert_eq!(correct, opts5);
+    }
+
+    #[test]
+    fn exclude_fail() {
+        let res = options_fail(&["--exclude", "one", "two"]);
+        assert!(res.is_err());
+        assert_eq!(
+            res.as_ref().unwrap_err().kind,
+            clap::ErrorKind::UnknownArgument,
+            "{:?}",
+            res.as_ref().unwrap_err().kind
+        );
+    }
+
+    #[test]
+    fn ignore() {
+        let opts1 = options(&["--ignore=one,two,three"]);
+        let opts2 = options(&["--ignore", "one,two,three"]);
+        let opts3 = options(&["--ignore", "one two three"]);
+        let opts4 = options(&["--ignore", "one", "--ignore", "two", "--ignore", "three"]);
+        let opts5 = options(&["--ignore", "one", "--ignore", "two,three"]);
+        let correct = Options {
+            ignore: vec!["one".into(), "two".into(), "three".into()],
+            ..Options::default()
+        };
+
+        assert_eq!(correct, opts1);
+        assert_eq!(correct, opts2);
+        assert_eq!(correct, opts3);
+        assert_eq!(correct, opts4);
+        assert_eq!(correct, opts5);
+    }
+
+    #[test]
+    fn ignore_fail() {
+        let res = options_fail(&["--ignore", "one", "two"]);
+        assert!(res.is_err());
+        assert_eq!(
+            res.as_ref().unwrap_err().kind,
+            clap::ErrorKind::UnknownArgument,
+            "{:?}",
+            res.as_ref().unwrap_err().kind
+        );
+    }
+
+    #[test]
+    fn verbose() {
+        let opts1 = options(&["--verbose", "--verbose", "--verbose"]);
+        let correct = Options {
+            verbose: 3,
+            ..Options::default()
+        };
+
+        assert_eq!(correct, opts1);
+    }
+
+    #[test]
+    fn packages() {
+        let opts1 = options(&["--packages", "one,two"]);
+        let opts2 = options(&["--packages", "one two"]);
+        let opts3 = options(&["--packages", "one", "--packages", "two"]);
+        let correct = Options {
+            packages: vec!["one".into(), "two".into()],
+            ..Options::default()
+        };
+
+        assert_eq!(correct, opts1);
+        assert_eq!(correct, opts2);
+        assert_eq!(correct, opts3);
+    }
+
+    #[test]
+    fn packages_fail() {
+        let res = options_fail(&["--packages", "one", "two"]);
+        assert!(res.is_err());
+        assert_eq!(
+            res.as_ref().unwrap_err().kind,
+            clap::ErrorKind::UnknownArgument,
+            "{:?}",
+            res.as_ref().unwrap_err().kind
+        );
+    }
+
+    #[test]
+    fn format_case() {
+        let opts1 = options(&["--format", "JsOn"]);
+        let correct = Options {
+            format: Format::Json,
+            ..Options::default()
+        };
+
+        assert_eq!(correct, opts1);
+    }
+
+    #[test]
+    fn format_unknown() {
+        let res = options_fail(&["--format", "foobar"]);
+        assert!(res.is_err());
+        assert_eq!(
+            res.as_ref().unwrap_err().kind,
+            clap::ErrorKind::InvalidValue,
+            "{:?}",
+            res.as_ref().unwrap_err().kind
+        );
+    }
+
+    #[test]
+    fn color_case() {
+        let opts1 = options(&["--color", "NeVeR"]);
+        let correct = Options {
+            color: Color::Never,
+            ..Options::default()
+        };
+
+        assert_eq!(correct, opts1);
+    }
+
+    #[test]
+    fn color_unknown() {
+        let res = options_fail(&["--color", "foobar"]);
+        assert!(res.is_err());
+        assert_eq!(
+            res.as_ref().unwrap_err().kind,
+            clap::ErrorKind::InvalidValue,
+            "{:?}",
+            res.as_ref().unwrap_err().kind
+        );
+    }
 }
