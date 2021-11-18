@@ -6,114 +6,24 @@
 #[macro_use]
 mod macros;
 mod cargo_ops;
+mod cli;
 mod error;
-
-use crate::{
-    cargo_ops::{ElaborateWorkspace, TempProject},
-    error::OutdatedError,
-};
 
 use cargo::core::shell::Verbosity;
 use cargo::core::Workspace;
 use cargo::ops::needs_custom_http_transport;
 use cargo::util::important_paths::find_root_manifest_for_wd;
 use cargo::util::{CargoResult, CliError, Config};
-use docopt::Docopt;
 
-/// usage message for --help
-pub const USAGE: &str = "
-Displays information about project dependency versions
-
-USAGE:
-    cargo outdated [options]
-
-Options:
-    -a, --aggressive            Ignores channels for latest updates
-    -h, --help                  Prints help information
-        --format FORMAT         Output formatting [default: list]
-                                [values: list, json]
-    -i, --ignore DEPENDENCIES   Comma separated list of dependencies to not print in the output
-    -x, --exclude DEPENDENCIES  Comma separated list of dependencies to exclude from building
-    -q, --quiet                 Suppresses warnings
-    -R, --root-deps-only        Only check root dependencies (Equivalent to --depth=1)
-    -V, --version               Prints version information
-    -v, --verbose ...           Use verbose output
-    -w, --workspace             Checks updates for all workspace members rather than
-                                only the root package
-        --color COLOR           Coloring: auto, always, never [default: auto]
-                                [values: auto, always, never]
-    -d, --depth NUM             How deep in the dependency chain to search
-                                (Defaults to all dependencies when omitted)
-        --exit-code NUM         The exit code to return on new versions found [default: 0]
-        --features FEATURES     Space-separated list of features
-    -m, --manifest-path FILE    Path to the Cargo.toml file to use
-                                (Defaults to Cargo.toml in project root)
-    -p, --packages PKGS         Packages to inspect for updates
-    -r, --root ROOT             Package to treat as the root package
-    -o, --offline               Run without accessing the network (useful for testing w/ local registries)
-";
-
-/// Options from CLI arguments
-#[derive(serde_derive::Deserialize, Debug, PartialEq, Default)]
-pub struct Options {
-    flag_format: Option<String>,
-    flag_color: Option<String>,
-    flag_features: Vec<String>,
-    flag_ignore: Vec<String>,
-    flag_exclude: Vec<String>,
-    flag_manifest_path: Option<String>,
-    flag_quiet: bool,
-    flag_verbose: u32,
-    flag_exit_code: i32,
-    flag_packages: Vec<String>,
-    flag_root: Option<String>,
-    flag_depth: Option<i32>,
-    flag_root_deps_only: bool,
-    flag_workspace: bool,
-    flag_aggressive: bool,
-    flag_offline: bool,
-}
-
-impl Options {
-    fn all_features(&self) -> bool { self.flag_features.is_empty() }
-
-    fn no_default_features(&self) -> bool {
-        !(self.flag_features.is_empty() || self.flag_features.contains(&"default".to_owned()))
-    }
-
-    fn locked(&self) -> bool { false }
-
-    fn frozen(&self) -> bool { false }
-}
+use crate::{
+    cargo_ops::{ElaborateWorkspace, TempProject},
+    cli::{Format, Options},
+    error::OutdatedError,
+};
 
 fn main() {
     env_logger::init();
-    let options = {
-        let mut options: Options = Docopt::new(USAGE)
-            .and_then(|d| {
-                d.version(Some(
-                    concat!(env!("CARGO_PKG_NAME"), " v", env!("CARGO_PKG_VERSION")).to_owned(),
-                ))
-                .deserialize()
-            })
-            .unwrap_or_else(|e| e.exit());
-        fn flat_split(arg: &[String]) -> Vec<String> {
-            arg.iter()
-                .flat_map(|s| s.split_whitespace())
-                .flat_map(|s| s.split(','))
-                .filter(|s| !s.is_empty())
-                .map(ToString::to_string)
-                .collect()
-        }
-        options.flag_features = flat_split(&options.flag_features);
-        options.flag_ignore = flat_split(&options.flag_ignore);
-        options.flag_exclude = flat_split(&options.flag_exclude);
-        options.flag_packages = flat_split(&options.flag_packages);
-        if options.flag_root_deps_only {
-            options.flag_depth = Some(1);
-        }
-        options
-    };
+    let options = cli::parse();
 
     let mut config = match Config::default() {
         Ok(cfg) => cfg,
@@ -137,7 +47,7 @@ fn main() {
         }
     }
 
-    let exit_code = options.flag_exit_code;
+    let exit_code = options.exit_code;
     let result = execute(options, &mut config);
     match result {
         Err(e) => {
@@ -165,12 +75,15 @@ pub fn execute(options: Options, config: &mut Config) -> CargoResult<i32> {
     config.nightly_features_allowed = true;
 
     config.configure(
-        options.flag_verbose,
-        options.flag_quiet,
-        options.flag_color.as_deref(),
+        options
+            .verbose
+            .try_into()
+            .expect("--verbose used too many times"),
+        options.quiet,
+        Some(&options.color.to_string().to_ascii_lowercase()),
         options.frozen(),
         options.locked(),
-        options.flag_offline,
+        options.offline,
         &cargo_home_path,
         &[],
         &[],
@@ -180,7 +93,7 @@ pub fn execute(options: Options, config: &mut Config) -> CargoResult<i32> {
     verbose!(config, "Parsing...", "current workspace");
     // the Cargo.toml that we are actually working on
     let mut manifest_abspath: std::path::PathBuf;
-    let curr_manifest = if let Some(ref manifest_path) = options.flag_manifest_path {
+    let curr_manifest = if let Some(ref manifest_path) = options.manifest_path {
         manifest_abspath = manifest_path.into();
         if manifest_abspath.is_relative() {
             verbose!(config, "Resolving...", "absolute path of manifest");
@@ -192,11 +105,11 @@ pub fn execute(options: Options, config: &mut Config) -> CargoResult<i32> {
     };
     let curr_workspace = Workspace::new(&curr_manifest, config)?;
     verbose!(config, "Resolving...", "current workspace");
-    if options.flag_verbose == 0 {
+    if options.verbose == 0 {
         config.shell().set_verbosity(Verbosity::Quiet);
     }
     let ela_curr = ElaborateWorkspace::from_workspace(&curr_workspace, &options)?;
-    if options.flag_verbose > 0 {
+    if options.verbose > 0 {
         config.shell().set_verbosity(Verbosity::Verbose);
     } else {
         config.shell().set_verbosity(Verbosity::Normal);
@@ -242,10 +155,9 @@ pub fn execute(options: Options, config: &mut Config) -> CargoResult<i32> {
 
     if ela_curr.workspace_mode {
         let mut sum = 0;
-        if options.flag_format == Some("list".to_string()) {
-            verbose!(config, "Printing...", "Package status in list format");
-        } else if options.flag_format == Some("json".to_string()) {
-            verbose!(config, "Printing...", "Package status in json format");
+        match options.format {
+            Format::List => verbose!(config, "Printing...", "Package status in list format"),
+            Format::Json => verbose!(config, "Printing...", "Package status in json format"),
         }
 
         for member in ela_curr.workspace.members() {
@@ -256,10 +168,13 @@ pub fn execute(options: Options, config: &mut Config) -> CargoResult<i32> {
                 config,
                 member.package_id(),
             )?;
-            if options.flag_format == Some("list".to_string()) {
-                sum += ela_curr.print_list(&options, member.package_id(), sum > 0)?;
-            } else if options.flag_format == Some("json".to_string()) {
-                sum += ela_curr.print_json(&options, member.package_id())?;
+            match options.format {
+                Format::List => {
+                    sum += ela_curr.print_list(&options, member.package_id(), sum > 0)?;
+                }
+                Format::Json => {
+                    sum += ela_curr.print_json(&options, member.package_id())?;
+                }
             }
         }
         if sum == 0 {
@@ -273,173 +188,15 @@ pub fn execute(options: Options, config: &mut Config) -> CargoResult<i32> {
         verbose!(config, "Printing...", "list format");
         let mut count = 0;
 
-        if options.flag_format == Some("list".to_string()) {
-            count = ela_curr.print_list(&options, root, false)?;
-        } else if options.flag_format == Some("json".to_string()) {
-            ela_curr.print_json(&options, root)?;
-        } else {
-            println!("Error, did not specify list or json output formatting");
-            std::process::exit(2);
+        match options.format {
+            Format::List => {
+                count = ela_curr.print_list(&options, root, false)?;
+            }
+            Format::Json => {
+                ela_curr.print_json(&options, root)?;
+            }
         }
 
         Ok(count)
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use super::*;
-
-    fn options(args: &[&str]) -> Options {
-        let mut argv = vec!["cargo", "outdated"];
-        if !args.is_empty() {
-            argv.extend(args);
-        }
-        let mut options: Options = Docopt::new(USAGE)
-            .and_then(|d| {
-                d.version(Some(
-                    concat!(env!("CARGO_PKG_NAME"), " v", env!("CARGO_PKG_VERSION")).to_owned(),
-                ))
-                .argv(argv)
-                .deserialize()
-            })
-            .unwrap_or_else(|e| e.exit());
-        fn flat_split(arg: &[String]) -> Vec<String> {
-            arg.iter()
-                .flat_map(|s| s.split_whitespace())
-                .flat_map(|s| s.split(','))
-                .filter(|s| !s.is_empty())
-                .map(ToString::to_string)
-                .collect()
-        }
-        options.flag_features = flat_split(&options.flag_features);
-        options.flag_ignore = flat_split(&options.flag_ignore);
-        options.flag_exclude = flat_split(&options.flag_exclude);
-        options.flag_packages = flat_split(&options.flag_packages);
-        if options.flag_root_deps_only {
-            options.flag_depth = Some(1);
-        }
-        options
-    }
-
-    #[test]
-    fn default() {
-        let opts = options(&[]);
-        assert_eq!(
-            Options {
-                flag_format: Some("list".into()),
-                flag_color: Some("auto".into()),
-                ..Options::default()
-            },
-            opts
-        )
-    }
-
-    #[test]
-    fn root_only() {
-        let opts = options(&["--root-deps-only"]);
-        assert_eq!(
-            Options {
-                flag_format: Some("list".into()),
-                flag_color: Some("auto".into()),
-                flag_depth: Some(1),
-                flag_root_deps_only: true,
-                ..Options::default()
-            },
-            opts
-        )
-    }
-
-    #[test]
-    fn features() {
-        let opts1 = options(&["--features=one,two,three"]);
-        let opts2 = options(&["--features", "one,two,three"]);
-        let opts3 = options(&["--features", "one two three"]);
-        // Not supported
-        //let opts4 = options("--features one --features two --features three");
-        //let opts5 = options("--features one --features two,three");
-        let correct = Options {
-            flag_format: Some("list".into()),
-            flag_color: Some("auto".into()),
-            flag_features: vec!["one".into(), "two".into(), "three".into()],
-            ..Options::default()
-        };
-
-        assert_eq!(correct, opts1);
-        assert_eq!(correct, opts2);
-        assert_eq!(correct, opts3);
-    }
-
-    #[test]
-    fn exclude() {
-        let opts1 = options(&["--exclude=one,two,three"]);
-        let opts2 = options(&["--exclude", "one,two,three"]);
-        let opts3 = options(&["--exclude", "one two three"]);
-        // Not supported
-        //let opts4 = options("--exclude one two three");
-        //let opts5 = options("--exclude one --exclude two --exclude three");
-        //let opts6 = options("--exclude one --exclude two,three");
-        let correct = Options {
-            flag_format: Some("list".into()),
-            flag_color: Some("auto".into()),
-            flag_exclude: vec!["one".into(), "two".into(), "three".into()],
-            ..Options::default()
-        };
-
-        assert_eq!(correct, opts1);
-        assert_eq!(correct, opts2);
-        assert_eq!(correct, opts3);
-    }
-
-    #[test]
-    fn ignore() {
-        let opts1 = options(&["--ignore=one,two,three"]);
-        let opts2 = options(&["--ignore", "one,two,three"]);
-        let opts3 = options(&["--ignore", "one two three"]);
-        // Not supported
-        //let opts4 = options("--ignore one two three");
-        //let opts5 = options("--ignore one --ignore two --ignore three");
-        //let opts6 = options("--ignore one --ignore two,three");
-        let correct = Options {
-            flag_format: Some("list".into()),
-            flag_color: Some("auto".into()),
-            flag_ignore: vec!["one".into(), "two".into(), "three".into()],
-            ..Options::default()
-        };
-
-        assert_eq!(correct, opts1);
-        assert_eq!(correct, opts2);
-        assert_eq!(correct, opts3);
-    }
-
-    #[test]
-    fn verbose() {
-        let opts1 = options(&["--verbose", "--verbose", "--verbose"]);
-        let correct = Options {
-            flag_format: Some("list".into()),
-            flag_color: Some("auto".into()),
-            flag_verbose: 3,
-            ..Options::default()
-        };
-
-        assert_eq!(correct, opts1);
-    }
-
-    #[test]
-    fn packages() {
-        let opts1 = options(&["--packages", "one,two"]);
-        let opts2 = options(&["--packages", "one two"]);
-        // Not Supported
-        //let opts3 = options(&["--packages","one","--packages","two"]);
-        //let opts4 = options(&["--packages", "one", "two"]);
-        let correct = Options {
-            flag_format: Some("list".into()),
-            flag_color: Some("auto".into()),
-            flag_packages: vec!["one".into(), "two".into()],
-            ..Options::default()
-        };
-
-        assert_eq!(correct, opts1);
-        assert_eq!(correct, opts2);
     }
 }
