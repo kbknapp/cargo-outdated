@@ -54,7 +54,7 @@ Options:
 ";
 
 /// Options from CLI arguments
-#[derive(serde_derive::Deserialize, Debug)]
+#[derive(serde_derive::Deserialize, Debug, PartialEq, Default)]
 pub struct Options {
     flag_format: Option<String>,
     flag_color: Option<String>,
@@ -283,5 +283,163 @@ pub fn execute(options: Options, config: &mut Config) -> CargoResult<i32> {
         }
 
         Ok(count)
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    fn options(args: &[&str]) -> Options {
+        let mut argv = vec!["cargo", "outdated"];
+        if !args.is_empty() {
+            argv.extend(args);
+        }
+        let mut options: Options = Docopt::new(USAGE)
+            .and_then(|d| {
+                d.version(Some(
+                    concat!(env!("CARGO_PKG_NAME"), " v", env!("CARGO_PKG_VERSION")).to_owned(),
+                ))
+                .argv(argv)
+                .deserialize()
+            })
+            .unwrap_or_else(|e| e.exit());
+        fn flat_split(arg: &[String]) -> Vec<String> {
+            arg.iter()
+                .flat_map(|s| s.split_whitespace())
+                .flat_map(|s| s.split(','))
+                .filter(|s| !s.is_empty())
+                .map(ToString::to_string)
+                .collect()
+        }
+        options.flag_features = flat_split(&options.flag_features);
+        options.flag_ignore = flat_split(&options.flag_ignore);
+        options.flag_exclude = flat_split(&options.flag_exclude);
+        options.flag_packages = flat_split(&options.flag_packages);
+        if options.flag_root_deps_only {
+            options.flag_depth = Some(1);
+        }
+        options
+    }
+
+    #[test]
+    fn default() {
+        let opts = options(&[]);
+        assert_eq!(
+            Options {
+                flag_format: Some("list".into()),
+                flag_color: Some("auto".into()),
+                ..Options::default()
+            },
+            opts
+        )
+    }
+
+    #[test]
+    fn root_only() {
+        let opts = options(&["--root-deps-only"]);
+        assert_eq!(
+            Options {
+                flag_format: Some("list".into()),
+                flag_color: Some("auto".into()),
+                flag_depth: Some(1),
+                flag_root_deps_only: true,
+                ..Options::default()
+            },
+            opts
+        )
+    }
+
+    #[test]
+    fn features() {
+        let opts1 = options(&["--features=one,two,three"]);
+        let opts2 = options(&["--features", "one,two,three"]);
+        let opts3 = options(&["--features", "one two three"]);
+        // Not supported
+        //let opts4 = options("--features one --features two --features three");
+        //let opts5 = options("--features one --features two,three");
+        let correct = Options {
+            flag_format: Some("list".into()),
+            flag_color: Some("auto".into()),
+            flag_features: vec!["one".into(), "two".into(), "three".into()],
+            ..Options::default()
+        };
+
+        assert_eq!(correct, opts1);
+        assert_eq!(correct, opts2);
+        assert_eq!(correct, opts3);
+    }
+
+    #[test]
+    fn exclude() {
+        let opts1 = options(&["--exclude=one,two,three"]);
+        let opts2 = options(&["--exclude", "one,two,three"]);
+        let opts3 = options(&["--exclude", "one two three"]);
+        // Not supported
+        //let opts4 = options("--exclude one two three");
+        //let opts5 = options("--exclude one --exclude two --exclude three");
+        //let opts6 = options("--exclude one --exclude two,three");
+        let correct = Options {
+            flag_format: Some("list".into()),
+            flag_color: Some("auto".into()),
+            flag_exclude: vec!["one".into(), "two".into(), "three".into()],
+            ..Options::default()
+        };
+
+        assert_eq!(correct, opts1);
+        assert_eq!(correct, opts2);
+        assert_eq!(correct, opts3);
+    }
+
+    #[test]
+    fn ignore() {
+        let opts1 = options(&["--ignore=one,two,three"]);
+        let opts2 = options(&["--ignore", "one,two,three"]);
+        let opts3 = options(&["--ignore", "one two three"]);
+        // Not supported
+        //let opts4 = options("--ignore one two three");
+        //let opts5 = options("--ignore one --ignore two --ignore three");
+        //let opts6 = options("--ignore one --ignore two,three");
+        let correct = Options {
+            flag_format: Some("list".into()),
+            flag_color: Some("auto".into()),
+            flag_ignore: vec!["one".into(), "two".into(), "three".into()],
+            ..Options::default()
+        };
+
+        assert_eq!(correct, opts1);
+        assert_eq!(correct, opts2);
+        assert_eq!(correct, opts3);
+    }
+
+    #[test]
+    fn verbose() {
+        let opts1 = options(&["--verbose", "--verbose", "--verbose"]);
+        let correct = Options {
+            flag_format: Some("list".into()),
+            flag_color: Some("auto".into()),
+            flag_verbose: 3,
+            ..Options::default()
+        };
+
+        assert_eq!(correct, opts1);
+    }
+
+    #[test]
+    fn packages() {
+        let opts1 = options(&["--packages", "one,two"]);
+        let opts2 = options(&["--packages", "one two"]);
+        // Not Supported
+        //let opts3 = options(&["--packages","one","--packages","two"]);
+        //let opts4 = options(&["--packages", "one", "two"]);
+        let correct = Options {
+            flag_format: Some("list".into()),
+            flag_color: Some("auto".into()),
+            flag_packages: vec!["one".into(), "two".into()],
+            ..Options::default()
+        };
+
+        assert_eq!(correct, opts1);
+        assert_eq!(correct, opts2);
     }
 }
