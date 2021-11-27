@@ -46,6 +46,7 @@ pub struct Options {
     pub root_deps_only: bool,
     pub workspace: bool,
     pub aggressive: bool,
+    pub workspace_only: bool,
     pub offline: bool,
 }
 
@@ -105,6 +106,7 @@ impl<'a> From<&ArgMatches<'a>> for Options {
             root: m.value_of("root").map(ToOwned::to_owned),
             depth: value_t!(m, "depth", i32).ok(),
             root_deps_only: m.is_present("root-deps-only"),
+            workspace_only: m.is_present("ignore-external-rel"),
             workspace: m.is_present("workspace"),
             aggressive: m.is_present("aggressive"),
             offline: m.is_present("offline"),
@@ -112,6 +114,11 @@ impl<'a> From<&ArgMatches<'a>> for Options {
 
         if m.is_present("root-deps-only") {
             opts.depth = Some(1);
+        }
+
+        if m.is_present("ignore-external-rel") {
+            opts.depth = Some(1);
+            opts.root_deps_only = true;
         }
 
         opts
@@ -144,6 +151,12 @@ fn build() -> App<'static, 'static> {
                         .short("R")
                         .long("root-deps-only")
                         .help("Only check root dependencies (Equivalent to --depth=1)"),
+                )
+                .arg(
+                    Arg::with_name("ignore-external-rel")
+                        .short("e")
+                        .long("ignore-external-rel")
+                        .help("Ignore relative dependencies external to workspace and check root dependencies only."),
                 )
                 .arg(
                     Arg::with_name("workspace")
@@ -281,6 +294,20 @@ mod test {
         let opts = options(&["--root-deps-only"]);
         assert_eq!(
             Options {
+                depth: Some(1),
+                root_deps_only: true,
+                ..Options::default()
+            },
+            opts
+        )
+    }
+
+    #[test]
+    fn workspace_only() {
+        let opts = options(&["--ignore-external-rel"]);
+        assert_eq!(
+            Options {
+                workspace_only: true,
                 depth: Some(1),
                 root_deps_only: true,
                 ..Options::default()
