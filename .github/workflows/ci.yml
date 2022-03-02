@@ -126,6 +126,7 @@ jobs:
           args: --target ${{ matrix.target }} --all-features --release
       - name: Run
         uses: actions-rs/cargo@v1
+        continue-on-error: true
         if: matrix.features == 'none'
         with:
           command: run
@@ -133,6 +134,7 @@ jobs:
       - name: Run release
         uses: actions-rs/cargo@v1
         if: matrix.features == 'release'
+        continue-on-error: true
         with:
           command: run
           args: --target ${{ matrix.target }} --all-features --release -- outdated
@@ -180,12 +182,14 @@ jobs:
           args: --all-features --release
       - name: Run
         uses: actions-rs/cargo@v1
+        continue-on-error: true
         if: matrix.features == 'none'
         with:
           command: run
           args: --no-default-features -- outdated
       - name: Run release
         uses: actions-rs/cargo@v1
+        continue-on-error: true
         if: matrix.features == 'release'
         with:
           command: run
