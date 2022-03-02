@@ -356,7 +356,7 @@ impl<'tmp> TempProject<'tmp> {
             Self::manipulate_dependencies(&mut manifest, &mut |deps| {
                 self.update_version_and_feature(deps, &features, workspace, &package_name, true)
             })?;
-            
+
             Self::write_manifest(&manifest, manifest_path)?;
         }
 
@@ -649,7 +649,7 @@ impl<'tmp> TempProject<'tmp> {
                 .ok_or(OutdatedError::NoMatchingDependency)?;
             match original {
                 Value::Table(ref t) if t.contains_key("path") => {
-                    if let Value::String(ref orig_path) = t["path"] {                        
+                    if let Value::String(ref orig_path) = t["path"] {
                         let orig_path = Path::new(orig_path);
                         if orig_path.is_relative() {
                             let relative = {
@@ -671,11 +671,9 @@ impl<'tmp> TempProject<'tmp> {
                                         } else {
                                             skipped.insert(name);
                                         }
-                                    }
-                                    else {
+                                    } else {
                                         skipped.insert(name);
-                                    }            
-
+                                    }
                                 } else {
                                     let mut replaced = t.clone();
                                     replaced.insert(

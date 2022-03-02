@@ -206,7 +206,7 @@ impl<'ela> ElaborateWorkspace<'ela> {
         options: &Options,
         _config: &Config,
         root: PackageId,
-        skip: &HashSet<String>
+        skip: &HashSet<String>,
     ) -> CargoResult<()> {
         self.pkg_status.borrow_mut().clear();
         let (compat_root, latest_root) = if self.workspace_mode {
@@ -236,7 +236,7 @@ impl<'ela> ElaborateWorkspace<'ela> {
                 compat_pkg,
                 latest_pkg,
                 status
-            );        
+            );
             self.pkg_status.borrow_mut().insert(path.clone(), status);
             // next layer
             // this unwrap is safe since we first check if it is None :)
@@ -244,9 +244,7 @@ impl<'ela> ElaborateWorkspace<'ela> {
                 self.pkg_deps[pkg]
                     .keys()
                     .filter(|dep| !path.contains(dep))
-                    .filter(|&dep| {
-                        !skip.contains(dep.name().as_str())
-                    })
+                    .filter(|&dep| !skip.contains(dep.name().as_str()))
                     .for_each(|&dep| {
                         let name = dep.name();
                         let compat_pkg = compat_pkg
@@ -339,9 +337,7 @@ impl<'ela> ElaborateWorkspace<'ela> {
                         !self.workspace_mode
                             || !self.workspace.members().any(|mem| &mem.package_id() == dep)
                     })
-                    .filter(|&dep| {
-                        !skip.contains(dep.name().as_str())
-                    })
+                    .filter(|&dep| !skip.contains(dep.name().as_str()))
                     .for_each(|&dep| {
                         let mut path = path.clone();
                         path.push(dep);
@@ -375,7 +371,12 @@ impl<'ela> ElaborateWorkspace<'ela> {
         Ok(lines.len() as i32)
     }
 
-    pub fn print_json(&'ela self, options: &Options, root: PackageId, skip: &HashSet<String>) -> CargoResult<i32> {
+    pub fn print_json(
+        &'ela self,
+        options: &Options,
+        root: PackageId,
+        skip: &HashSet<String>,
+    ) -> CargoResult<i32> {
         let mut crate_graph = CrateMetadata {
             crate_name: root.name().to_string(),
             dependencies: BTreeSet::new(),
@@ -455,9 +456,7 @@ impl<'ela> ElaborateWorkspace<'ela> {
                                 .members()
                                 .any(|mem| mem.package_id() == **dep)
                     })
-                    .filter(|&dep| {
-                        !skip.contains(dep.name().as_str())
-                    })
+                    .filter(|&dep| !skip.contains(dep.name().as_str()))
                     .for_each(|dep| {
                         let mut path = path.clone();
                         path.push(*dep);
