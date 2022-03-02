@@ -1,3 +1,18 @@
+<a name="v0.11.0"></a>
+## v0.11.0 (2022-03-02)
+
+
+#### Improvements
+
+* **CLI:**  uses clap to parse command line ([a0a06cdb](https://github.com/kbknapp/cargo-outdated/commit/a0a06cdb09341d3e93d9e2d3c332a0107aa289c3))
+
+#### Bug Fixes
+
+*   remove non-json line when run in workspace mode. ([9ae14d79](https://github.com/kbknapp/cargo-outdated/commit/9ae14d7948a4b7f4e12a98dc044449559ce64dc7), closes [#299](https://github.com/kbknapp/cargo-outdated/issues/299))
+* **285:**  Added switch ignore-external-rel to workaround issue 285 ([ffbb2493](https://github.com/kbknapp/cargo-outdated/commit/ffbb2493587cbb102db0e75e5addcd5c620043ca))
+
+
+
 <a name="v0.10.1"></a>
 ## v0.10.1 (2021-11-16)
 
