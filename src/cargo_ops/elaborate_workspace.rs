@@ -397,9 +397,7 @@ impl<'ela> ElaborateWorkspace<'ela> {
                     None
                 };
 
-                let line;
-
-                if let Some(parent) = parent {
+                let line = if let Some(parent) = parent {
                     let dependency = &self.pkg_deps[parent][pkg];
                     let label = if self.workspace_mode
                         || parent == &self.workspace.current()?.package_id()
@@ -415,24 +413,24 @@ impl<'ela> ElaborateWorkspace<'ela> {
                         DepKind::Build => "Build",
                     };
 
-                    line = Metadata {
+                    Metadata {
                         name: label,
                         project: pkg.version().to_string(),
                         compat: status.compat.to_string(),
                         latest: status.latest.to_string(),
                         kind: Some(dependency_type.to_string()),
                         platform: dependency.platform().map(|p| p.to_string()),
-                    };
+                    }
                 } else {
-                    line = Metadata {
+                    Metadata {
                         name,
                         project: pkg.version().to_string(),
                         compat: status.compat.to_string(),
                         latest: status.latest.to_string(),
                         kind: None,
                         platform: None,
-                    };
-                }
+                    }
+                };
 
                 crate_graph.dependencies.insert(line);
             }
