@@ -228,9 +228,9 @@ impl<'tmp> TempProject<'tmp> {
         Ok(())
     }
 
-    fn manipulate_dependencies<F>(manifest: &mut Manifest, f: &F) -> CargoResult<()>
+    fn manipulate_dependencies<F>(manifest: &mut Manifest, f: &mut F) -> CargoResult<()>
     where
-        F: Fn(&mut Table) -> CargoResult<()>,
+        F: FnMut(&mut Table) -> CargoResult<()>,
     {
         if let Some(dep) = manifest.dependencies.as_mut() {
             f(dep)?;
@@ -265,6 +265,7 @@ impl<'tmp> TempProject<'tmp> {
         orig_root: P,
         tmp_root: P,
         workspace: &ElaborateWorkspace<'_>,
+        skipped: &mut HashSet<String>,
     ) -> CargoResult<()> {
         let bin = {
             let mut bin = Table::new();
@@ -286,19 +287,20 @@ impl<'tmp> TempProject<'tmp> {
             if let Some(lib) = manifest.lib.as_mut() {
                 lib.insert("path".to_owned(), Value::String("test_lib.rs".to_owned()));
             }
-            Self::manipulate_dependencies(&mut manifest, &|deps| {
+            Self::manipulate_dependencies(&mut manifest, &mut |deps| {
                 Self::replace_path_with_absolute(
                     self,
                     deps,
                     orig_root.as_ref(),
                     tmp_root.as_ref(),
                     manifest_path,
+                    skipped,
                 )
             })?;
 
             let package_name = manifest.name();
             let features = manifest.features.clone();
-            Self::manipulate_dependencies(&mut manifest, &|deps| {
+            Self::manipulate_dependencies(&mut manifest, &mut |deps| {
                 self.update_version_and_feature(deps, &features, workspace, &package_name, false)
             })?;
 
@@ -317,6 +319,7 @@ impl<'tmp> TempProject<'tmp> {
         orig_root: P,
         tmp_root: P,
         workspace: &ElaborateWorkspace<'_>,
+        skipped: &mut HashSet<String>,
     ) -> CargoResult<()> {
         let bin = {
             let mut bin = Table::new();
@@ -337,20 +340,23 @@ impl<'tmp> TempProject<'tmp> {
             if let Some(lib) = manifest.lib.as_mut() {
                 lib.insert("path".to_owned(), Value::String("test_lib.rs".to_owned()));
             }
-            Self::manipulate_dependencies(&mut manifest, &|deps| {
+            Self::manipulate_dependencies(&mut manifest, &mut |deps| {
                 Self::replace_path_with_absolute(
                     self,
                     deps,
                     orig_root.as_ref(),
                     tmp_root.as_ref(),
                     manifest_path,
+                    skipped,
                 )
             })?;
+
             let package_name = manifest.name();
             let features = manifest.features.clone();
-            Self::manipulate_dependencies(&mut manifest, &|deps| {
+            Self::manipulate_dependencies(&mut manifest, &mut |deps| {
                 self.update_version_and_feature(deps, &features, workspace, &package_name, true)
             })?;
+
             Self::write_manifest(&manifest, manifest_path)?;
         }
 
@@ -633,6 +639,7 @@ impl<'tmp> TempProject<'tmp> {
         orig_root: &Path,
         tmp_root: &Path,
         tmp_manifest: &Path,
+        skipped: &mut HashSet<String>,
     ) -> CargoResult<()> {
         let dep_names: Vec<_> = dependencies.keys().cloned().collect();
         for name in dep_names {
@@ -655,16 +662,30 @@ impl<'tmp> TempProject<'tmp> {
                                 relative.join(orig_path)
                             };
                             if !tmp_root.join(&relative).join("Cargo.toml").exists() {
-                                let mut replaced = t.clone();
-                                replaced.insert(
-                                    "path".to_owned(),
-                                    Value::String(
-                                        fs::canonicalize(orig_root.join(relative))?
-                                            .to_string_lossy()
-                                            .to_string(),
-                                    ),
-                                );
-                                dependencies.insert(name, Value::Table(replaced));
+                                if self.options.root_deps_only {
+                                    dependencies.remove(&name);
+
+                                    if t.contains_key("package") {
+                                        if let Value::String(ref package_name) = t["package"] {
+                                            skipped.insert(package_name.to_string());
+                                        } else {
+                                            skipped.insert(name);
+                                        }
+                                    } else {
+                                        skipped.insert(name);
+                                    }
+                                } else {
+                                    let mut replaced = t.clone();
+                                    replaced.insert(
+                                        "path".to_owned(),
+                                        Value::String(
+                                            fs::canonicalize(orig_root.join(relative))?
+                                                .to_string_lossy()
+                                                .to_string(),
+                                        ),
+                                    );
+                                    dependencies.insert(name, Value::Table(replaced));
+                                }
                             }
                         }
                     }
