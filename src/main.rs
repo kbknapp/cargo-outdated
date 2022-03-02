@@ -177,7 +177,7 @@ pub fn execute(options: Options, config: &mut Config) -> CargoResult<i32> {
                 }
             }
         }
-        if sum == 0 {
+        if sum == 0 && matches!(options.format, Format::List) {
             println!("All dependencies are up to date, yay!");
         }
         Ok(sum)
