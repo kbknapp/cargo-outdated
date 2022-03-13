@@ -34,6 +34,7 @@ impl fmt::Display for Color {
 }
 
 #[derive(Parser, Debug)]
+#[clap(bin_name = "cargo")]
 struct Cargo {
     #[clap(subcommand)]
     command: CargoCommand,
