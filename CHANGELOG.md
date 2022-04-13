@@ -1,3 +1,13 @@
+<a name="v0.11.1"></a>
+### v0.11.1 (2022-04-16)
+
+
+#### Bug Fixes
+
+*   Update cargo to v0.61.1, git2-curl to v0.15 ([215ff0f5](https://github.com/kbknapp/cargo-outdated/commit/215ff0f520b5d3eecb11d6113f99b19380be9922), closes [#307](https://github.com/kbknapp/cargo-outdated/issues/307))
+
+
+
 <a name="v0.11.0"></a>
 ## v0.11.0 (2022-03-02)
 
