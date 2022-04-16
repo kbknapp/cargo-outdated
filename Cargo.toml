@@ -1,6 +1,6 @@
 [package]
 name = "cargo-outdated"
-version = "0.11.0"
+version = "0.11.1"
 authors = [
     "Kevin K. <kbknapp@gmail.com>",
     "Frederick Z. <frederick888@tsundere.moe>",
@@ -29,9 +29,9 @@ name = "cargo-outdated"
 
 [dependencies]
 anyhow = "1.0"
-cargo = "0.60.0"
+cargo = "0.61.1"
 env_logger = "0.9.0"
-git2-curl = "0.14.0"
+git2-curl = "0.15.0"
 semver = "1.0.0"
 serde = {version="1.0.114", features = ["derive"]}
 serde_derive = "1.0.114"
