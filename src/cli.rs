@@ -137,7 +137,7 @@ fn build() -> App<'static, 'static> {
                 .arg(
                     Arg::with_name("aggressive")
                         .short("a")
-                        .long("aggresssive")
+                        .long("aggressive")
                         .help("Ignores channels for latest updates"),
                 )
                 .arg(
