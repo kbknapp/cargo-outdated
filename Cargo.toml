@@ -9,31 +9,25 @@ authors = [
 categories = ["development-tools", "development-tools::cargo-plugins"]
 edition = "2021"
 exclude = ["*.png"]
-keywords = [
-    "cargo",
-    "subcommand",
-    "dependencies",
-    "cargo-subcommand",
-    "deps",
-]
+keywords = ["cargo", "subcommand", "dependencies", "cargo-subcommand", "deps"]
 license = "MIT"
 readme = "README.md"
 repository = "https://github.com/kbknapp/cargo-outdated.git"
 description = "Cargo subcommand for displaying when dependencies are out of date"
 
 [badges]
-travis-ci = {repository = "kbknapp/cargo-outdated"}
+travis-ci = { repository = "kbknapp/cargo-outdated" }
 
 [[bin]]
 name = "cargo-outdated"
 
 [dependencies]
 anyhow = "1.0"
-cargo = "0.61.1"
+cargo = "0.65.0"
 env_logger = "0.9.0"
 git2-curl = "0.15.0"
 semver = "1.0.0"
-serde = {version="1.0.114", features = ["derive"]}
+serde = { version = "1.0.114", features = ["derive"] }
 serde_derive = "1.0.114"
 serde_json = "1.0.56"
 tabwriter = "1.2.1"

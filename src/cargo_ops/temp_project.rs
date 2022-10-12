@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
 use anyhow::{anyhow, Context};
-use cargo::core::{Dependency, PackageId, Summary, Verbosity, Workspace};
+use cargo::core::{Dependency, PackageId, QueryKind, Summary, Verbosity, Workspace};
 use cargo::ops::{update_lockfile, UpdateOptions};
 use cargo::sources::config::SourceConfigMap;
 use cargo::util::{CargoResult, Config};
@@ -383,10 +383,15 @@ impl<'tmp> TempProject<'tmp> {
             let source_config = SourceConfigMap::new(ws_config)?;
             let mut source = source_config.load(source_id, &HashSet::new())?;
             if !source_id.is_default_registry() {
-                source.update()?;
+                source.invalidate_cache();
             }
             let dependency = Dependency::parse(name, None, source_id)?;
-            let mut query_result = source.query_vec(&dependency)?;
+            let query_result = source.query_vec(&dependency, QueryKind::Exact)?;
+            source.block_until_ready()?;
+            let mut query_result = match query_result {
+                std::task::Poll::Ready(q) => q,
+                std::task::Poll::Pending => panic!("Query result is still pending even after block_until_ready(), this should never happen"),
+            };
             query_result.sort_by(|a, b| b.version().cmp(a.version()));
             query_result
         };

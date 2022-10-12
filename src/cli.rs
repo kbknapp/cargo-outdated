@@ -12,7 +12,9 @@ arg_enum! {
 }
 
 impl Default for Format {
-    fn default() -> Self { Format::List }
+    fn default() -> Self {
+        Format::List
+    }
 }
 
 arg_enum! {
@@ -25,7 +27,9 @@ arg_enum! {
 }
 
 impl Default for Color {
-    fn default() -> Self { Color::Auto }
+    fn default() -> Self {
+        Color::Auto
+    }
 }
 
 /// Options from CLI arguments
@@ -51,15 +55,21 @@ pub struct Options {
 }
 
 impl Options {
-    pub fn all_features(&self) -> bool { self.features.is_empty() }
+    pub fn all_features(&self) -> bool {
+        self.features.is_empty()
+    }
 
     pub fn no_default_features(&self) -> bool {
         !(self.features.is_empty() || self.features.contains(&"default".to_owned()))
     }
 
-    pub fn locked(&self) -> bool { false }
+    pub fn locked(&self) -> bool {
+        false
+    }
 
-    pub fn frozen(&self) -> bool { false }
+    pub fn frozen(&self) -> bool {
+        false
+    }
 }
 
 impl<'a> From<&ArgMatches<'a>> for Options {
