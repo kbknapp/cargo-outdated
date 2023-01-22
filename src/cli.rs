@@ -1,52 +1,106 @@
-use clap::{
-    arg_enum, crate_version, value_t, value_t_or_exit, App, AppSettings, Arg, ArgMatches,
-    SubCommand,
-};
+use std::{ffi::OsString, fmt};
 
-arg_enum! {
-    #[derive(Copy, Clone, Debug, PartialEq)]
-    pub enum Format {
-        List,
-        Json,
-    }
+use clap::{ArgEnum, Parser, Subcommand};
+
+#[derive(ArgEnum, Copy, Clone, Debug, PartialEq)]
+pub enum Format {
+    List,
+    Json,
 }
 
 impl Default for Format {
     fn default() -> Self { Format::List }
 }
 
-arg_enum! {
-    #[derive(Copy, Clone, Debug, PartialEq)]
-    pub enum Color {
-        Auto,
-        Never,
-        Always
-    }
+#[derive(ArgEnum, Copy, Clone, Debug, PartialEq)]
+pub enum Color {
+    Auto,
+    Never,
+    Always,
 }
 
 impl Default for Color {
     fn default() -> Self { Color::Auto }
 }
 
+impl fmt::Display for Color {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(&format!("{:?}", self).to_ascii_lowercase())
+    }
+}
+
+#[derive(Parser, Debug)]
+#[clap(bin_name = "cargo")]
+struct Cargo {
+    #[clap(subcommand)]
+    command: CargoCommand,
+}
+
+#[derive(Subcommand, Debug)]
+enum CargoCommand {
+    Outdated(Options),
+}
+
 /// Options from CLI arguments
-#[derive(Debug, PartialEq, Default)]
+#[derive(Parser, Debug, PartialEq, Default)]
+#[clap(version)]
+#[clap(about = "Displays information about project dependency versions")]
 pub struct Options {
+    /// Output formatting
+    #[clap(long, arg_enum, ignore_case = true, default_value_t = Default::default())]
     pub format: Format,
+    /// Output coloring
+    #[clap(long, arg_enum, ignore_case = true, default_value_t = Default::default())]
     pub color: Color,
+    /// Space-separated list of features
+    #[clap(long, use_value_delimiter = true)]
     pub features: Vec<String>,
+    /// Dependencies to not print in the output (comma separated or one per '--ignore' argument)
+    #[clap(short, long, value_name = "DEPENDENCIES", use_value_delimiter = true)]
     pub ignore: Vec<String>,
+    /// Dependencies to exclude from building (comma separated or one per '--exclude' argument)
+    #[clap(
+        short = 'x',
+        long,
+        value_name = "DEPENDENCIES",
+        use_value_delimiter = true
+    )]
     pub exclude: Vec<String>,
+    /// Path to the Cargo.toml file to use (Default to Cargo.toml in project root)
+    #[clap(short, long, value_name = "PATH")]
     pub manifest_path: Option<String>,
+    /// Suppresses warnings
+    #[clap(short, long)]
     pub quiet: bool,
+    /// Use verbose output
+    #[clap(short, long, parse(from_occurrences))]
     pub verbose: u64,
+    /// The exit code to return on new versions found
+    #[clap(long, value_name = "NUM", default_value_t = Default::default())]
     pub exit_code: i32,
+    /// Packages to inspect for updates (comma separated or one per --packages' argument)
+    #[clap(short, long, value_name = "PKGS", use_value_delimiter = true)]
     pub packages: Vec<String>,
+    /// Package to treat as the root package
+    #[clap(short, long)]
     pub root: Option<String>,
+    /// How deep in the dependency chain to search (Defaults to all dependencies)
+    #[clap(short, long, value_name = "NUM")]
     pub depth: Option<i32>,
+    /// Only check root dependencies (Equivalent to --depth=1)
+    #[clap(short = 'R', long)]
     pub root_deps_only: bool,
+    /// Checks updates for all workspace members rather than only the root package
+    #[clap(short, long)]
     pub workspace: bool,
+    /// Ignores channels for latest updates
+    #[clap(short, long)]
     pub aggressive: bool,
+    /// Ignore relative dependencies external to workspace and check root dependencies only
+    #[clap(short = 'e', long = "ignore-external-rel")]
     pub workspace_only: bool,
+    /// Run without accessing the network (useful for testing w/ local registries)
+    #[clap(short, long)]
     pub offline: bool,
 }
 
@@ -62,225 +116,55 @@ impl Options {
     pub fn frozen(&self) -> bool { false }
 }
 
-impl<'a> From<&ArgMatches<'a>> for Options {
-    fn from(m: &ArgMatches<'a>) -> Self {
-        let mut opts = Options {
-            format: value_t_or_exit!(m.value_of("format"), Format),
-            color: value_t_or_exit!(m.value_of("color"), Color),
-            features: m
-                .values_of("features")
-                .map(|vals| {
-                    vals.flat_map(|x| x.split_ascii_whitespace().collect::<Vec<_>>())
-                        .map(ToOwned::to_owned)
-                        .collect()
-                })
-                .unwrap_or_else(Vec::new),
-            ignore: m
-                .values_of("ignore")
-                .map(|vals| {
-                    vals.flat_map(|x| x.split_ascii_whitespace().collect::<Vec<_>>())
-                        .map(ToOwned::to_owned)
-                        .collect()
-                })
-                .unwrap_or_else(Vec::new),
-            exclude: m
-                .values_of("exclude")
-                .map(|vals| {
-                    vals.flat_map(|x| x.split_ascii_whitespace().collect::<Vec<_>>())
-                        .map(ToOwned::to_owned)
-                        .collect()
-                })
-                .unwrap_or_else(Vec::new),
-            manifest_path: m.value_of("manifest-path").map(ToOwned::to_owned),
-            quiet: m.is_present("quiet"),
-            verbose: m.occurrences_of("verbose"),
-            exit_code: value_t!(m, "exit-code", i32).ok().unwrap_or(0),
-            packages: m
-                .values_of("packages")
-                .map(|vals| {
-                    vals.flat_map(|x| x.split_ascii_whitespace().collect::<Vec<_>>())
-                        .map(ToOwned::to_owned)
-                        .collect::<Vec<_>>()
-                })
-                .unwrap_or_else(Vec::new),
-            root: m.value_of("root").map(ToOwned::to_owned),
-            depth: value_t!(m, "depth", i32).ok(),
-            root_deps_only: m.is_present("root-deps-only"),
-            workspace_only: m.is_present("ignore-external-rel"),
-            workspace: m.is_present("workspace"),
-            aggressive: m.is_present("aggressive"),
-            offline: m.is_present("offline"),
-        };
-
-        if m.is_present("root-deps-only") {
-            opts.depth = Some(1);
-        }
-
-        if m.is_present("ignore-external-rel") {
-            opts.depth = Some(1);
-            opts.root_deps_only = true;
-        }
-
-        opts
+pub fn parse() -> Options {
+    match try_parse_from(std::env::args_os()) {
+        Ok(opts) => opts,
+        Err(clap_err) => clap_err.exit(),
     }
 }
 
-fn build() -> App<'static, 'static> {
-    App::new("cargo-outdated")
-        .bin_name("cargo")
-        .setting(AppSettings::SubcommandRequired)
-        .subcommand(
-            SubCommand::with_name("outdated")
-                .setting(AppSettings::UnifiedHelpMessage)
-                .about("Displays information about project dependency versions")
-                .version(crate_version!())
-                .arg(
-                    Arg::with_name("aggressive")
-                        .short("a")
-                        .long("aggressive")
-                        .help("Ignores channels for latest updates"),
-                )
-                .arg(
-                    Arg::with_name("quiet")
-                        .short("q")
-                        .long("quiet")
-                        .help("Suppresses warnings"),
-                )
-                .arg(
-                    Arg::with_name("root-deps-only")
-                        .short("R")
-                        .long("root-deps-only")
-                        .help("Only check root dependencies (Equivalent to --depth=1)"),
-                )
-                .arg(
-                    Arg::with_name("ignore-external-rel")
-                        .short("e")
-                        .long("ignore-external-rel")
-                        .help("Ignore relative dependencies external to workspace and check root dependencies only."),
-                )
-                .arg(
-                    Arg::with_name("workspace")
-                        .short("w")
-                        .long("workspace")
-                        .help("Checks updates for all workspace members rather than only the root package"),
-                )
-                .arg(
-                    Arg::with_name("offline")
-                        .short("o")
-                        .long("offline")
-                        .help("Run without accessing the network (useful for testing w/ local registries)"),
-                )
-                .arg(
-                    Arg::with_name("format")
-                        .long("format")
-                        .default_value("list")
-                        .case_insensitive(true)
-                        .possible_values(&Format::variants())
-                        .value_name("FORMAT")
-                        .help("Output formatting"),
-                )
-                .arg(
-                    Arg::with_name("ignore")
-                        .short("i")
-                        .long("ignore")
-                        .help("Dependencies to not print in the output (comma separated or one per '--ignore' argument)")
-                        .value_delimiter(",")
-                        .number_of_values(1)
-                        .multiple(true)
-                        .value_name("DEPENDENCIES"),
-                )
-                .arg(
-                    Arg::with_name("exclude")
-                        .short("x")
-                        .long("exclude")
-                        .help("Dependencies to exclude from building (comma separated or one per '--exclude' argument)")
-                        .value_delimiter(",")
-                        .multiple(true)
-                        .number_of_values(1)
-                        .value_name("DEPENDENCIES"),
-                )
-                .arg(
-                    Arg::with_name("verbose")
-                        .short("v")
-                        .long("verbose")
-                        .multiple(true)
-                        .help("Use verbose output")
-                )
-                .arg(
-                    Arg::with_name("color")
-                        .long("color")
-                        .possible_values(&Color::variants())
-                        .default_value("auto")
-                        .value_name("COLOR")
-                        .case_insensitive(true)
-                        .help("Output coloring")
-                )
-                .arg(
-                    Arg::with_name("depth")
-                        .short("d")
-                        .long("depth")
-                        .value_name("NUM")
-                        .help("How deep in the dependency chain to search (Defaults to all dependencies when omitted)")
-                )
-                .arg(
-                    Arg::with_name("exit-code")
-                        .long("exit-code")
-                        .help("The exit code to return on new versions found")
-                        .default_value("0")
-                        .value_name("NUM"))
-                .arg(
-                    Arg::with_name("manifest-path")
-                        .short("m")
-                        .long("manifest-path")
-                        .help("Path to the Cargo.toml file to use (Defaults to Cargo.toml in project root)")
-                        .value_name("PATH"))
-                .arg(
-                    Arg::with_name("root")
-                        .short("r")
-                        .long("root")
-                        .help("Package to treat as the root package")
-                        .value_name("ROOT"))
-                .arg(
-                    Arg::with_name("packages")
-                        .short("p")
-                        .long("packages")
-                        .help("Packages to inspect for updates (comma separated or one per '--packages' argument)")
-                        .value_delimiter(",")
-                        .number_of_values(1)
-                        .multiple(true)
-                        .value_name("PKGS"))
-                .arg(
-                    Arg::with_name("features")
-                        .long("features")
-                        .value_delimiter(",")
-                        .help("Space-separated list of features")
-                        .multiple(true)
-                        .number_of_values(1)
-                        .value_name("FEATURES"))
-            )
+fn split_elem_by_ascii_whitespace(slice: &[String]) -> Vec<String> {
+    slice
+        .iter()
+        .flat_map(|x| x.split_ascii_whitespace())
+        .map(ToOwned::to_owned)
+        .collect()
 }
 
-pub fn parse() -> Options {
-    let matches = build().get_matches();
+fn try_parse_from(
+    args: impl IntoIterator<Item = impl Into<OsString> + Clone>,
+) -> clap::Result<Options> {
+    let CargoCommand::Outdated(mut opts) = Cargo::try_parse_from(args)?.command;
 
-    Options::from(matches.subcommand_matches("outdated").unwrap())
+    opts.exclude = split_elem_by_ascii_whitespace(&opts.exclude);
+    opts.features = split_elem_by_ascii_whitespace(&opts.features);
+    opts.ignore = split_elem_by_ascii_whitespace(&opts.ignore);
+    opts.packages = split_elem_by_ascii_whitespace(&opts.packages);
+
+    if opts.root_deps_only {
+        opts.depth = Some(1);
+    }
+
+    if opts.workspace_only {
+        opts.depth = Some(1);
+        opts.root_deps_only = true;
+    }
+
+    Ok(opts)
 }
 
 #[cfg(test)]
 mod test {
     use super::*;
 
-    fn options(args: &[&str]) -> Options {
-        let mut argv = vec!["cargo", "outdated"];
-        argv.extend(args);
-        let m = build().get_matches_from(argv);
-        Options::from(m.subcommand_matches("outdated").unwrap())
-    }
+    use pretty_assertions::assert_eq;
 
-    fn options_fail(args: &[&str]) -> clap::Result<ArgMatches<'static>> {
+    fn options(args: &[&str]) -> Options { options_fail(args).unwrap() }
+
+    fn options_fail(args: &[&str]) -> clap::Result<Options> {
         let mut argv = vec!["cargo", "outdated"];
         argv.extend(args);
-        build().get_matches_from_safe(argv)
+        try_parse_from(argv)
     }
 
     #[test]
@@ -348,10 +232,8 @@ mod test {
         let res = options_fail(&["--features", "one", "two"]);
         assert!(res.is_err());
         assert_eq!(
-            res.as_ref().unwrap_err().kind,
+            res.as_ref().unwrap_err().kind(),
             clap::ErrorKind::UnknownArgument,
-            "{:?}",
-            res.as_ref().unwrap_err().kind
         );
     }
 
@@ -379,10 +261,8 @@ mod test {
         let res = options_fail(&["--exclude", "one", "two"]);
         assert!(res.is_err());
         assert_eq!(
-            res.as_ref().unwrap_err().kind,
+            res.as_ref().unwrap_err().kind(),
             clap::ErrorKind::UnknownArgument,
-            "{:?}",
-            res.as_ref().unwrap_err().kind
         );
     }
 
@@ -410,10 +290,8 @@ mod test {
         let res = options_fail(&["--ignore", "one", "two"]);
         assert!(res.is_err());
         assert_eq!(
-            res.as_ref().unwrap_err().kind,
+            res.as_ref().unwrap_err().kind(),
             clap::ErrorKind::UnknownArgument,
-            "{:?}",
-            res.as_ref().unwrap_err().kind
         );
     }
 
@@ -448,10 +326,8 @@ mod test {
         let res = options_fail(&["--packages", "one", "two"]);
         assert!(res.is_err());
         assert_eq!(
-            res.as_ref().unwrap_err().kind,
+            res.as_ref().unwrap_err().kind(),
             clap::ErrorKind::UnknownArgument,
-            "{:?}",
-            res.as_ref().unwrap_err().kind
         );
     }
 
@@ -471,10 +347,8 @@ mod test {
         let res = options_fail(&["--format", "foobar"]);
         assert!(res.is_err());
         assert_eq!(
-            res.as_ref().unwrap_err().kind,
+            res.as_ref().unwrap_err().kind(),
             clap::ErrorKind::InvalidValue,
-            "{:?}",
-            res.as_ref().unwrap_err().kind
         );
     }
 
@@ -494,10 +368,8 @@ mod test {
         let res = options_fail(&["--color", "foobar"]);
         assert!(res.is_err());
         assert_eq!(
-            res.as_ref().unwrap_err().kind,
+            res.as_ref().unwrap_err().kind(),
             clap::ErrorKind::InvalidValue,
-            "{:?}",
-            res.as_ref().unwrap_err().kind
         );
     }
 }

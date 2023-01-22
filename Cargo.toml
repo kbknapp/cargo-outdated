@@ -39,7 +39,7 @@ serde_json = "1.0.56"
 tabwriter = "1.2.1"
 tempfile = "3"
 toml = "~0.5.0"
-clap = "2.33.3"
+clap = { version = "3.1.6", features = ["derive"] }
 
 [dependencies.termcolor]
 optional = true
@@ -52,3 +52,6 @@ default = []
 
 [profile.release]
 lto = true
+
+[dev-dependencies]
+pretty_assertions = "1.2.0"
