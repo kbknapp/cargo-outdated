@@ -7,9 +7,10 @@ use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
 use anyhow::{anyhow, Context};
-use cargo::core::{Dependency, PackageId, Summary, Verbosity, Workspace};
+use cargo::core::{Dependency, PackageId, QueryKind, Source, Summary, Verbosity, Workspace};
 use cargo::ops::{update_lockfile, UpdateOptions};
 use cargo::sources::config::SourceConfigMap;
+use cargo::util::network::PollExt;
 use cargo::util::{CargoResult, Config};
 use semver::{Version, VersionReq};
 use tempfile::{Builder, TempDir};
@@ -383,10 +384,13 @@ impl<'tmp> TempProject<'tmp> {
             let source_config = SourceConfigMap::new(ws_config)?;
             let mut source = source_config.load(source_id, &HashSet::new())?;
             if !source_id.is_default_registry() {
-                source.update()?;
+                source.invalidate_cache();
             }
+            source.block_until_ready()?;
             let dependency = Dependency::parse(name, None, source_id)?;
-            let mut query_result = source.query_vec(&dependency)?;
+            let mut query_result = source
+                .query_vec(&dependency, QueryKind::Exact)?
+                .expect("Source should be ready");
             query_result.sort_by(|a, b| b.version().cmp(a.version()));
             query_result
         };
