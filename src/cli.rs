@@ -9,9 +9,7 @@ pub enum Format {
 }
 
 impl Default for Format {
-    fn default() -> Self {
-        Format::List
-    }
+    fn default() -> Self { Format::List }
 }
 
 #[derive(ArgEnum, Copy, Clone, Debug, PartialEq)]
@@ -22,9 +20,7 @@ pub enum Color {
 }
 
 impl Default for Color {
-    fn default() -> Self {
-        Color::Auto
-    }
+    fn default() -> Self { Color::Auto }
 }
 
 impl fmt::Display for Color {
@@ -109,21 +105,15 @@ pub struct Options {
 }
 
 impl Options {
-    pub fn all_features(&self) -> bool {
-        self.features.is_empty()
-    }
+    pub fn all_features(&self) -> bool { self.features.is_empty() }
 
     pub fn no_default_features(&self) -> bool {
         !(self.features.is_empty() || self.features.contains(&"default".to_owned()))
     }
 
-    pub fn locked(&self) -> bool {
-        false
-    }
+    pub fn locked(&self) -> bool { false }
 
-    pub fn frozen(&self) -> bool {
-        false
-    }
+    pub fn frozen(&self) -> bool { false }
 }
 
 pub fn parse() -> Options {
@@ -169,9 +159,7 @@ mod test {
 
     use pretty_assertions::assert_eq;
 
-    fn options(args: &[&str]) -> Options {
-        options_fail(args).unwrap()
-    }
+    fn options(args: &[&str]) -> Options { options_fail(args).unwrap() }
 
     fn options_fail(args: &[&str]) -> clap::Result<Options> {
         let mut argv = vec!["cargo", "outdated"];
