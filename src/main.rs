@@ -55,7 +55,7 @@ fn main() {
         Err(e) => {
             config.shell().set_verbosity(Verbosity::Normal);
             let cli_error = CliError::new(e, 1);
-            cargo::exit_with_error(cli_error, &mut *config.shell())
+            cargo::exit_with_error(cli_error, &mut config.shell())
         }
         Ok(i) => {
             if i > 0 {

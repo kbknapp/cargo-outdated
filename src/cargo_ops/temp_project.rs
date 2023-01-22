@@ -83,7 +83,7 @@ impl<'tmp> TempProject<'tmp> {
                     .write(true)
                     .truncate(true)
                     .open(&dest)?;
-                write!(cargo_toml, "{}", om_serialized)?;
+                write!(cargo_toml, "{om_serialized}")?;
             }
 
             // if build script is specified in the original Cargo.toml (from links or build) remove it as we do not need
@@ -96,7 +96,7 @@ impl<'tmp> TempProject<'tmp> {
                     .write(true)
                     .truncate(true)
                     .open(&dest)?;
-                write!(cargo_toml, "{}", om_serialized)?;
+                write!(cargo_toml, "{om_serialized}")?;
             }
 
             if om.package.contains_key("build") {
@@ -107,7 +107,7 @@ impl<'tmp> TempProject<'tmp> {
                     .write(true)
                     .truncate(true)
                     .open(&dest)?;
-                write!(cargo_toml, "{}", om_serialized)?;
+                write!(cargo_toml, "{om_serialized}")?;
             }
 
             let lockfile = from_dir.join("Cargo.lock");
@@ -135,7 +135,7 @@ impl<'tmp> TempProject<'tmp> {
         if workspace_root.join(".cargo/config.toml").is_file() {
             fs::create_dir_all(temp_dir.path().join(".cargo"))?;
             fs::copy(
-                &workspace_root.join(".cargo/config.toml"),
+                workspace_root.join(".cargo/config.toml"),
                 temp_dir.path().join(".cargo/config.toml"),
             )?;
         }
@@ -145,7 +145,7 @@ impl<'tmp> TempProject<'tmp> {
         if workspace_root.join(".cargo/config").is_file() {
             fs::create_dir_all(temp_dir.path().join(".cargo"))?;
             fs::copy(
-                &workspace_root.join(".cargo/config"),
+                workspace_root.join(".cargo/config"),
                 temp_dir.path().join(".cargo/config"),
             )?;
         }
@@ -224,7 +224,7 @@ impl<'tmp> TempProject<'tmp> {
     fn write_manifest<P: AsRef<Path>>(manifest: &Manifest, path: P) -> CargoResult<()> {
         let mut file = File::create(path)?;
         let serialized = ::toml::to_string(manifest).expect("Failed to serialized Cargo.toml");
-        write!(file, "{}", serialized)?;
+        write!(file, "{serialized}")?;
         Ok(())
     }
 
@@ -417,8 +417,8 @@ impl<'tmp> TempProject<'tmp> {
                 // this happens when we use a git repository as a dependency, without specifying
                 // the version in Cargo.toml, preventing us from needing an unwrap below in the warn
                 let ver_req = match version_req {
-                    Some(v_r) => format!("{}", v_r),
-                    None => format!("{}", version),
+                    Some(v_r) => format!("{v_r}"),
+                    None => format!("{version}"),
                 };
                 // this should be safe it should only fail if we cannot get
                 // access to write to the terminal
@@ -467,9 +467,9 @@ impl<'tmp> TempProject<'tmp> {
             visited.insert(feature);
             if features_table.contains_key(feature) {
                 let specified_features = match features_table.get(feature) {
-                    None => panic!("Feature {} does not exist", feature),
-                    Some(&Value::Array(ref specified_features)) => specified_features,
-                    _ => panic!("Feature {} is not mapped to an array", feature),
+                    None => panic!("Feature {feature} does not exist"),
+                    Some(Value::Array(ref specified_features)) => specified_features,
+                    _ => panic!("Feature {feature} is not mapped to an array"),
                 };
                 for spec in specified_features {
                     if let Value::String(ref spec) = *spec {
@@ -530,8 +530,8 @@ impl<'tmp> TempProject<'tmp> {
                 }
                 Value::Table(ref t) => {
                     let mut name = match t.get("package") {
-                        Some(&Value::String(ref s)) => s,
-                        Some(_) => panic!("'package' of dependency {} is not a string", dep_key),
+                        Some(Value::String(ref s)) => s,
+                        Some(_) => panic!("'package' of dependency {dep_key} is not a string"),
                         None => &dep_key,
                     };
 
@@ -559,8 +559,8 @@ impl<'tmp> TempProject<'tmp> {
                     }
                     let mut replaced = t.clone();
                     let requirement = match t.get("version") {
-                        Some(&Value::String(ref requirement)) => Some(requirement.as_str()),
-                        Some(_) => panic!("Version of {} is not a string", name),
+                        Some(Value::String(ref requirement)) => Some(requirement.as_str()),
+                        Some(_) => panic!("Version of {name} is not a string"),
                         _ => None,
                     };
                     let r_summary = self.find_update(
@@ -589,14 +589,13 @@ impl<'tmp> TempProject<'tmp> {
                     }
                     if replaced.contains_key("features") {
                         let features = match replaced.get("features") {
-                            Some(&Value::Array(ref features)) => features
+                            Some(Value::Array(ref features)) => features
                                 .iter()
                                 .filter(|&feature| {
                                     let feature = match *feature {
                                         Value::String(ref feature) => feature,
                                         _ => panic!(
-                                            "Features section of {} is not an array of strings",
-                                            name
+                                            "Features section of {name} is not an array of strings"
                                         ),
                                     };
                                     let retained =
@@ -618,16 +617,13 @@ impl<'tmp> TempProject<'tmp> {
                                 })
                                 .cloned()
                                 .collect::<Vec<Value>>(),
-                            _ => panic!("Features section of {} is not an array", name),
+                            _ => panic!("Features section of {name} is not an array"),
                         };
                         replaced.insert("features".to_owned(), Value::Array(features));
                     }
                     dependencies.insert(name.clone(), Value::Table(replaced));
                 }
-                _ => panic!(
-                    "Dependency spec is neither a string nor a table {}",
-                    dep_key
-                ),
+                _ => panic!("Dependency spec is neither a string nor a table {dep_key}"),
             }
         }
         Ok(())
