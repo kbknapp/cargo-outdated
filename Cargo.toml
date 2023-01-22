@@ -39,7 +39,8 @@ serde_json = "1.0.56"
 tabwriter = "1.2.1"
 tempfile = "3"
 toml = "~0.5.0"
-clap = { version = "3.1.6", features = ["derive"] }
+clap = { version = "4.1.1", features = ["derive"] }
+strum = { version = "0.24.1", features = ["derive"] }
 
 [dependencies.termcolor]
 optional = true
