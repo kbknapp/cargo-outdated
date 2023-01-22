@@ -1,25 +1,31 @@
-use std::cell::RefCell;
-use std::cmp::Ordering;
-use std::collections::{BTreeSet, HashMap, HashSet, VecDeque};
-use std::io::{self, Write};
-use std::rc::Rc;
+use std::{
+    cell::RefCell,
+    cmp::Ordering,
+    collections::{BTreeSet, HashMap, HashSet, VecDeque},
+    io::{self, Write},
+    rc::Rc,
+};
 
 use anyhow::anyhow;
-use cargo::core::compiler::{CompileKind, RustcTargetData};
-use cargo::core::resolver::features::{ForceAllTargets, HasDevUnits};
-use cargo::core::resolver::CliFeatures;
-use cargo::core::FeatureValue;
-use cargo::core::{dependency::DepKind, Dependency, Package, PackageId, Workspace};
-use cargo::ops::{self, Packages};
-use cargo::util::interning::InternedString;
-use cargo::util::{CargoResult, Config};
+use cargo::{
+    core::{
+        compiler::{CompileKind, RustcTargetData},
+        dependency::DepKind,
+        resolver::{
+            features::{ForceAllTargets, HasDevUnits},
+            CliFeatures,
+        },
+        Dependency, FeatureValue, Package, PackageId, Workspace,
+    },
+    ops::{self, Packages},
+    util::{interning::InternedString, CargoResult, Config},
+};
 use serde::{Deserialize, Serialize};
 use tabwriter::TabWriter;
 
 use crate::error::OutdatedError;
 
-use super::pkg_status::*;
-use super::Options;
+use super::{pkg_status::*, Options};
 
 /// An elaborate workspace containing resolved dependencies and
 /// the update status of packages
@@ -78,8 +84,9 @@ impl<'ela> ElaborateWorkspace<'ela> {
             uses_default_features: options.no_default_features(),
         };
 
-        //The CompileKind, this has no target since it's the temp workspace
-        //targets are blank since we don't need to fully build for the targets to get the dependencies
+        // The CompileKind, this has no target since it's the temp workspace
+        // targets are blank since we don't need to fully build for the targets to get
+        // the dependencies
         let compile_kind = CompileKind::from_requested_targets(workspace.config(), &[])?;
         let target_data = RustcTargetData::new(workspace, &compile_kind)?;
         let ws_resolve = ops::resolve_ws_with_opts(
@@ -160,7 +167,8 @@ impl<'ela> ElaborateWorkspace<'ela> {
         Err(anyhow!("Workspace member {} not found", member.name()))
     }
 
-    /// Find a contained package, which is a member or dependency inside the workspace
+    /// Find a contained package, which is a member or dependency inside the
+    /// workspace
     fn find_contained_package(&self, name: &str) -> CargoResult<PackageId> {
         let root_path = self.workspace.root();
         for (pkg_id, pkg) in &self.pkgs {
@@ -198,7 +206,8 @@ impl<'ela> ElaborateWorkspace<'ela> {
         ))
     }
 
-    /// Resolve compatible and latest status from the corresponding `ElaborateWorkspace`s
+    /// Resolve compatible and latest status from the corresponding
+    /// `ElaborateWorkspace`s
     pub fn resolve_status(
         &'ela self,
         compat: &ElaborateWorkspace<'_>,
