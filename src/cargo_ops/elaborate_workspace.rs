@@ -361,7 +361,7 @@ impl<'ela> ElaborateWorkspace<'ela> {
             writeln!(&mut tw, "Name\tProject\tCompat\tLatest\tKind\tPlatform")?;
             writeln!(&mut tw, "----\t-------\t------\t------\t----\t--------")?;
             for line in &lines {
-                write!(&mut tw, "{}", line)?;
+                write!(&mut tw, "{line}")?;
             }
             tw.flush()?;
             write!(io::stdout(), "{}", String::from_utf8(tw.into_inner()?)?)?;
