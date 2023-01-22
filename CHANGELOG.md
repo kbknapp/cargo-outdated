@@ -1,3 +1,13 @@
+<a name="v0.11.2"></a>
+### v0.11.2 (2023-01-22)
+
+
+#### Bug Fixes
+
+*   Typo in `--aggressive` arg ([35dfbe1a](https://github.com/kbknapp/cargo-outdated/commit/35dfbe1ab5705b7004b4cb93db53c1bd2d6f93ef))
+*   Updates `cargo` to v0.65 to fix crash when deps come from workspace ([a09a13da](https://github.com/kbknapp/cargo-outdated/pull/339/commits/a09a13da7433d3cce2bee88bc47a4bc166753b22))
+
+
 <a name="v0.11.1"></a>
 ### v0.11.1 (2022-04-16)
 
