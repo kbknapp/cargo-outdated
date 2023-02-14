@@ -64,7 +64,7 @@ pub struct Options {
     pub quiet: bool,
     /// Use verbose output
     #[arg(short, long, action = ArgAction::Count)]
-    pub verbose: u64,
+    pub verbose: u8,
     /// The exit code to return on new versions found
     #[arg(long, value_name = "NUM", default_value_t = Default::default())]
     pub exit_code: i32,
@@ -149,7 +149,7 @@ mod test {
 
     fn options(args: &[&str]) -> Options { options_fail(args).unwrap() }
 
-    fn options_fail(args: &[&str]) -> clap::Result<Options> {
+    fn options_fail(args: &[&str]) -> clap::error::Result<Options> {
         let mut argv = vec!["cargo", "outdated"];
         argv.extend(args);
         try_parse_from(argv)
@@ -221,7 +221,7 @@ mod test {
         assert!(res.is_err());
         assert_eq!(
             res.as_ref().unwrap_err().kind(),
-            clap::ErrorKind::UnknownArgument,
+            clap::error::ErrorKind::UnknownArgument,
         );
     }
 
@@ -250,7 +250,7 @@ mod test {
         assert!(res.is_err());
         assert_eq!(
             res.as_ref().unwrap_err().kind(),
-            clap::ErrorKind::UnknownArgument,
+            clap::error::ErrorKind::UnknownArgument,
         );
     }
 
@@ -279,7 +279,7 @@ mod test {
         assert!(res.is_err());
         assert_eq!(
             res.as_ref().unwrap_err().kind(),
-            clap::ErrorKind::UnknownArgument,
+            clap::error::ErrorKind::UnknownArgument,
         );
     }
 
@@ -315,7 +315,7 @@ mod test {
         assert!(res.is_err());
         assert_eq!(
             res.as_ref().unwrap_err().kind(),
-            clap::ErrorKind::UnknownArgument,
+            clap::error::ErrorKind::UnknownArgument,
         );
     }
 
@@ -336,7 +336,7 @@ mod test {
         assert!(res.is_err());
         assert_eq!(
             res.as_ref().unwrap_err().kind(),
-            clap::ErrorKind::InvalidValue,
+            clap::error::ErrorKind::InvalidValue,
         );
     }
 
@@ -357,7 +357,7 @@ mod test {
         assert!(res.is_err());
         assert_eq!(
             res.as_ref().unwrap_err().kind(),
-            clap::ErrorKind::InvalidValue,
+            clap::error::ErrorKind::InvalidValue,
         );
     }
 }
