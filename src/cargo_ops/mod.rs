@@ -11,36 +11,18 @@ pub use self::{elaborate_workspace::ElaborateWorkspace, pkg_status::*, temp_proj
 struct Manifest {
     #[serde(rename = "cargo-features", skip_serializing_if = "Option::is_none")]
     pub cargo_features: Option<Value>,
-    #[serde(serialize_with = "::toml::ser::tables_last")]
     pub package: Table,
-    #[serde(
-        skip_serializing_if = "Option::is_none",
-        serialize_with = "opt_tables_last"
-    )]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub dependencies: Option<Table>,
-    #[serde(
-        rename = "dev-dependencies",
-        skip_serializing_if = "Option::is_none",
-        serialize_with = "opt_tables_last"
-    )]
+    #[serde(rename = "dev-dependencies", skip_serializing_if = "Option::is_none")]
     pub dev_dependencies: Option<Table>,
-    #[serde(
-        rename = "build-dependencies",
-        skip_serializing_if = "Option::is_none",
-        serialize_with = "opt_tables_last"
-    )]
+    #[serde(rename = "build-dependencies", skip_serializing_if = "Option::is_none")]
     pub build_dependencies: Option<Table>,
     pub lib: Option<Table>,
     pub bin: Option<Vec<Table>>,
-    #[serde(
-        skip_serializing_if = "Option::is_none",
-        serialize_with = "opt_tables_last"
-    )]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub workspace: Option<Table>,
-    #[serde(
-        skip_serializing_if = "Option::is_none",
-        serialize_with = "opt_tables_last"
-    )]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub target: Option<Table>,
     pub features: Option<Value>,
 }
@@ -51,15 +33,5 @@ impl Manifest {
             Value::String(ref name) => name.clone(),
             _ => unreachable!(),
         }
-    }
-}
-
-pub fn opt_tables_last<S>(data: &Option<Table>, serializer: S) -> Result<S::Ok, S::Error>
-where
-    S: ::serde::ser::Serializer,
-{
-    match *data {
-        Some(ref d) => ::toml::ser::tables_last(d, serializer),
-        None => unreachable!(),
     }
 }
