@@ -1,6 +1,6 @@
 [package]
 name = "cargo-outdated"
-version = "0.11.2"
+version = "0.12.0"
 authors = [
     "Kevin K. <kbknapp@gmail.com>",
     "Frederick Z. <frederick888@tsundere.moe>",
@@ -20,9 +20,7 @@ license = "MIT"
 readme = "README.md"
 repository = "https://github.com/kbknapp/cargo-outdated.git"
 description = "Cargo subcommand for displaying when dependencies are out of date"
-
-[badges]
-travis-ci = {repository = "kbknapp/cargo-outdated"}
+rust-version = "1.65.0" # MSRV
 
 [[bin]]
 name = "cargo-outdated"
