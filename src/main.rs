@@ -90,7 +90,7 @@ pub fn execute(options: Options, config: &mut Config) -> CargoResult<i32> {
         &[],
         &[],
     )?;
-    debug!(config, format!("options: {:?}", options));
+    debug!(config, format!("options: {options:?}"));
 
     verbose!(config, "Parsing...", "current workspace");
     // the Cargo.toml that we are actually working on
