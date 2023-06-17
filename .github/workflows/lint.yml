@@ -42,7 +42,7 @@ jobs:
         uses: crate-ci/typos@master
 
       - name: Install Just
-        if: ${{ matrix.rust == 'nightly' }}
+        if: ${{ matrix.rust == 'nightly' || matrix.rust == 'stable' }}
         run: cargo install just
 
       - name: Check Formatting
