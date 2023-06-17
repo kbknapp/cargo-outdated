@@ -18,8 +18,7 @@ jobs:
         rust:
           - nightly
           - 1.65.0 # MSRV
-          # There are not lints we need to perform on stable
-          #- stable
+          - stable
 
     steps:
       - uses: actions/checkout@v2
@@ -51,7 +50,7 @@ jobs:
         run: just fmt-check
 
       - name: Clippy
-        if: ${{ matrix.rust == 'nightly' }}
+        if: ${{ matrix.rust == 'stable' }}
         run: just lint
 
       - name: MSRV Check
