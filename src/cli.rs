@@ -45,10 +45,12 @@ pub struct Options {
     /// Space-separated list of features
     #[arg(long, use_value_delimiter = true)]
     pub features: Vec<String>,
-    /// Dependencies to not print in the output (comma separated or one per '--ignore' argument)
+    /// Dependencies to not print in the output (comma separated or one per
+    /// '--ignore' argument)
     #[arg(short, long, value_name = "DEPENDENCIES", use_value_delimiter = true)]
     pub ignore: Vec<String>,
-    /// Dependencies to exclude from building (comma separated or one per '--exclude' argument)
+    /// Dependencies to exclude from building (comma separated or one per
+    /// '--exclude' argument)
     #[arg(
         short = 'x',
         long,
@@ -56,7 +58,8 @@ pub struct Options {
         use_value_delimiter = true
     )]
     pub exclude: Vec<String>,
-    /// Path to the Cargo.toml file to use (Default to Cargo.toml in project root)
+    /// Path to the Cargo.toml file to use (Default to Cargo.toml in project
+    /// root)
     #[arg(short, long, value_name = "PATH")]
     pub manifest_path: Option<String>,
     /// Suppresses warnings
@@ -68,28 +71,33 @@ pub struct Options {
     /// The exit code to return on new versions found
     #[arg(long, value_name = "NUM", default_value_t = Default::default())]
     pub exit_code: i32,
-    /// Packages to inspect for updates (comma separated or one per --packages' argument)
+    /// Packages to inspect for updates (comma separated or one per --packages'
+    /// argument)
     #[arg(short, long, value_name = "PKGS", use_value_delimiter = true)]
     pub packages: Vec<String>,
     /// Package to treat as the root package
     #[arg(short, long)]
     pub root: Option<String>,
-    /// How deep in the dependency chain to search (Defaults to all dependencies)
+    /// How deep in the dependency chain to search (Defaults to all
+    /// dependencies)
     #[arg(short, long, value_name = "NUM")]
     pub depth: Option<i32>,
     /// Only check root dependencies (Equivalent to --depth=1)
     #[arg(short = 'R', long)]
     pub root_deps_only: bool,
-    /// Checks updates for all workspace members rather than only the root package
+    /// Checks updates for all workspace members rather than only the root
+    /// package
     #[arg(short, long)]
     pub workspace: bool,
     /// Ignores channels for latest updates
     #[arg(short, long)]
     pub aggressive: bool,
-    /// Ignore relative dependencies external to workspace and check root dependencies only
+    /// Ignore relative dependencies external to workspace and check root
+    /// dependencies only
     #[arg(short = 'e', long = "ignore-external-rel")]
     pub workspace_only: bool,
-    /// Run without accessing the network (useful for testing w/ local registries)
+    /// Run without accessing the network (useful for testing w/ local
+    /// registries)
     #[arg(short, long)]
     pub offline: bool,
 }

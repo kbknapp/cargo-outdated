@@ -1,3 +1,42 @@
+default: help
+
+# Get a list of recipes you can run
+@help:
+    just --list
+
+# Install required tools for development
+setup: (_cargo-install 'cargo-nextest') _install-spell-check
+
+# Run all the checks required for CI to pass
+ci: spell-check lint test
+
+# Format the code
+fmt:
+    cargo +nightly fmt --all
+
+# Check the formatting of the code but don't actually format it
+fmt-check:
+    cargo +nightly fmt --all --check
+
+# Lint the code
+lint: fmt-check
+    cargo clippy --all-targets -- -Dwarnings
+    cargo clippy --all-targets --no-default-features -- -Dwarnings
+    cargo clippy --all-targets --all-features -- -Dwarnings
+
+# Run benchmarks
+bench $RUSTFLAGS='-Ctarget-cpu=native':
+    cargo bench
+
+# Run the test suite
+test TEST_RUNNER='cargo nextest run': setup
+    {{ TEST_RUNNER }}
+    {{ TEST_RUNNER }} --no-default-features
+    {{ TEST_RUNNER }} --all-features
+
+# Check for typos
+spell-check: _install-spell-check
+
 @update-contributors:
 	echo 'Removing old CONTRIBUTORS.md'
 	mv CONTRIBUTORS.md CONTRIBUTORS.md.bak
@@ -20,17 +59,30 @@ debug TEST:
 run-tests:
 	cargo test --features "yaml unstable"
 
-nightly:
-	rustup override add nightly
-
-rm-nightly:
-	rustup override remove
-
-@lint: nightly
-	cargo build --features lints && just rm-nightly
-
 clean:
 	cargo clean
-	find . -type f -name "*.orig" -exec rm {} \;
-	find . -type f -name "*.bk" -exec rm {} \;
-	find . -type f -name ".*~" -exec rm {} \;
+
+##
+#
+# Helpers
+##
+
+[unix]
+_install-spell-check:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if ! command -v typos 2>&1 >/dev/null ; then
+      cargo install typos-cli --force
+    fi
+
+[windows]
+_install-spell-check:
+    #!powershell.exe
+    $ret = Get-Command typos >$null 2>$null
+
+    if (! $?) {
+      cargo install typos-cli --force
+    }
+
+_cargo-install TOOL:
+    cargo install {{TOOL}}

@@ -1,25 +1,26 @@
-use std::cell::RefCell;
-use std::collections::HashSet;
-use std::env;
-use std::fs::{self, File, OpenOptions};
-use std::io::{Read, Write};
-use std::path::{Path, PathBuf};
-use std::rc::Rc;
+use std::{
+    cell::RefCell,
+    collections::HashSet,
+    env,
+    fs::{self, File, OpenOptions},
+    io::{Read, Write},
+    path::{Path, PathBuf},
+    rc::Rc,
+};
 
 use anyhow::{anyhow, Context};
-use cargo::core::{Dependency, PackageId, QueryKind, Source, Summary, Verbosity, Workspace};
-use cargo::ops::{update_lockfile, UpdateOptions};
-use cargo::sources::config::SourceConfigMap;
-use cargo::util::network::PollExt;
-use cargo::util::{CargoResult, Config};
+use cargo::{
+    core::{Dependency, PackageId, QueryKind, Source, Summary, Verbosity, Workspace},
+    ops::{update_lockfile, UpdateOptions},
+    sources::config::SourceConfigMap,
+    util::{network::PollExt, CargoResult, Config},
+};
 use semver::{Version, VersionReq};
 use tempfile::{Builder, TempDir};
-use toml::value::Table;
-use toml::Value;
+use toml::{value::Table, Value};
 
 use super::{ElaborateWorkspace, Manifest};
-use crate::error::OutdatedError;
-use crate::Options;
+use crate::{error::OutdatedError, Options};
 
 /// A temporary project
 pub struct TempProject<'tmp> {
@@ -68,7 +69,7 @@ impl<'tmp> TempProject<'tmp> {
             tmp_manifest_paths.push(dest.clone());
             fs::copy(from, &dest)?;
 
-            //removing default-run key if it exists to check dependencies
+            // removing default-run key if it exists to check dependencies
             let mut om: Manifest = {
                 let mut buf = String::new();
                 let mut file = File::open(&dest)?;
@@ -87,8 +88,8 @@ impl<'tmp> TempProject<'tmp> {
                 write!(cargo_toml, "{om_serialized}")?;
             }
 
-            // if build script is specified in the original Cargo.toml (from links or build) remove it as we do not need
-            // it for checking dependencies
+            // if build script is specified in the original Cargo.toml (from links or build)
+            // remove it as we do not need it for checking dependencies
             if om.package.contains_key("links") {
                 om.package.remove("links");
                 let om_serialized = ::toml::to_string(&om).expect("Cannot format as toml file");
@@ -419,7 +420,8 @@ impl<'tmp> TempProject<'tmp> {
             None => {
                 // If the version_req cannot be found use the version
                 // this happens when we use a git repository as a dependency, without specifying
-                // the version in Cargo.toml, preventing us from needing an unwrap below in the warn
+                // the version in Cargo.toml, preventing us from needing an unwrap below in the
+                // warn
                 let ver_req = match version_req {
                     Some(v_r) => format!("{v_r}"),
                     None => format!("{version}"),
@@ -434,7 +436,7 @@ impl<'tmp> TempProject<'tmp> {
                     query_result[0].version()
                 ))?;
 
-                //this returns the latest version
+                // this returns the latest version
                 &query_result[0]
             }
         };
@@ -497,8 +499,8 @@ impl<'tmp> TempProject<'tmp> {
         for dep_key in dep_keys {
             // this, by brute force, allows a user to exclude a dependency by not writing
             // it to the temp project's manifest
-            // In short this allows cargo to build the package with semver minor compatibilities issues
-            // https://github.com/rust-lang/cargo/issues/6584
+            // In short this allows cargo to build the package with semver minor
+            // compatibilities issues https://github.com/rust-lang/cargo/issues/6584
             // https://github.com/kbknapp/cargo-outdated/issues/230
             if self.options.exclude.contains(&dep_key) {
                 continue;
@@ -604,8 +606,9 @@ impl<'tmp> TempProject<'tmp> {
                                     };
                                     let retained =
                                         features_and_options(&summary).contains(feature.as_str());
-                                    // this unwrap should be safe it should only fail if we cannot get
-                                    // access to write to the terminal
+                                    // this unwrap should be safe it should only fail if we cannot
+                                    // get access to write to
+                                    // the terminal
                                     // if this fails it's a cargo (as a dependency) issue
                                     if !retained {
                                         self.warn(format!(
@@ -751,8 +754,9 @@ fn manifest_paths(elab: &ElaborateWorkspace<'_>) -> CargoResult<Vec<PathBuf>> {
             _ => None,
         };
 
-        // If there is a CARGO_HOME make sure we do not crawl the registry for more Cargo.toml files
-        // Otherwise add all Cargo.toml files to the manifest paths
+        // If there is a CARGO_HOME make sure we do not crawl the registry for more
+        // Cargo.toml files Otherwise add all Cargo.toml files to the manifest
+        // paths
         if pkg.root().starts_with(PathBuf::from(workspace_path))
             && (cargo_home_path.is_none()
                 || !pkg_path
@@ -770,7 +774,8 @@ fn manifest_paths(elab: &ElaborateWorkspace<'_>) -> CargoResult<Vec<PathBuf>> {
 
     // executed against a virtual manifest
     let workspace_path = elab.workspace.root().to_string_lossy();
-    // if cargo workspace is not explicitly used, the package itself would be a member
+    // if cargo workspace is not explicitly used, the package itself would be a
+    // member
     for member in elab.workspace.members() {
         let root_pkg_id = member.package_id();
         manifest_paths_recursive(

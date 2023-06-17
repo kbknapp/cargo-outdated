@@ -1,3 +1,20 @@
+<a name="v0.12.0"></a>
+### v0.12.0 (2023-06-17)
+
+#### Changes
+
+* MSRV is now 1.65.0
+
+#### Improvements
+
+* update to cargo v0.71 (this allows using sparse regitstry protocol :tada:)
+* update to clap v4
+
+#### Maintenance
+
+* Streamline CI and use `just` as the driving command runner
+* Bump deps
+
 <a name="v0.11.2"></a>
 ### v0.11.2 (2023-01-22)
 

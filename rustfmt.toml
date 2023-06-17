@@ -1,3 +1,22 @@
-format_strings = false
+# https://rust-lang.github.io/rustfmt/?version=master&search=#edition
+edition = "2021"
+# https://rust-lang.github.io/rustfmt/?version=master&search=#fn_single_line
 fn_single_line = true
-reorder_imports = true
+# https://rust-lang.github.io/rustfmt/?version=master&search=#format_code_in_doc_comments
+format_code_in_doc_comments = true
+# https://rust-lang.github.io/rustfmt/?version=master&search=#format_macro_matchers
+format_macro_matchers = true
+# https://rust-lang.github.io/rustfmt/?version=master&search=#imports_granularity
+imports_granularity = "Crate"
+# https://rust-lang.github.io/rustfmt/?version=master&search=#normalize_comments
+normalize_comments = true
+# https://rust-lang.github.io/rustfmt/?version=master&search=#reorder_impl_items
+reorder_impl_items = true
+# https://rust-lang.github.io/rustfmt/?version=master&search=#unstable_features
+unstable_features = true
+# https://rust-lang.github.io/rustfmt/?version=master&search=#use_field_init_shorthand
+use_field_init_shorthand = true
+# https://rust-lang.github.io/rustfmt/?version=master&search=#use_try_shorthand
+use_try_shorthand = true
+# https://rust-lang.github.io/rustfmt/?version=master&search=#wrap_comments
+wrap_comments = true

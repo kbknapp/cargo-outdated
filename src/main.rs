@@ -11,11 +11,11 @@ mod error;
 
 use std::collections::HashSet;
 
-use cargo::core::shell::Verbosity;
-use cargo::core::Workspace;
-use cargo::ops::needs_custom_http_transport;
-use cargo::util::important_paths::find_root_manifest_for_wd;
-use cargo::util::{CargoResult, CliError, Config};
+use cargo::{
+    core::{shell::Verbosity, Workspace},
+    ops::needs_custom_http_transport,
+    util::{important_paths::find_root_manifest_for_wd, CargoResult, CliError, Config},
+};
 
 use crate::{
     cargo_ops::{ElaborateWorkspace, TempProject},
