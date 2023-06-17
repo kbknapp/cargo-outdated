@@ -12,11 +12,11 @@ ci: spell-check lint test
 
 # Format the code
 fmt:
-    cargo fmt --all
+    cargo +nightly fmt --all
 
 # Check the formatting of the code but don't actually format it
 fmt-check:
-    cargo fmt --all --check
+    cargo +nightly fmt --all --check
 
 # Lint the code
 lint: fmt-check
