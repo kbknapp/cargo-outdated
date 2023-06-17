@@ -1,16 +1,11 @@
-name: deploy
-
+name: release
 on:
   push:
     tags:
       - 'v*.*.*'
-
 jobs:
-
   create-windows-binaries:
-
     runs-on: windows-latest
-
     steps:
     - uses: actions/checkout@v3
 
