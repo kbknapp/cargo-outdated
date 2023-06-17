@@ -383,7 +383,7 @@ impl<'tmp> TempProject<'tmp> {
             let _lock = ws_config.acquire_package_cache_lock()?;
             let source_config = SourceConfigMap::new(ws_config)?;
             let mut source = source_config.load(source_id, &HashSet::new())?;
-            if !source_id.is_default_registry() {
+            if !source_id.is_crates_io() {
                 source.invalidate_cache();
             }
             source.block_until_ready()?;
