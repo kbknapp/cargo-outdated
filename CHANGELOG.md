@@ -1,3 +1,16 @@
+<a name="v0.13.0"></a>
+### v0.13.0 (2023-06-19)
+
+#### Changes
+
+* MSRV is now properly noted as 1.67.0. A note has been added that while you may be able to compile 
+  on an earlier version of Rust, the MSRV is what is required to _run_ `cargo-oudated` because it 
+  uses `cargo` internally.
+
+#### Maintenance
+
+* bump `strum` to v0.25
+
 <a name="v0.12.0"></a>
 ### v0.12.0 (2023-06-17)
 
