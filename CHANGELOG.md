@@ -1,3 +1,10 @@
+<a name="v0.13.1"></a>
+### v0.13.1 (2023-06-19)
+
+#### Maintenance
+
+* bump `tempfile` due to [RUSTSEC-2023-0018](https://rustsec.org/advisories/RUSTSEC-2023-0018)
+
 <a name="v0.13.0"></a>
 ### v0.13.0 (2023-06-19)
 
