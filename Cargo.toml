@@ -1,6 +1,6 @@
 [package]
 name = "cargo-outdated"
-version = "0.13.0"
+version = "0.13.1"
 authors = [
     "Kevin K. <kbknapp@gmail.com>",
     "Frederick Z. <frederick888@tsundere.moe>",
@@ -35,7 +35,7 @@ serde = {version="1.0.114", features = ["derive"]}
 serde_derive = "1.0.114"
 serde_json = "1.0.56"
 tabwriter = "1.2.1"
-tempfile = "3"
+tempfile = "3.6"
 toml = "0.7.4"
 clap = { version = "4.1.4", features = ["derive"] }
 strum = { version = "0.25.0", features = ["derive"] }
