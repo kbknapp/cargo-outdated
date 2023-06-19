@@ -134,6 +134,14 @@ Options:
     -r, --root ROOT             Package to treat as the root package
 ```
 
+## Minimum Supported Rust Version (MSRV)
+
+The MSRV of this crate is what is required to _run_ `cargo outdated`, you may be able to compile 
+`cargo outdated` itself on an earlier version of Rust. However, because `cargo oudated` uses 
+`cargo` internally, it requires a specific minimum version to run successfully.
+
+The current MSRV can be found in the `Cargo.toml` under the `package.rust-version` field.
+
 ## License
 
 `cargo-outdated` is released under the terms of either the MIT or Apache 2.0 license. See the LICENSE-MIT or LICENSE-APACHE file for the details.

@@ -20,7 +20,7 @@ license = "MIT"
 readme = "README.md"
 repository = "https://github.com/kbknapp/cargo-outdated.git"
 description = "Cargo subcommand for displaying when dependencies are out of date"
-rust-version = "1.65.0" # MSRV
+rust-version = "1.67.0" # MSRV
 
 [[bin]]
 name = "cargo-outdated"
