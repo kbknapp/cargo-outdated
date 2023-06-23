@@ -11,6 +11,7 @@ mod error;
 
 use std::collections::HashSet;
 
+use anyhow::Context;
 use cargo::{
     core::{shell::Verbosity, Workspace},
     ops::needs_custom_http_transport,
@@ -92,7 +93,7 @@ pub fn execute(options: Options, config: &mut Config) -> CargoResult<i32> {
     )?;
     debug!(config, format!("options: {options:?}"));
 
-    verbose!(config, "Parsing...", "current workspace");
+    verbose!(config, "Finding...", "current workspace");
     // the Cargo.toml that we are actually working on
     let mut manifest_abspath: std::path::PathBuf;
     let curr_manifest = if let Some(ref manifest_path) = options.manifest_path {
@@ -103,8 +104,14 @@ pub fn execute(options: Options, config: &mut Config) -> CargoResult<i32> {
         }
         manifest_abspath
     } else {
-        find_root_manifest_for_wd(config.cwd())?
+        find_root_manifest_for_wd(config.cwd())
+            .with_context(|| format!("Finding root Cargo manifest for {:?}", config.cwd()))?
     };
+    verbose!(
+        config,
+        "Parsing...",
+        format!("current workspace (manifest: {:?})", curr_manifest)
+    );
     let curr_workspace = Workspace::new(&curr_manifest, config)?;
     verbose!(config, "Resolving...", "current workspace");
     if options.verbose == 0 {
@@ -120,41 +127,82 @@ pub fn execute(options: Options, config: &mut Config) -> CargoResult<i32> {
     verbose!(config, "Parsing...", "compat workspace");
     let mut skipped = HashSet::new();
     let compat_proj =
-        TempProject::from_workspace(&ela_curr, &curr_manifest.to_string_lossy(), &options)?;
-    compat_proj.write_manifest_semver(
-        curr_workspace.root(),
-        compat_proj.temp_dir.path(),
-        &ela_curr,
-        &mut skipped,
-    )?;
+        TempProject::from_workspace(&ela_curr, &curr_manifest, &options)
+            .with_context(|| format!("Creating temp compat workspace for {:?}", curr_manifest))?;
+    verbose!(config, "Writing...", format!("compat workspace (root: {:?})", compat_proj.temp_dir.path()));
+    compat_proj
+        .write_manifest_semver(
+            curr_workspace.root(),
+            compat_proj.temp_dir.path(),
+            &ela_curr,
+            &mut skipped,
+        )
+        .with_context(|| {
+            format!(
+                "Writing semver manifest for temp compat workspace {:?} for {:?}",
+                compat_proj.temp_dir.path(),
+                curr_manifest,
+            )
+        })?;
     verbose!(config, "Updating...", "compat workspace");
-    compat_proj.cargo_update()?;
+    compat_proj.cargo_update().with_context(|| {
+        format!(
+            "cargo update in temp compat workspace for {:?}",
+            curr_manifest,
+        )
+    })?;
     verbose!(config, "Resolving...", "compat workspace");
     let compat_workspace = compat_proj.workspace.borrow();
     let ela_compat = ElaborateWorkspace::from_workspace(
         compat_workspace
             .as_ref()
-            .ok_or(OutdatedError::CannotElaborateWorkspace)?,
+            .ok_or(OutdatedError::CannotElaborateWorkspace)
+            .with_context(|| {
+                format!("Elaborating temp compat workspace for {:?}", curr_manifest)
+            })?,
         &options,
     )?;
 
     verbose!(config, "Parsing...", "latest workspace");
     let latest_proj =
-        TempProject::from_workspace(&ela_curr, &curr_manifest.to_string_lossy(), &options)?;
-    latest_proj.write_manifest_latest(
-        curr_workspace.root(),
-        compat_proj.temp_dir.path(),
-        &ela_curr,
-        &mut skipped,
-    )?;
+        TempProject::from_workspace(&ela_curr, &curr_manifest, &options)
+            .with_context(|| format!("Creating temp latest workspace for {:?}", curr_manifest))?;
+    verbose!(config, "Writing...", format!("latest workspace (root: {:?})", latest_proj.temp_dir.path()));
+    latest_proj
+        .write_manifest_latest(
+            curr_workspace.root(),
+            latest_proj.temp_dir.path(),
+            &ela_curr,
+            &mut skipped,
+        )
+        .with_context(|| {
+            format!(
+                "Writing latest manifest for temp latest workspace {:?} for {:?}",
+                latest_proj.temp_dir.path(),
+                curr_manifest
+            )
+        })?;
     verbose!(config, "Updating...", "latest workspace");
-    latest_proj.cargo_update()?;
+    latest_proj.cargo_update().with_context(|| {
+        format!(
+            "cargo update in temp latest workspace {:?} for {:?}",
+            latest_proj.temp_dir.path(),
+            curr_manifest
+        )
+    })?;
     verbose!(config, "Resolving...", "latest workspace");
     let latest_workspace = latest_proj.workspace.borrow();
     let ela_latest = ElaborateWorkspace::from_workspace(
         latest_workspace
             .as_ref()
-            .ok_or(OutdatedError::CannotElaborateWorkspace)?,
+            .ok_or(OutdatedError::CannotElaborateWorkspace)
+            .with_context(|| {
+                format!(
+                    "Elaborating temp latest workspace {:?} for {:?}",
+                    latest_proj.temp_dir.path(),
+                    curr_manifest
+                )
+            })?,
         &options,
     )?;
 

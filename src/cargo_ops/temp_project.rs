@@ -10,7 +10,7 @@ use std::{
 
 use anyhow::{anyhow, Context};
 use cargo::{
-    core::{Dependency, PackageId, QueryKind, Source, Summary, Verbosity, Workspace},
+    core::{Dependency, Package, PackageId, QueryKind, Source, Summary, Verbosity, Workspace},
     ops::{update_lockfile, UpdateOptions},
     sources::config::SourceConfigMap,
     util::{network::PollExt, CargoResult, Config},
@@ -28,7 +28,7 @@ pub struct TempProject<'tmp> {
     pub temp_dir: TempDir,
     manifest_paths: Vec<PathBuf>,
     config: Config,
-    relative_manifest: String,
+    relative_manifest: PathBuf,
     options: &'tmp Options,
     is_workspace_project: bool,
 }
@@ -37,97 +37,144 @@ impl<'tmp> TempProject<'tmp> {
     /// Copy needed manifest and lock files from an existing workspace
     pub fn from_workspace(
         orig_workspace: &ElaborateWorkspace<'_>,
-        orig_manifest: &str,
+        orig_manifest: &Path,
         options: &'tmp Options,
     ) -> CargoResult<TempProject<'tmp>> {
         // e.g. /path/to/project
         let workspace_root = orig_workspace.workspace.root();
-        let workspace_root_str = workspace_root.to_string_lossy();
-        let temp_dir = Builder::new().prefix("cargo-outdated").tempdir()?;
-        let manifest_paths = manifest_paths(orig_workspace)?;
+        let temp_dir = Builder::new()
+            .prefix("cargo-outdated")
+            .tempdir()
+            .context("Creating cargo-outdated tempdir")?;
+        let mut manifest_paths = manifest_paths(orig_workspace)
+            .context("Extracting original workspace manifest paths")?
+            .drain(..)
+            .map(move |(p, pkg)| (p, Some(pkg)))
+            .collect::<Vec<_>>();
         let mut tmp_manifest_paths = vec![];
 
-        for from in &manifest_paths {
+        // Ensure we handle workspaces first, as they may declare dependencies that are
+        // inherited later.
+        let virtual_root_path = workspace_root.join("Cargo.toml");
+        match manifest_paths
+            .iter()
+            .position(|(p, _)| p == &virtual_root_path)
+        {
+            Some(0) => {}
+            Some(index) => {
+                let manifest_path = manifest_paths.remove(index);
+                manifest_paths.insert(0, manifest_path);
+            }
+            None if virtual_root_path.is_file() => {
+                manifest_paths.insert(0, (virtual_root_path, None));
+            }
+            None => {}
+        };
+
+        let manifest_paths = manifest_paths;
+
+        for (from, from_pkg) in &manifest_paths {
             // e.g. /path/to/project/src/sub
             let mut from_dir = from.clone();
             from_dir.pop();
-            let from_dir_str = from_dir.to_string_lossy();
 
             // e.g. /tmp/cargo.xxx/src/sub
-            let mut dest = if workspace_root_str.len() < from_dir_str.len() {
-                temp_dir
-                    .path()
-                    .join(&from_dir_str[workspace_root_str.len() + 1..])
+            let mut dest = if let Ok(sub) = from_dir.strip_prefix(workspace_root) {
+                temp_dir.path().join(sub)
             } else {
                 temp_dir.path().to_owned()
             };
 
-            fs::create_dir_all(&dest)?;
+            fs::create_dir_all(&dest).context("Creating temporary manifest parent directories")?;
 
             // e.g. /tmp/cargo.xxx/src/sub/Cargo.toml
             dest.push("Cargo.toml");
             tmp_manifest_paths.push(dest.clone());
-            fs::copy(from, &dest)?;
+            fs::copy(from, &dest)
+                .with_context(|| format!("Copying {:?} to temporary manifest {:?}", from, dest))?;
 
             // removing default-run key if it exists to check dependencies
             let mut om: Manifest = {
                 let mut buf = String::new();
-                let mut file = File::open(&dest)?;
-                file.read_to_string(&mut buf)?;
-                ::toml::from_str(&buf)?
+                let mut file =
+                    File::open(&dest).context("Opening created temporary manifest for reading")?;
+                file.read_to_string(&mut buf)
+                    .context("Reading opened temporary manifest")?;
+                ::toml::from_str(&buf).context("Parsing temporary manifest")?
             };
 
-            if om.package.contains_key("default-run") {
-                om.package.remove("default-run");
-                let om_serialized = ::toml::to_string(&om).expect("Cannot format as toml file");
+            if om
+                .package
+                .as_mut()
+                .and_then(|package| package.remove("default-run"))
+                .is_some()
+            {
+                let om_serialized = ::toml::to_string(&om).expect("Cannot format as TOML file");
                 let mut cargo_toml = OpenOptions::new()
                     .read(true)
                     .write(true)
                     .truncate(true)
-                    .open(&dest)?;
-                write!(cargo_toml, "{om_serialized}")?;
+                    .open(&dest)
+                    .context("Opening created temporary manifest for writing")?;
+                write!(cargo_toml, "{om_serialized}")
+                    .context("Writing to created temporary manifest")?;
             }
 
             // if build script is specified in the original Cargo.toml (from links or build)
             // remove it as we do not need it for checking dependencies
-            if om.package.contains_key("links") {
-                om.package.remove("links");
-                let om_serialized = ::toml::to_string(&om).expect("Cannot format as toml file");
+            if om
+                .package
+                .as_mut()
+                .and_then(|package| package.remove("links"))
+                .is_some()
+            {
+                let om_serialized = ::toml::to_string(&om).expect("Cannot format as TOML file");
                 let mut cargo_toml = OpenOptions::new()
                     .read(true)
                     .write(true)
                     .truncate(true)
-                    .open(&dest)?;
-                write!(cargo_toml, "{om_serialized}")?;
+                    .open(&dest)
+                    .context("Opening created temporary manifest for writing")?;
+                write!(cargo_toml, "{om_serialized}")
+                    .context("Writing to created temporary manifest")?;
             }
 
-            if om.package.contains_key("build") {
-                om.package.remove("build");
-                let om_serialized = ::toml::to_string(&om).expect("Cannot format as toml file");
+            if om
+                .package
+                .as_mut()
+                .and_then(|package| package.remove("build"))
+                .is_some()
+            {
+                let om_serialized = ::toml::to_string(&om).expect("Cannot format as TOML file");
                 let mut cargo_toml = OpenOptions::new()
                     .read(true)
                     .write(true)
                     .truncate(true)
-                    .open(&dest)?;
-                write!(cargo_toml, "{om_serialized}")?;
+                    .open(&dest)
+                    .context("Opening created temporary manifest for writing")?;
+                write!(cargo_toml, "{om_serialized}")
+                    .context("Writing to created temporary manifest")?;
+            }
+
+            // Make implicit `lib` table explicit
+            if om.lib.is_none() && from_pkg.and_then(|pkg| pkg.library()).is_some() {
+                om.lib = Some(Table::new());
+                let om_serialized = ::toml::to_string(&om).expect("Cannot format as TOML file");
+                let mut cargo_toml = OpenOptions::new()
+                    .read(true)
+                    .write(true)
+                    .truncate(true)
+                    .open(&dest)
+                    .context("Opening created temporary manifest for writing")?;
+                write!(cargo_toml, "{om_serialized}")
+                    .context("Writing to created temporary manifest")?;
             }
 
             let lockfile = from_dir.join("Cargo.lock");
             if lockfile.is_file() {
                 dest.pop();
                 dest.push("Cargo.lock");
-                fs::copy(lockfile, dest)?;
-            }
-        }
-
-        // virtual root
-        let mut virtual_root = workspace_root.join("Cargo.toml");
-        if !manifest_paths.contains(&virtual_root) && virtual_root.is_file() {
-            fs::copy(&virtual_root, temp_dir.path().join("Cargo.toml"))?;
-            virtual_root.pop();
-            virtual_root.push("Cargo.lock");
-            if virtual_root.is_file() {
-                fs::copy(&virtual_root, temp_dir.path().join("Cargo.lock"))?;
+                fs::copy(lockfile, dest).context("Copying to temporary lockfile")?;
             }
         }
 
@@ -135,25 +182,38 @@ impl<'tmp> TempProject<'tmp> {
         // this is the preferred way
         // https://doc.rust-lang.org/cargo/reference/config.html
         if workspace_root.join(".cargo/config.toml").is_file() {
-            fs::create_dir_all(temp_dir.path().join(".cargo"))?;
+            fs::create_dir_all(temp_dir.path().join(".cargo"))
+                .context("Creating temporary `.cargo` directory")?;
             fs::copy(
                 workspace_root.join(".cargo/config.toml"),
                 temp_dir.path().join(".cargo/config.toml"),
-            )?;
+            )
+            .context("Copying to temporary `.cargo/config.toml`")?;
         }
 
         //.cargo/config
         // this is legacy support for config files without the `.toml` extension
         if workspace_root.join(".cargo/config").is_file() {
-            fs::create_dir_all(temp_dir.path().join(".cargo"))?;
+            fs::create_dir_all(temp_dir.path().join(".cargo"))
+                .context("Creating temporary `.cargo` directory")?;
             fs::copy(
                 workspace_root.join(".cargo/config"),
                 temp_dir.path().join(".cargo/config"),
-            )?;
+            )
+            .context("Copying to temporary `.cargo/config`")?;
         }
 
-        let relative_manifest = String::from(&orig_manifest[workspace_root_str.len() + 1..]);
-        let config = Self::generate_config(temp_dir.path(), &relative_manifest, options)?;
+        let relative_manifest = orig_manifest
+            .strip_prefix(workspace_root)
+            .with_context(|| {
+                format!(
+                    "original manifest path {:?} is not prefixed with workspace root path {:?}",
+                    orig_manifest, workspace_root
+                )
+            })?
+            .to_owned();
+        let config = Self::generate_config(temp_dir.path(), &relative_manifest, options)
+            .context("Generating config for temporary workspace")?;
 
         Ok(TempProject {
             workspace: Rc::new(RefCell::new(None)),
@@ -168,12 +228,12 @@ impl<'tmp> TempProject<'tmp> {
 
     fn generate_config(
         root: &Path,
-        relative_manifest: &str,
+        relative_manifest: &Path,
         options: &Options,
     ) -> CargoResult<Config> {
         let shell = ::cargo::core::Shell::new();
         let cwd = env::current_dir()
-            .with_context(|| "Cargo couldn't get the current directory of the process")?;
+            .context("Cargo couldn't get the current directory of the process")?;
 
         let homedir = ::cargo::util::homedir(&cwd).ok_or_else(|| {
             anyhow!(
@@ -189,17 +249,19 @@ impl<'tmp> TempProject<'tmp> {
         let cargo_home_path = std::env::var_os("CARGO_HOME").map(std::path::PathBuf::from);
 
         let mut config = Config::new(shell, cwd, homedir);
-        config.configure(
-            0,
-            options.verbose == 0,
-            Some(&options.color.to_string().to_ascii_lowercase()),
-            options.frozen(),
-            options.locked(),
-            options.offline,
-            &cargo_home_path,
-            &[],
-            &[],
-        )?;
+        config
+            .configure(
+                0,
+                options.verbose == 0,
+                Some(&options.color.to_string().to_ascii_lowercase()),
+                options.frozen(),
+                options.locked(),
+                options.offline,
+                &cargo_home_path,
+                &[],
+                &[],
+            )
+            .context("Configuring Cargo")?;
         Ok(config)
     }
 
@@ -219,14 +281,15 @@ impl<'tmp> TempProject<'tmp> {
                 .as_ref()
                 .ok_or(OutdatedError::NoWorkspace)?,
             &update_opts,
-        )?;
+        )
+        .context("Updating Cargo lockfile")?;
         Ok(())
     }
 
     fn write_manifest<P: AsRef<Path>>(manifest: &Manifest, path: P) -> CargoResult<()> {
-        let mut file = File::create(path)?;
+        let mut file = File::create(path).context("Creating temporary manifest file")?;
         let serialized = ::toml::to_string(manifest).expect("Failed to serialized Cargo.toml");
-        write!(file, "{serialized}")?;
+        write!(file, "{serialized}").context("Writing to created temporary manifest")?;
         Ok(())
     }
 
@@ -234,6 +297,11 @@ impl<'tmp> TempProject<'tmp> {
     where
         F: FnMut(&mut Table) -> CargoResult<()>,
     {
+        if let Some(workspace) = manifest.workspace.as_mut() {
+            if let Some(Value::Table(dep)) = workspace.get_mut("dependencies") {
+                f(dep)?;
+            }
+        }
         if let Some(dep) = manifest.dependencies.as_mut() {
             f(dep)?;
         }
@@ -245,14 +313,12 @@ impl<'tmp> TempProject<'tmp> {
         }
         if let Some(t) = manifest.target.as_mut() {
             for (_key, target) in t.iter_mut() {
-                if let Value::Table(ref mut target) = *target {
+                if let Value::Table(target) = target {
                     for dependency_tables in
                         &["dependencies", "dev-dependencies", "build-dependencies"]
                     {
-                        if let Some(&mut Value::Table(ref mut dep_table)) =
-                            target.get_mut(*dependency_tables)
-                        {
-                            f(dep_table)?;
+                        if let Some(Value::Table(dep)) = target.get_mut(*dependency_tables) {
+                            f(dep)?;
                         }
                     }
                 }
@@ -284,7 +350,9 @@ impl<'tmp> TempProject<'tmp> {
                 ::toml::from_str(&buf)?
             };
 
-            manifest.bin = Some(vec![bin.clone()]);
+            if manifest.package.is_some() {
+                manifest.bin = Some(vec![bin.clone()]);
+            }
             // provide lib.path
             if let Some(lib) = manifest.lib.as_mut() {
                 lib.insert("path".to_owned(), Value::String("test_lib.rs".to_owned()));
@@ -300,11 +368,18 @@ impl<'tmp> TempProject<'tmp> {
                 )
             })?;
 
-            let package_name = manifest.name();
-            let features = manifest.features.clone();
-            Self::manipulate_dependencies(&mut manifest, &mut |deps| {
-                self.update_version_and_feature(deps, &features, workspace, &package_name, false)
-            })?;
+            if let Some(package_name) = manifest.name() {
+                let features = manifest.features.clone();
+                Self::manipulate_dependencies(&mut manifest, &mut |deps| {
+                    self.update_version_and_feature(
+                        deps,
+                        &features,
+                        workspace,
+                        &package_name,
+                        false,
+                    )
+                })?;
+            }
 
             Self::write_manifest(&manifest, manifest_path)?;
         }
@@ -329,6 +404,7 @@ impl<'tmp> TempProject<'tmp> {
             bin.insert("path".to_owned(), Value::String("test.rs".to_owned()));
             bin
         };
+
         for manifest_path in &self.manifest_paths {
             let mut manifest: Manifest = {
                 let mut buf = String::new();
@@ -337,7 +413,9 @@ impl<'tmp> TempProject<'tmp> {
                 ::toml::from_str(&buf)?
             };
 
-            manifest.bin = Some(vec![bin.clone()]);
+            if manifest.package.is_some() {
+                manifest.bin = Some(vec![bin.clone()]);
+            }
             // provide lib.path
             if let Some(lib) = manifest.lib.as_mut() {
                 lib.insert("path".to_owned(), Value::String("test_lib.rs".to_owned()));
@@ -353,11 +431,12 @@ impl<'tmp> TempProject<'tmp> {
                 )
             })?;
 
-            let package_name = manifest.name();
-            let features = manifest.features.clone();
-            Self::manipulate_dependencies(&mut manifest, &mut |deps| {
-                self.update_version_and_feature(deps, &features, workspace, &package_name, true)
-            })?;
+            if let Some(package_name) = manifest.name() {
+                let features = manifest.features.clone();
+                Self::manipulate_dependencies(&mut manifest, &mut |deps| {
+                    self.update_version_and_feature(deps, &features, workspace, &package_name, true)
+                })?;
+            }
 
             Self::write_manifest(&manifest, manifest_path)?;
         }
@@ -430,7 +509,7 @@ impl<'tmp> TempProject<'tmp> {
                 // access to write to the terminal
                 // if this fails it's a cargo (as a dependency) issue
                 self.warn(format!(
-                    "cannot compare {} crate version found in toml {} with crates.io latest {}",
+                    "cannot compare {} crate version found in TOML {} with crates.io latest {}",
                     name,
                     ver_req,
                     query_result[0].version()
@@ -451,8 +530,8 @@ impl<'tmp> TempProject<'tmp> {
         if !optional && self.options.features.contains(&String::from("default")) {
             return true;
         }
-        let features_table = match *features_table {
-            Some(Value::Table(ref features_table)) => features_table,
+        let features_table = match features_table {
+            Some(Value::Table(features_table)) => features_table,
             _ => return false,
         };
         let mut to_resolve: Vec<&str> = self
@@ -474,11 +553,11 @@ impl<'tmp> TempProject<'tmp> {
             if features_table.contains_key(feature) {
                 let specified_features = match features_table.get(feature) {
                     None => panic!("Feature {feature} does not exist"),
-                    Some(Value::Array(ref specified_features)) => specified_features,
+                    Some(Value::Array(specified_features)) => specified_features,
                     _ => panic!("Feature {feature} is not mapped to an array"),
                 };
                 for spec in specified_features {
-                    if let Value::String(ref spec) = *spec {
+                    if let Value::String(spec) = spec {
                         to_resolve.push(spec.as_str());
                     }
                 }
@@ -534,9 +613,9 @@ impl<'tmp> TempProject<'tmp> {
                         };
                     }
                 }
-                Value::Table(ref t) => {
+                Value::Table(t) => {
                     let mut name = match t.get("package") {
-                        Some(Value::String(ref s)) => s,
+                        Some(Value::String(s)) => s,
                         Some(_) => panic!("'package' of dependency {dep_key} is not a string"),
                         None => &dep_key,
                     };
@@ -565,7 +644,7 @@ impl<'tmp> TempProject<'tmp> {
                     }
                     let mut replaced = t.clone();
                     let requirement = match t.get("version") {
-                        Some(Value::String(ref requirement)) => Some(requirement.as_str()),
+                        Some(Value::String(requirement)) => Some(requirement.as_str()),
                         Some(_) => panic!("Version of {name} is not a string"),
                         _ => None,
                     };
@@ -595,11 +674,11 @@ impl<'tmp> TempProject<'tmp> {
                     }
                     if replaced.contains_key("features") {
                         let features = match replaced.get("features") {
-                            Some(Value::Array(ref features)) => features
+                            Some(Value::Array(features)) => features
                                 .iter()
                                 .filter(|&feature| {
-                                    let feature = match *feature {
-                                        Value::String(ref feature) => feature,
+                                    let feature = match feature {
+                                        Value::String(feature) => feature,
                                         _ => panic!(
                                             "Features section of {name} is not an array of strings"
                                         ),
@@ -651,16 +730,17 @@ impl<'tmp> TempProject<'tmp> {
                 .cloned()
                 .ok_or(OutdatedError::NoMatchingDependency)?;
             match original {
-                Value::Table(ref t) if t.contains_key("path") => {
-                    if let Value::String(ref orig_path) = t["path"] {
-                        let orig_path = Path::new(orig_path);
+                Value::Table(t) if t.contains_key("path") => {
+                    if let Value::String(orig_path) = &t["path"] {
+                        let orig_path = Path::new(&orig_path);
                         if orig_path.is_relative() {
                             let relative = {
-                                let delimiter: &[_] = &['/', '\\'];
-                                let relative = &tmp_manifest.to_string_lossy()
-                                    [tmp_root.to_string_lossy().len()..];
-                                let mut relative =
-                                    PathBuf::from(relative.trim_start_matches(delimiter));
+                                let mut relative = tmp_manifest.strip_prefix(tmp_root).with_context(|| {
+                                    format!(
+                                        "original temp manifest path {:?} is not prefixed with temp workspace root path {:?}",
+                                        tmp_manifest, tmp_root
+                                    )
+                                })?.to_owned();
                                 relative.pop();
                                 relative.join(orig_path)
                             };
@@ -669,7 +749,7 @@ impl<'tmp> TempProject<'tmp> {
                                     dependencies.remove(&name);
 
                                     if t.contains_key("package") {
-                                        if let Value::String(ref package_name) = t["package"] {
+                                        if let Value::String(package_name) = &t["package"] {
                                             skipped.insert(package_name.to_string());
                                         } else {
                                             skipped.insert(name);
@@ -679,13 +759,17 @@ impl<'tmp> TempProject<'tmp> {
                                     }
                                 } else {
                                     let mut replaced = t.clone();
+                                    let replaced_path = fs::canonicalize(orig_root.join(relative))?;
+                                    let replaced_path =
+                                        replaced_path.to_str().ok_or_else(|| {
+                                            anyhow!(
+                                                "path {:?} is not a UTF-8 string",
+                                                replaced_path
+                                            )
+                                        })?;
                                     replaced.insert(
                                         "path".to_owned(),
-                                        Value::String(
-                                            fs::canonicalize(orig_root.join(relative))?
-                                                .to_string_lossy()
-                                                .to_string(),
-                                        ),
+                                        Value::String(replaced_path.to_string()),
                                     );
                                     dependencies.insert(name, Value::Table(replaced));
                                 }
@@ -727,23 +811,25 @@ fn features_and_options(summary: &Summary) -> HashSet<&str> {
 }
 
 /// Paths of all manifest files in current workspace
-fn manifest_paths(elab: &ElaborateWorkspace<'_>) -> CargoResult<Vec<PathBuf>> {
+fn manifest_paths<'a>(
+    elab: &'a ElaborateWorkspace<'_>,
+) -> CargoResult<Vec<(PathBuf, &'a Package)>> {
     let mut visited: HashSet<PackageId> = HashSet::new();
     let mut manifest_paths = vec![];
 
-    fn manifest_paths_recursive(
+    fn manifest_paths_recursive<'a>(
         pkg_id: PackageId,
-        elab: &ElaborateWorkspace<'_>,
-        workspace_path: &str,
+        elab: &'a ElaborateWorkspace<'_>,
+        workspace_path: &Path,
         visited: &mut HashSet<PackageId>,
-        manifest_paths: &mut Vec<PathBuf>,
+        manifest_paths: &mut Vec<(PathBuf, &'a Package)>,
     ) -> CargoResult<()> {
         if visited.contains(&pkg_id) {
             return Ok(());
         }
         visited.insert(pkg_id);
         let pkg = &elab.pkgs[&pkg_id];
-        let pkg_path = pkg.root().to_string_lossy();
+        let pkg_path = pkg.root();
 
         // Checking if there's a CARGO_HOME set and that it is not an empty string
         let cargo_home_path = match std::env::var_os("CARGO_HOME") {
@@ -762,18 +848,19 @@ fn manifest_paths(elab: &ElaborateWorkspace<'_>) -> CargoResult<Vec<PathBuf>> {
                 || !pkg_path
                     .starts_with(&cargo_home_path.expect("Error extracting CARGO_HOME string")))
         {
-            manifest_paths.push(pkg.manifest_path().to_owned());
+            manifest_paths.push((pkg.manifest_path().to_owned(), pkg));
         }
 
         for &dep in elab.pkg_deps[&pkg_id].keys() {
-            manifest_paths_recursive(dep, elab, workspace_path, visited, manifest_paths)?;
+            manifest_paths_recursive(dep, elab, workspace_path, visited, manifest_paths)
+                .context("Extracting dependency manifest paths")?;
         }
 
         Ok(())
     }
 
     // executed against a virtual manifest
-    let workspace_path = elab.workspace.root().to_string_lossy();
+    let workspace_path = elab.workspace.root();
     // if cargo workspace is not explicitly used, the package itself would be a
     // member
     for member in elab.workspace.members() {
@@ -781,10 +868,11 @@ fn manifest_paths(elab: &ElaborateWorkspace<'_>) -> CargoResult<Vec<PathBuf>> {
         manifest_paths_recursive(
             root_pkg_id,
             elab,
-            &workspace_path,
+            workspace_path,
             &mut visited,
             &mut manifest_paths,
-        )?;
+        )
+        .context("Extracting root workspace member manifest paths")?;
     }
 
     Ok(manifest_paths)
