@@ -7,7 +7,7 @@ mod temp_project;
 pub use self::{elaborate_workspace::ElaborateWorkspace, pkg_status::*, temp_project::TempProject};
 
 /// A continent struct for quick parsing and manipulating manifest
-#[derive(Debug, serde_derive::Serialize, serde_derive::Deserialize)]
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
 struct Manifest {
     #[serde(rename = "cargo-features", skip_serializing_if = "Option::is_none")]
     pub cargo_features: Option<Value>,
