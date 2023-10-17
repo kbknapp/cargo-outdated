@@ -25,6 +25,8 @@ struct Manifest {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub target: Option<Table>,
     pub features: Option<Value>,
+    #[serde(rename = "patch", skip_serializing_if = "Option::is_none")]
+    pub patch: Option<Table>,
 }
 
 impl Manifest {
