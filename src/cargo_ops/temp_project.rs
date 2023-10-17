@@ -259,8 +259,8 @@ impl<'tmp> TempProject<'tmp> {
             }
         }
         if let Some(t) = manifest.patch.as_mut() {
-            for (_key, target) in t.iter_mut() {
-                if let Value::Table(ref mut patch) = *target {
+            for (_key, patch) in t.iter_mut() {
+                if let Value::Table(ref mut patch) = *patch {
                     f(patch)?;
                 }
             }
