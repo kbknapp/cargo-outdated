@@ -137,7 +137,7 @@ Options:
 ## Minimum Supported Rust Version (MSRV)
 
 The MSRV of this crate is what is required to _run_ `cargo outdated`, you may be able to compile 
-`cargo outdated` itself on an earlier version of Rust. However, because `cargo oudated` uses 
+`cargo outdated` itself on an earlier version of Rust. However, because `cargo outdated` uses 
 `cargo` internally, it requires a specific minimum version to run successfully.
 
 The current MSRV can be found in the `Cargo.toml` under the `package.rust-version` field.
