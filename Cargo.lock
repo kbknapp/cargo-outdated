@@ -190,9 +190,9 @@ checksum = "38fcc2979eff34a4b84e1cf9a1e3da42a7d44b3b690a40cdcb23e3d556cfb2e5"
 
 [[package]]
 name = "cargo"
-version = "0.72.1"
+version = "0.72.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2cb394cfa92bba1e9dc828a3ad68a7a943dc76fb7095bdd3710f77e516b13585"
+checksum = "171aca76a3199e771ea0b94ec260984ed9cba62af8e478142974dbaa594d583b"
 dependencies = [
  "anyhow",
  "base64",
@@ -2477,9 +2477,9 @@ dependencies = [
 
 [[package]]
 name = "tar"
-version = "0.4.38"
+version = "0.4.40"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4b55807c0344e1e6c04d7c965f5289c39a8d94ae23ed5c0b57aabac549f871c6"
+checksum = "b16afcea1f22891c49a00c751c7b63b2233284064f11a200fc624137c51e2ddb"
 dependencies = [
  "filetime",
  "libc",
