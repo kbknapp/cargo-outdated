@@ -269,7 +269,6 @@ dependencies = [
  "pretty_assertions",
  "semver",
  "serde",
- "serde_derive",
  "serde_json",
  "strum",
  "tabwriter",
