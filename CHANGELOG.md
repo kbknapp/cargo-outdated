@@ -1,3 +1,21 @@
+<a name="v0.14.0"></a>
+### v0.14.0 (2023-11-01)
+
+#### Changes
+
+* MSRV is now as 1.70.0
+
+#### Fixes
+
+* `[patch]` table is now included (Thanks to [@rmja](https://github.com/rmja)) (Fixes [#275](https://github.com/kbknapp/cargo-outdated/issues/275))
+
+#### Maintenance
+
+* `cargo` was updated to v0.72 (Thanks to [@cuviper](https://github.com/cuviper))
+* Use of `serde` vs `serde_derive` was cleaned up (Thanks to [@tottoto](https://github.com/tottoto))
+* bump deps
+* Typo cleanups (Thanks to [@Treeway7](https://github.com/Treeway7))
+
 <a name="v0.13.1"></a>
 ### v0.13.1 (2023-06-19)
 
