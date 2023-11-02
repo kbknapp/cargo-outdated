@@ -59,4 +59,8 @@ jobs:
         # The standard `cargo check` may successfully build on an earlier 
         # Rust, but cargo-oudated by not be able to successfully run in such
         # environments.
-        run: cargo run -- outdated
+        #
+        # Note2: we exclude git2-curl because it requires libgit2-sys which 
+        # must match the same version that our internal cargo transitively 
+        # requires
+        run: cargo run -- outdated -x git2-curl
