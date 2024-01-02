@@ -80,10 +80,7 @@ pub fn execute(options: Options, config: &mut Config) -> CargoResult<i32> {
     config.nightly_features_allowed = true;
 
     config.configure(
-        options
-            .verbose
-            .try_into()
-            .expect("--verbose used too many times"),
+        options.verbose.into(),
         options.quiet,
         Some(&options.color.to_string().to_ascii_lowercase()),
         options.frozen(),
