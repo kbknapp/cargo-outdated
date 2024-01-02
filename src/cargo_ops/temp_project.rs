@@ -10,10 +10,13 @@ use std::{
 
 use anyhow::{anyhow, Context};
 use cargo::{
-    core::{Dependency, PackageId, QueryKind, Source, Summary, Verbosity, Workspace},
+    core::{Dependency, PackageId, Summary, Verbosity, Workspace},
     ops::{update_lockfile, UpdateOptions},
-    sources::config::SourceConfigMap,
-    util::{network::PollExt, CargoResult, Config},
+    sources::{
+        config::SourceConfigMap,
+        source::{QueryKind, Source},
+    },
+    util::{cache_lock::CacheLockMode, network::PollExt, CargoResult, Config},
 };
 use semver::{Version, VersionReq};
 use tempfile::{Builder, TempDir};
@@ -206,7 +209,7 @@ impl<'tmp> TempProject<'tmp> {
     /// Run `cargo update` against the temporary project
     pub fn cargo_update(&self) -> CargoResult<()> {
         let update_opts = UpdateOptions {
-            aggressive: false,
+            recursive: false,
             precise: None,
             to_update: Vec::new(),
             config: &self.config,
@@ -385,10 +388,10 @@ impl<'tmp> TempProject<'tmp> {
     ) -> CargoResult<Summary> {
         let package_id = workspace.find_direct_dependency(name, dependent_package_name)?;
         let version = package_id.version();
-        let source_id = package_id.source_id().with_precise(None);
+        let source_id = package_id.source_id().with_locked_precise();
         let query_result = {
             let ws_config = workspace.workspace.config();
-            let _lock = ws_config.acquire_package_cache_lock()?;
+            let _lock = ws_config.acquire_package_cache_lock(CacheLockMode::DownloadExclusive)?;
             let source_config = SourceConfigMap::new(ws_config)?;
             let mut source = source_config.load(source_id, &HashSet::new())?;
             if !source_id.is_crates_io() {

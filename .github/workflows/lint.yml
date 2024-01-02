@@ -17,7 +17,7 @@ jobs:
       matrix:
         rust:
           - nightly
-          - 1.70.0 # MSRV
+          - 1.73.0 # MSRV
           - stable
 
     steps:
@@ -54,7 +54,7 @@ jobs:
         run: just lint
 
       - name: MSRV Check
-        if: ${{ matrix.rust == '1.70.0' }}
+        if: ${{ matrix.rust == '1.73.0' }}
         # Note we have to actually _run_ the application to check the MSRV.
         # The standard `cargo check` may successfully build on an earlier 
         # Rust, but cargo-oudated by not be able to successfully run in such

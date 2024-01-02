@@ -88,15 +88,17 @@ impl<'ela> ElaborateWorkspace<'ela> {
         // targets are blank since we don't need to fully build for the targets to get
         // the dependencies
         let compile_kind = CompileKind::from_requested_targets(workspace.config(), &[])?;
-        let target_data = RustcTargetData::new(workspace, &compile_kind)?;
+        let mut target_data = RustcTargetData::new(workspace, &compile_kind)?;
         let ws_resolve = ops::resolve_ws_with_opts(
             workspace,
-            &target_data,
+            &mut target_data,
             &compile_kind,
             &cli_features,
             &specs,
             HasDevUnits::Yes,
             ForceAllTargets::Yes,
+            // TODO: respect MSRV here
+            None,
         )?;
         let packages = ws_resolve.pkg_set;
         let resolve = ws_resolve
