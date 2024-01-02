@@ -9,10 +9,10 @@ macro_rules! verbose {
 #[cfg(feature = "debug")]
 macro_rules! debug {
     ($config: expr, $message: expr) => (
-        $config.shell().status_with_color("DEBUG", $message, ::termcolor::Color::White)?
+        $config.shell().status_with_color("DEBUG", $message, &Default::default())?
     );
     ($config: expr, $($arg: tt)*) => (
-        $config.shell().status_with_color("DEBUG", format!($($arg)*), ::termcolor::Color::White)?
+        $config.shell().status_with_color("DEBUG", format!($($arg)*), &Default::default())?
     );
 }
 
