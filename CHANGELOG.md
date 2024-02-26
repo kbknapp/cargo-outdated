@@ -1,3 +1,14 @@
+<a name="v0.15.0"></a>
+### v0.15.0 (2024-02-26)
+
+#### Changes
+
+* MSRV is now as 1.73.0
+
+#### Maintenance
+
+* Upgrade `cargo` to v0.73 ([#379](https://github.com/kbknapp/cargo-outdated/pull/379)) (Thanks to [@cuviper](https://github.com/cuviper))
+
 <a name="v0.14.0"></a>
 ### v0.14.0 (2023-11-01)
 
