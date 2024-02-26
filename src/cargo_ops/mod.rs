@@ -4,7 +4,7 @@ use toml::value::{Table, Value};
 mod elaborate_workspace;
 mod pkg_status;
 mod temp_project;
-pub use self::{elaborate_workspace::ElaborateWorkspace, pkg_status::*, temp_project::TempProject};
+pub use self::{elaborate_workspace::ElaborateWorkspace, temp_project::TempProject};
 
 /// A continent struct for quick parsing and manipulating manifest
 #[derive(Debug, serde::Serialize, serde::Deserialize)]

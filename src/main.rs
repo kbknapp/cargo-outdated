@@ -13,8 +13,11 @@ use std::collections::HashSet;
 
 use cargo::{
     core::{shell::Verbosity, Workspace},
-    ops::needs_custom_http_transport,
-    util::{important_paths::find_root_manifest_for_wd, CargoResult, CliError, Config},
+    util::{
+        important_paths::find_root_manifest_for_wd,
+        network::http::{http_handle, needs_custom_http_transport},
+        CargoResult, CliError, Config,
+    },
 };
 
 use crate::{
@@ -42,7 +45,7 @@ fn main() {
     // https://github.com/rust-lang/cargo/blob/master/src/bin/cargo/main.rs#L181
     // fn init_git_transports()
     if let Ok(true) = needs_custom_http_transport(&config) {
-        if let Ok(handle) = cargo::ops::http_handle(&config) {
+        if let Ok(handle) = http_handle(&config) {
             unsafe {
                 git2_curl::register(handle);
             }
@@ -77,10 +80,7 @@ pub fn execute(options: Options, config: &mut Config) -> CargoResult<i32> {
     config.nightly_features_allowed = true;
 
     config.configure(
-        options
-            .verbose
-            .try_into()
-            .expect("--verbose used too many times"),
+        options.verbose.into(),
         options.quiet,
         Some(&options.color.to_string().to_ascii_lowercase()),
         options.frozen(),
