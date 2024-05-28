@@ -6,6 +6,7 @@ use std::{
     io::{Read, Write},
     path::{Path, PathBuf},
     rc::Rc,
+    task::Poll,
 };
 
 use anyhow::{anyhow, Context};
@@ -16,7 +17,7 @@ use cargo::{
         config::SourceConfigMap,
         source::{QueryKind, Source},
     },
-    util::{cache_lock::CacheLockMode, network::PollExt, CargoResult, Config},
+    util::{cache_lock::CacheLockMode, CargoResult, Config},
 };
 use semver::{Version, VersionReq};
 use tempfile::{Builder, TempDir};
@@ -399,9 +400,13 @@ impl<'tmp> TempProject<'tmp> {
             }
             source.block_until_ready()?;
             let dependency = Dependency::parse(name, None, source_id)?;
-            let mut query_result = source
-                .query_vec(&dependency, QueryKind::Exact)?
-                .expect("Source should be ready");
+            let query_result_poll = source.query_vec(&dependency, QueryKind::Exact)?;
+            let mut query_result = match query_result_poll {
+                Poll::Ready(query_result) => query_result,
+                Poll::Pending => {
+                    anyhow::bail!("Querying source was unexpectedly pending")
+                }
+            };
             query_result.sort_by(|a, b| b.version().cmp(a.version()));
             query_result
         };
