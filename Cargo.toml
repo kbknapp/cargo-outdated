@@ -20,14 +20,14 @@ license = "MIT"
 readme = "README.md"
 repository = "https://github.com/kbknapp/cargo-outdated.git"
 description = "Cargo subcommand for displaying when dependencies are out of date"
-rust-version = "1.73.0" # MSRV
+rust-version = "1.76.0" # MSRV
 
 [[bin]]
 name = "cargo-outdated"
 
 [dependencies]
 anyhow = "1.0"
-cargo = "0.76.0"
+cargo = "0.81"
 env_logger = "0.10.0"
 git2-curl = "0.19.0"
 semver = "1.0.0"
@@ -42,6 +42,7 @@ strum = { version = "0.25.0", features = ["derive"] }
 [features]
 debug = []
 vendored-openssl = ["cargo/vendored-openssl"]
+vendored-libgit2 = ["cargo/vendored-libgit2"]
 default = []
 
 [profile.release]

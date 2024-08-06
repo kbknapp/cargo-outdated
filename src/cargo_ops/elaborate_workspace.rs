@@ -18,7 +18,7 @@ use cargo::{
         Dependency, FeatureValue, Package, PackageId, Workspace,
     },
     ops::{self, Packages},
-    util::{interning::InternedString, CargoResult, Config},
+    util::{interning::InternedString, CargoResult, GlobalContext},
 };
 use serde::{Deserialize, Serialize};
 use tabwriter::TabWriter;
@@ -87,7 +87,7 @@ impl<'ela> ElaborateWorkspace<'ela> {
         // The CompileKind, this has no target since it's the temp workspace
         // targets are blank since we don't need to fully build for the targets to get
         // the dependencies
-        let compile_kind = CompileKind::from_requested_targets(workspace.config(), &[])?;
+        let compile_kind = CompileKind::from_requested_targets(workspace.gctx(), &[])?;
         let mut target_data = RustcTargetData::new(workspace, &compile_kind)?;
         let ws_resolve = ops::resolve_ws_with_opts(
             workspace,
@@ -97,8 +97,6 @@ impl<'ela> ElaborateWorkspace<'ela> {
             &specs,
             HasDevUnits::Yes,
             ForceAllTargets::Yes,
-            // TODO: respect MSRV here
-            None,
         )?;
         let packages = ws_resolve.pkg_set;
         let resolve = ws_resolve
@@ -215,7 +213,7 @@ impl<'ela> ElaborateWorkspace<'ela> {
         compat: &ElaborateWorkspace<'_>,
         latest: &ElaborateWorkspace<'_>,
         options: &Options,
-        _config: &Config,
+        _gctx: &GlobalContext,
         root: PackageId,
         skip: &HashSet<String>,
     ) -> CargoResult<()> {
@@ -240,7 +238,7 @@ impl<'ela> ElaborateWorkspace<'ela> {
                 latest: Status::from_versions(pkg.version(), latest_pkg.map(PackageId::version)),
             };
             debug!(
-                _config,
+                _gctx,
                 "STATUS => PKG: {}; PATH: {:?}; COMPAT: {:?}; LATEST: {:?}; STATUS: {:?}",
                 pkg,
                 path,
