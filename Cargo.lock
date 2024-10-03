@@ -466,7 +466,7 @@ version = "4.5.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4ac6a0c7b1a9e9a5186361f67dfa1b88213572f427fb9ab038efb2bd8c582dab"
 dependencies = [
- "heck 0.5.0",
+ "heck",
  "proc-macro2",
  "quote",
  "syn",
@@ -801,16 +801,26 @@ dependencies = [
 ]
 
 [[package]]
-name = "env_logger"
-version = "0.10.2"
+name = "env_filter"
+version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4cd405aab171cb85d6735e5c8d9db038c17d3ca007a4d2c25f337935c3d90580"
+checksum = "4f2c92ceda6ceec50f43169f9ee8424fe2db276791afde7b2cd8bc084cb376ab"
 dependencies = [
- "humantime",
- "is-terminal",
  "log",
  "regex",
- "termcolor",
+]
+
+[[package]]
+name = "env_logger"
+version = "0.11.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e13fa619b91fb2381732789fc5de83b45675e882f66623b7d8cb4f643017018d"
+dependencies = [
+ "anstream",
+ "anstyle",
+ "env_filter",
+ "humantime",
+ "log",
 ]
 
 [[package]]
@@ -1811,21 +1821,9 @@ dependencies = [
 
 [[package]]
 name = "heck"
-version = "0.4.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "95505c38b4572b2d910cecb0281560f54b440a19336cbbcb27bf6ce6adc6f5a8"
-
-[[package]]
-name = "heck"
 version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2304e00983f87ffb38b55b444b5e3b60a884b5d30c0fca7d82fe33449bbe55ea"
-
-[[package]]
-name = "hermit-abi"
-version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fbf6a919d6cf397374f7dfeeea91d974c7c0a7221d0d0f4f20d859d329e53fcc"
 
 [[package]]
 name = "hex"
@@ -2052,17 +2050,6 @@ checksum = "62f822373a4fe84d4bb149bf54e584a7f4abec90e072ed49cda0edea5b95471f"
 dependencies = [
  "equivalent",
  "hashbrown 0.15.2",
-]
-
-[[package]]
-name = "is-terminal"
-version = "0.4.13"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "261f68e344040fbd0edea105bef17c66edf46f984ddb1115b775ce31be948f4b"
-dependencies = [
- "hermit-abi",
- "libc",
- "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -3081,20 +3068,20 @@ checksum = "7da8b5736845d9f2fcb837ea5d9e2628564b3b043a70948a3f0b778838c5fb4f"
 
 [[package]]
 name = "strum"
-version = "0.25.0"
+version = "0.26.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "290d54ea6f91c969195bdbcd7442c8c2a2ba87da8bf60a7ee86a235d4bc1e125"
+checksum = "8fec0f0aef304996cf250b31b5a10dee7980c85da9d759361292b8bca5a18f06"
 dependencies = [
  "strum_macros",
 ]
 
 [[package]]
 name = "strum_macros"
-version = "0.25.3"
+version = "0.26.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "23dc1fa9ac9c169a78ba62f0b841814b7abae11bdd047b9c58f893439e309ea0"
+checksum = "4c6bee85a5a24955dc440386795aa378cd9cf82acd5f764469152d2270e581be"
 dependencies = [
- "heck 0.4.1",
+ "heck",
  "proc-macro2",
  "quote",
  "rustversion",
@@ -3171,15 +3158,6 @@ dependencies = [
  "once_cell",
  "rustix",
  "windows-sys 0.59.0",
-]
-
-[[package]]
-name = "termcolor"
-version = "1.4.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "06794f8f6c5c898b3275aebefa6b8a1cb24cd2c6c79397ab15774837a0bc5755"
-dependencies = [
- "winapi-util",
 ]
 
 [[package]]
