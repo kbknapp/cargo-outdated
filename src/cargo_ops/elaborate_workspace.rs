@@ -317,8 +317,8 @@ impl<'ela> ElaborateWorkspace<'ela> {
                         "{}\t{}\t{}\t{}\t{:?}\t{}\n",
                         label,
                         pkg.version(),
-                        status.compat.to_string(),
-                        status.latest.to_string(),
+                        status.compat,
+                        status.latest,
                         dependency.kind(),
                         dependency
                             .platform()
@@ -331,8 +331,8 @@ impl<'ela> ElaborateWorkspace<'ela> {
                         "{}\t{}\t{}\t{}\t---\t---\n",
                         name,
                         pkg.version(),
-                        status.compat.to_string(),
-                        status.latest.to_string()
+                        status.compat,
+                        status.latest
                     );
                     lines.insert(line);
                 }
