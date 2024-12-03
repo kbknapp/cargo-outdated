@@ -1,3 +1,5 @@
+use std::fmt;
+
 use semver::Version;
 
 /// Enum which represents the update status of a package
@@ -24,12 +26,12 @@ impl Status {
     pub fn is_changed(&self) -> bool { !matches!(*self, Status::Unchanged) }
 }
 
-impl ::std::string::ToString for Status {
-    fn to_string(&self) -> String {
-        match *self {
-            Status::Unchanged => "---".to_owned(),
-            Status::Removed => "Removed".to_owned(),
-            Status::Version(ref v) => v.to_string(),
+impl fmt::Display for Status {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Status::Unchanged => write!(f, "---"),
+            Status::Removed => write!(f, "Removed"),
+            Status::Version(version) => version.fmt(f),
         }
     }
 }
