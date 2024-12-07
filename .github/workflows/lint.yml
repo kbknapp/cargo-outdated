@@ -56,11 +56,11 @@ jobs:
       - name: MSRV Check
         if: ${{ matrix.rust == '1.81.0' }}
         # Note we have to actually _run_ the application to check the MSRV.
-        # The standard `cargo check` may successfully build on an earlier 
+        # The standard `cargo check` may successfully build on an earlier
         # Rust, but cargo-oudated by not be able to successfully run in such
         # environments.
         #
-        # Note2: we exclude git2-curl because it requires libgit2-sys which 
-        # must match the same version that our internal cargo transitively 
+        # Note2: we exclude git2-curl because it requires libgit2-sys which
+        # must match the same version that our internal cargo transitively
         # requires
         run: cargo run -- outdated -x git2-curl
