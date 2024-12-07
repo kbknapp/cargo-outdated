@@ -39,7 +39,7 @@ jobs:
         echo "::set-output name=name::${ARCHIVE_NAME}.zip"
 
     - name: Upload artifacts
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v4
       with:
         name: ${{ steps.package.outputs.name }}
         path: ${{ steps.package.outputs.file }}
@@ -99,7 +99,7 @@ jobs:
         echo ::set-output "name=file::${TAR_FILE}.tar.gz "
 
     - name: Upload artifacts
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v4
       with:
         name: ${{ steps.package.outputs.name }}
         path: ${{ steps.package.outputs.file }}
