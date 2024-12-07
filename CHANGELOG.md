@@ -1,3 +1,15 @@
+<a name="v0.16.0"></a>
+
+### v0.16.0 (2024-12-07)
+
+#### Changes
+
+* MSRV is now as 1.81.0
+
+#### Maintenance
+
+* Update `cargo` and other dependencies to get project building again. ([#403](https://github.com/kbknapp/cargo-outdated/pull/403))
+
 <a name="v0.15.0"></a>
 ### v0.15.0 (2024-02-26)
 
