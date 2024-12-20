@@ -343,7 +343,7 @@ dependencies = [
 
 [[package]]
 name = "cargo-outdated"
-version = "0.15.0"
+version = "0.16.0"
 dependencies = [
  "anyhow",
  "cargo",
@@ -351,6 +351,7 @@ dependencies = [
  "env_logger",
  "git2-curl",
  "pretty_assertions",
+ "rustc-hash",
  "semver",
  "serde",
  "serde_json",
@@ -2768,6 +2769,12 @@ dependencies = [
  "libsqlite3-sys",
  "smallvec",
 ]
+
+[[package]]
+name = "rustc-hash"
+version = "2.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c7fb8039b3032c191086b10f11f319a6e99e1e82889c5cc6046f515c9db1d497"
 
 [[package]]
 name = "rustfix"
