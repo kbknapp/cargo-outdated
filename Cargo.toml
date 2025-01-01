@@ -38,6 +38,7 @@ tempfile = "3.6"
 toml = "0.8.6"
 clap = { version = "4.1.4", features = ["derive"] }
 strum = { version = "0.26.3", features = ["derive"] }
+rustc-hash = "2.0"
 
 [features]
 debug = []

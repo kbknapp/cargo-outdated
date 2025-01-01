@@ -20,6 +20,7 @@ use cargo::{
     ops::{self, Packages},
     util::{context::GlobalContext, interning::InternedString, CargoResult},
 };
+use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use tabwriter::TabWriter;
 
@@ -31,10 +32,10 @@ use super::{pkg_status::*, Options};
 /// the update status of packages
 pub struct ElaborateWorkspace<'ela> {
     pub workspace: &'ela Workspace<'ela>,
-    pub pkgs: HashMap<PackageId, Package>,
-    pub pkg_deps: HashMap<PackageId, HashMap<PackageId, Dependency>>,
+    pub pkgs: FxHashMap<PackageId, Package>,
+    pub pkg_deps: FxHashMap<PackageId, FxHashMap<PackageId, Dependency>>,
     /// Map of package status
-    pub pkg_status: RefCell<HashMap<Vec<PackageId>, PkgStatus>>,
+    pub pkg_status: RefCell<FxHashMap<Vec<PackageId>, PkgStatus>>,
     /// Whether using workspace mode
     pub workspace_mode: bool,
 }
@@ -103,13 +104,13 @@ impl<'ela> ElaborateWorkspace<'ela> {
         let resolve = ws_resolve
             .workspace_resolve
             .expect("Error getting workspace resolved");
-        let mut pkgs = HashMap::new();
-        let mut pkg_deps = HashMap::new();
+        let mut pkgs = FxHashMap::default();
+        let mut pkg_deps = FxHashMap::default();
         for pkg in packages.get_many(packages.package_ids())? {
             let pkg_id = pkg.package_id();
             pkgs.insert(pkg_id, pkg.clone());
             let deps = pkg.dependencies();
-            let mut dep_map = HashMap::new();
+            let mut dep_map = FxHashMap::default();
             for dep_id in resolve.deps(pkg_id) {
                 for d in deps {
                     if d.matches_id(dep_id.0) {
@@ -125,7 +126,7 @@ impl<'ela> ElaborateWorkspace<'ela> {
             workspace,
             pkgs,
             pkg_deps,
-            pkg_status: RefCell::new(HashMap::new()),
+            pkg_status: RefCell::new(FxHashMap::default()),
             workspace_mode: options.workspace || workspace.current().is_err(),
         })
     }
