@@ -27,7 +27,7 @@ name = "cargo-outdated"
 
 [dependencies]
 anyhow = "1.0"
-cargo = "0.84.0"
+cargo = "0.86.0"
 env_logger = "0.11.5"
 git2-curl = "0.20.0"
 semver = "1.0.0"
