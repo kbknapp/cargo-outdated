@@ -41,7 +41,13 @@ term_size->libc  0.2.18   0.2.29  0.2.29   Normal       cfg(not(target_os = "win
 
 <a href="https://repology.org/project/cargo-outdated/versions"><img align="right" src="https://repology.org/badge/vertical-allrepos/cargo-outdated.svg" alt="Packaging status"></a>
 
-The latest version of `cargo-outdated` can be installed or updated with `cargo install`:
+Prebuilt versions of `cargo-outdated` can be downloaded using [`cargo binstall`](https://github.com/cargo-bins/cargo-binstall):
+
+```
+cargo binstall cargo-outdated
+```
+
+To build from source, `cargo-outdated` can be installed or updated with `cargo install`:
 
 ```sh
 cargo install --locked cargo-outdated
@@ -136,8 +142,8 @@ Options:
 
 ## Minimum Supported Rust Version (MSRV)
 
-The MSRV of this crate is what is required to _run_ `cargo outdated`, you may be able to compile 
-`cargo outdated` itself on an earlier version of Rust. However, because `cargo outdated` uses 
+The MSRV of this crate is what is required to _run_ `cargo outdated`, you may be able to compile
+`cargo outdated` itself on an earlier version of Rust. However, because `cargo outdated` uses
 `cargo` internally, it requires a specific minimum version to run successfully.
 
 The current MSRV can be found in the `Cargo.toml` under the `package.rust-version` field.
