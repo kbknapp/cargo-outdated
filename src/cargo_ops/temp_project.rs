@@ -6,6 +6,7 @@ use std::{
     io::{Read, Write},
     path::{Path, PathBuf},
     rc::Rc,
+    task::Poll,
 };
 
 use anyhow::{anyhow, Context};
@@ -16,7 +17,7 @@ use cargo::{
         config::SourceConfigMap,
         source::{QueryKind, Source},
     },
-    util::{cache_lock::CacheLockMode, context::GlobalContext, network::PollExt, CargoResult},
+    util::{cache_lock::CacheLockMode, context::GlobalContext, CargoResult},
 };
 use semver::{Version, VersionReq};
 use tempfile::{Builder, TempDir};
@@ -399,12 +400,19 @@ impl<'tmp> TempProject<'tmp> {
             }
             source.block_until_ready()?;
             let dependency = Dependency::parse(name, None, source_id)?;
-            let mut query_result = source
-                .query_vec(&dependency, QueryKind::Exact)?
-                .expect("Source should be ready")
+            let query_result = match source.query_vec(&dependency, QueryKind::Exact)? {
+                Poll::Ready(query_result) => query_result,
+                Poll::Pending => {
+                    // querying private registry might fail / timeout, but let's just report an
+                    // error here instead of panicking
+                    anyhow::bail!("Querying source was unexpectedly pending")
+                }
+            };
+            let mut query_result = query_result
                 .into_iter()
                 .map(|index_summary| index_summary.into_summary())
                 .collect::<Vec<_>>();
+
             query_result.sort_by(|a, b| b.version().cmp(a.version()));
             query_result
         };
