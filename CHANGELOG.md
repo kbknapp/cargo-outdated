@@ -51,8 +51,8 @@
 
 #### Changes
 
-* MSRV is now properly noted as 1.67.0. A note has been added that while you may be able to compile 
-  on an earlier version of Rust, the MSRV is what is required to _run_ `cargo-oudated` because it 
+* MSRV is now properly noted as 1.67.0. A note has been added that while you may be able to compile
+  on an earlier version of Rust, the MSRV is what is required to _run_ `cargo-outdated` because it
   uses `cargo` internally.
 
 #### Maintenance
@@ -366,4 +366,3 @@
 
 * **CHANGELOG.md:**  adds a changelog ([9d1c1601](https://github.com/kbknapp/cargo-outdated/commit/9d1c1601c0729a6f60d51c86936a061f1376b06a))
 * **README.md:**  adds a readme ([67bc5556](https://github.com/kbknapp/cargo-outdated/commit/67bc555669159f11907f9bb90913e45af232b277))
-
