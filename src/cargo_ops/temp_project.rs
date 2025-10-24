@@ -395,7 +395,7 @@ impl<'tmp> TempProject<'tmp> {
             let _lock = ws_context.acquire_package_cache_lock(CacheLockMode::DownloadExclusive)?;
             let source_config = SourceConfigMap::new(ws_context)?;
             let mut source = source_config.load(source_id, &HashSet::new())?;
-            if !source_id.is_crates_io() {
+            if !source_id.is_crates_io() && !source_id.is_sparse() {
                 source.invalidate_cache();
             }
             source.block_until_ready()?;
