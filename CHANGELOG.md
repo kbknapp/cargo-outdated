@@ -1,3 +1,32 @@
+<a name="v0.18.0"></a>
+
+### v0.18.0 (2025-10-27)
+
+#### Changes
+
+* MSRV is now 1.84.0
+
+#### Maintenance
+
+* fix: deal more gracefully with private registries by @jrudolph in https://github.com/kbknapp/cargo-outdated/pull/391
+* feat: bump to use libgit2 1.9 by @chenrui333 in https://github.com/kbknapp/cargo-outdated/pull/417
+* chore(deps): bump crossbeam-channel from 0.5.13 to 0.5.15 by @dependabot[bot] in https://github.com/kbknapp/cargo-outdated/pull/418
+* chore(deps): bump tracing-subscriber from 0.3.19 to 0.3.20 by @dependabot[bot] in https://github.com/kbknapp/cargo-outdated/pull/421
+* fix: support sparse registries by @robjtede in https://github.com/kbknapp/cargo-outdated/pull/422
+
+<a name="v0.17.0"></a>
+
+### v0.17.0 (2025-03-17)
+
+#### Changes
+
+* MSRV is now 1.83.0
+* Use fxhashmap for speed
+
+#### Maintenance
+
+* Update `cargo` to enable support for edition 2024. ([#403](https://github.com/kbknapp/cargo-outdated/pull/410))
+
 <a name="v0.16.0"></a>
 
 ### v0.16.0 (2024-12-07)
