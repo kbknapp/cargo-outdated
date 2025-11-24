@@ -29,9 +29,9 @@ jobs:
         with:
           toolchain: ${{ matrix.rust }}
       - name: Cache Builds
-        uses: Swatinem/rust-cache@v1
+        uses: Swatinem/rust-cache@v2
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
       - name: Remove rust-toolchain.toml
         # contains nightly & linters/formatters
         shell: bash
@@ -56,9 +56,9 @@ jobs:
         with:
           toolchain: ${{ matrix.rust }}
       - name: Cache Builds
-        uses: Swatinem/rust-cache@v1
+        uses: Swatinem/rust-cache@v2
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
       - name: Remove rust-toolchain.toml
         # contains nightly & linters/formatters
         shell: bash
@@ -83,9 +83,9 @@ jobs:
         with:
           toolchain: ${{ matrix.rust }}
       - name: Cache Builds
-        uses: Swatinem/rust-cache@v1
+        uses: Swatinem/rust-cache@v2
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
       - name: Remove rust-toolchain.toml
         # contains nightly & linters/formatters
         shell: bash

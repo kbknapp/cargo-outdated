@@ -48,7 +48,7 @@ jobs:
           toolchain: ${{ matrix.rust }}
           targets: ${{ matrix.target }}
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
       - name: Remove rust-toolchain.toml
         # contains nightly & linters/formatters
         shell: bash
