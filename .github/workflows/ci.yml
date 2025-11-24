@@ -81,9 +81,13 @@ jobs:
       - name: Install Just
         run: cargo install just cargo-nextest
 
-      - name: Install linker
+      - name: Install MinGW
         if: matrix.target == 'x86_64-pc-windows-gnu'
-        uses: egor-tensin/setup-mingw@v2
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          install: mingw-w64-x86_64-gcc
+          update: true
 
       - name: OpenSSL Libs
         if: matrix.os == 'ubuntu-latest'
