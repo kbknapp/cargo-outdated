@@ -15,31 +15,53 @@ jobs:
     strategy:
       fail-fast: true
       matrix:
-        rust: [stable, beta]
-        os: [windows-latest, macOS-latest, ubuntu-latest]
-        target:
-          - x86_64-pc-windows-msvc
-          - x86_64-pc-windows-gnu
-          - x86_64-unknown-linux-gnu
-          - x86_64-apple-darwin
-        exclude:
-          # Exclude combinations that don't make sense
+        include:
+          # Windows x86_64
           - os: windows-latest
-            target: x86_64-apple-darwin
+            rust: stable
+            target: x86_64-pc-windows-msvc
           - os: windows-latest
-            target: x86_64-unknown-linux-gnu
-          - os: macos-latest
+            rust: beta
             target: x86_64-pc-windows-msvc
-          - os: macos-latest
+          - os: windows-latest
+            rust: stable
             target: x86_64-pc-windows-gnu
-          - os: macos-latest
-            target: x86_64-unknown-linux-gnu
-          - os: ubuntu-latest
-            target: x86_64-pc-windows-msvc
-          - os: ubuntu-latest
+          - os: windows-latest
+            rust: beta
             target: x86_64-pc-windows-gnu
-          - os: ubuntu-latest
+
+          # macOS x86_64
+          - os: macos-15-intel
+            rust: stable
             target: x86_64-apple-darwin
+          - os: macos-15-intel
+            rust: beta
+            target: x86_64-apple-darwin
+
+          # macOS ARM64 (Apple Silicon)
+          - os: macos-latest
+            rust: stable
+            target: aarch64-apple-darwin
+          - os: macos-latest
+            rust: beta
+            target: aarch64-apple-darwin
+
+          # Linux x86_64
+          - os: ubuntu-latest
+            rust: stable
+            target: x86_64-unknown-linux-gnu
+          - os: ubuntu-latest
+            rust: beta
+            target: x86_64-unknown-linux-gnu
+
+          # Linux aarch64
+          - os: ubuntu-24.04-arm
+            rust: stable
+            target: aarch64-unknown-linux-gnu
+          - os: ubuntu-24.04-arm
+            rust: beta
+            target: aarch64-unknown-linux-gnu
+
     runs-on: ${{ matrix.os }}
     steps:
       - name: Install rust
@@ -47,21 +69,27 @@ jobs:
         with:
           toolchain: ${{ matrix.rust }}
           targets: ${{ matrix.target }}
+
       - name: Checkout
         uses: actions/checkout@v4
+
       - name: Remove rust-toolchain.toml
         # contains nightly & linters/formatters
         shell: bash
         run: rm -f rust-toolchain.toml
+
       - name: Install Just
         run: cargo install just cargo-nextest
+
       - name: Install linker
         if: matrix.target == 'x86_64-pc-windows-gnu'
         uses: egor-tensin/setup-mingw@v2
+
       - name: OpenSSL Libs
         if: matrix.os == 'ubuntu-latest'
         run: |
           sudo apt-get update
           sudo apt-get install libssl-dev
+
       - name: Test
         run: just test
