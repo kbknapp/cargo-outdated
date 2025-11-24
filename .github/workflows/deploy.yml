@@ -9,12 +9,13 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
+      - name: Remove rust-toolchain.toml
+        # contains nightly & linters/formatters
+        shell: bash
+        run: rm -f rust-toolchain.toml
+
       - name: Install stable
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          override: true
+        uses: dtolnay/rust-toolchain@stable
 
       - name: Build cargo-outdated
         run: |
@@ -63,13 +64,14 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
+      - name: Remove rust-toolchain.toml
+        # contains nightly & linters/formatters
+        run: rm -f rust-toolchain.toml
+
       - name: Install Rust
-        uses: actions-rs/toolchain@v1
+        uses: dtolnay/rust-toolchain@stable
         with:
-          profile: minimal
-          toolchain: stable
-          target: ${{ matrix.target }}
-          override: true
+          targets: ${{ matrix.target }}
 
       - name: Install musl
         if: contains(matrix.target, 'linux-musl')
@@ -115,12 +117,12 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
+      - name: Remove rust-toolchain.toml
+        # contains nightly & linters/formatters
+        run: rm -f rust-toolchain.toml
+
       - name: Install Rust stable
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          override: true
+        uses: dtolnay/rust-toolchain@stable
 
       - name: Create Cargo.lock
         run: |

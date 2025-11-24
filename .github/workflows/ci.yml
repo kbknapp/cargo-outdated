@@ -43,14 +43,16 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - name: Install rust
-        uses: actions-rs/toolchain@v1
+        uses: dtolnay/rust-toolchain@master
         with:
-          profile: minimal
           toolchain: ${{ matrix.rust }}
-          target: ${{ matrix.target }}
-          override: true
+          targets: ${{ matrix.target }}
       - name: Checkout
         uses: actions/checkout@v2
+      - name: Remove rust-toolchain.toml
+        # contains nightly & linters/formatters
+        shell: bash
+        run: rm -f rust-toolchain.toml
       - name: Install Just
         run: cargo install just cargo-nextest
       - name: Install linker
