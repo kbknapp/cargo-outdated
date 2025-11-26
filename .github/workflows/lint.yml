@@ -54,10 +54,10 @@ jobs:
 
       - name: Clippy
         if: ${{ matrix.rust == 'stable' }}
-        # Need to re-add rustfmt clippy in the nightly toolchain for "just"
         run: |
-          rustup component add --toolchain nightly-x86_64-unknown-linux-gnu rustfmt clippy
-          just lint
+          cargo clippy --all-targets -- -Dwarnings
+          cargo clippy --all-targets --no-default-features -- -Dwarnings
+          cargo clippy --all-targets --all-features -- -Dwarnings
 
       - name: MSRV Check
         if: ${{ matrix.rust == '1.84.0' }}
