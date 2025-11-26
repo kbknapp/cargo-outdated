@@ -21,29 +21,17 @@ jobs:
             rust: stable
             target: x86_64-pc-windows-msvc
           - os: windows-latest
-            rust: beta
-            target: x86_64-pc-windows-msvc
-          - os: windows-latest
             rust: stable
-            target: x86_64-pc-windows-gnu
-          - os: windows-latest
-            rust: beta
             target: x86_64-pc-windows-gnu
 
           # macOS x86_64
           - os: macos-15-intel
             rust: stable
             target: x86_64-apple-darwin
-          - os: macos-15-intel
-            rust: beta
-            target: x86_64-apple-darwin
 
           # macOS ARM64 (Apple Silicon)
           - os: macos-latest
             rust: stable
-            target: aarch64-apple-darwin
-          - os: macos-latest
-            rust: beta
             target: aarch64-apple-darwin
 
           # Linux x86_64
