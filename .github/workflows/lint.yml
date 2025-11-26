@@ -21,7 +21,7 @@ jobs:
           - stable
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Remove rust-toolchain.toml
         # contains nightly & linters/formatters

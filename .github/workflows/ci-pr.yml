@@ -31,7 +31,7 @@ jobs:
       - name: Cache Builds
         uses: Swatinem/rust-cache@v2
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Remove rust-toolchain.toml
         # contains nightly & linters/formatters
         shell: bash
@@ -58,7 +58,7 @@ jobs:
       - name: Cache Builds
         uses: Swatinem/rust-cache@v2
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Remove rust-toolchain.toml
         # contains nightly & linters/formatters
         shell: bash
@@ -85,7 +85,7 @@ jobs:
       - name: Cache Builds
         uses: Swatinem/rust-cache@v2
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Remove rust-toolchain.toml
         # contains nightly & linters/formatters
         shell: bash
