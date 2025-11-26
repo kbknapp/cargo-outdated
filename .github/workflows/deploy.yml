@@ -5,16 +5,27 @@ on:
       - "v*.*.*"
 jobs:
   create-windows-binaries:
-    runs-on: windows-latest
+    strategy:
+      matrix:
+        os: [windows-latest, windows-11-arm]
+        include:
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+          - os: windows-11-arm
+            target: aarch64-pc-windows-msvc
+
+    runs-on: ${{ matrix.os }}
+
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v5
+
+      - name: Remove rust-toolchain.toml
+        # contains nightly & linters/formatters
+        shell: bash
+        run: rm -f rust-toolchain.toml
 
       - name: Install stable
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          override: true
+        uses: dtolnay/rust-toolchain@stable
 
       - name: Build cargo-outdated
         run: |
@@ -25,18 +36,17 @@ jobs:
         id: tagName
         run: |
           VERSION=$(cargo pkgid | cut -d# -f2 | cut -d: -f2)
-          echo "::set-output name=tag::$VERSION"
+          echo "tag=$VERSION" >> $GITHUB_OUTPUT
 
       - name: Build package
         id: package
         shell: bash
         run: |
-          ARCHIVE_TARGET="x86_64-pc-windows-msvc"
-          ARCHIVE_NAME="cargo-outdated-${{ steps.tagName.outputs.tag }}-$ARCHIVE_TARGET"
+          ARCHIVE_NAME="cargo-outdated-${{ steps.tagName.outputs.tag }}-${{ matrix.target }}"
           ARCHIVE_FILE="${ARCHIVE_NAME}.zip"
           7z a ${ARCHIVE_FILE} ./target/release/cargo-outdated.exe
-          echo "::set-output name=file::${ARCHIVE_FILE}"
-          echo "::set-output name=name::${ARCHIVE_NAME}.zip"
+          echo "file=${ARCHIVE_FILE}" >> $GITHUB_OUTPUT
+          echo "name=${ARCHIVE_NAME}.zip" >> $GITHUB_OUTPUT
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
@@ -47,25 +57,30 @@ jobs:
   create-unix-binaries:
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        os: [ubuntu-latest, ubuntu-24.04-arm, macos-15-intel, macos-latest]
         include:
           - os: ubuntu-latest
             target: x86_64-unknown-linux-musl
-          - os: macos-latest
+          - os: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-musl
+          - os: macos-15-intel
             target: x86_64-apple-darwin
+          - os: macos-latest
+            target: aarch64-apple-darwin
 
     runs-on: ${{ matrix.os }}
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v5
+
+      - name: Remove rust-toolchain.toml
+        # contains nightly & linters/formatters
+        run: rm -f rust-toolchain.toml
 
       - name: Install Rust
-        uses: actions-rs/toolchain@v1
+        uses: dtolnay/rust-toolchain@stable
         with:
-          profile: minimal
-          toolchain: stable
-          target: ${{ matrix.target }}
-          override: true
+          targets: ${{ matrix.target }}
 
       - name: Install musl
         if: contains(matrix.target, 'linux-musl')
@@ -86,7 +101,7 @@ jobs:
         id: tagName
         run: |
           VERSION=$(cargo pkgid | cut -d# -f2 | cut -d: -f2)
-          echo "::set-output name=tag::$VERSION"
+          echo "tag=$VERSION" >> $GITHUB_OUTPUT
 
       - name: Build package
         id: package
@@ -94,8 +109,8 @@ jobs:
           TAR_FILE=cargo-outdated-${{ steps.tagName.outputs.tag }}-${{ matrix.target }}
           cd target/${{ matrix.target }}/release
           tar -czvf $GITHUB_WORKSPACE/$TAR_FILE.tar.gz cargo-outdated
-          echo ::set-output "name=name::${TAR_FILE}"
-          echo ::set-output "name=file::${TAR_FILE}.tar.gz "
+          echo "name=${TAR_FILE}" >> $GITHUB_OUTPUT
+          echo "file=${TAR_FILE}.tar.gz" >> $GITHUB_OUTPUT
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
@@ -109,14 +124,14 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v5
+
+      - name: Remove rust-toolchain.toml
+        # contains nightly & linters/formatters
+        run: rm -f rust-toolchain.toml
 
       - name: Install Rust stable
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          override: true
+        uses: dtolnay/rust-toolchain@stable
 
       - name: Create Cargo.lock
         run: |
@@ -126,7 +141,7 @@ jobs:
         id: tagName
         run: |
           VERSION=$(cargo pkgid | cut -d# -f2 | cut -d: -f2)
-          echo "::set-output name=tag::$VERSION"
+          echo "tag=$VERSION" >> $GITHUB_OUTPUT
 
       - name: Download artifacts
         uses: actions/download-artifact@v4

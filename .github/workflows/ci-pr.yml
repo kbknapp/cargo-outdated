@@ -25,15 +25,17 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - name: Install rust
-        uses: actions-rs/toolchain@v1
+        uses: dtolnay/rust-toolchain@master
         with:
-          profile: minimal
           toolchain: ${{ matrix.rust }}
-          override: true
       - name: Cache Builds
-        uses: Swatinem/rust-cache@v1
+        uses: Swatinem/rust-cache@v2
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v5
+      - name: Remove rust-toolchain.toml
+        # contains nightly & linters/formatters
+        shell: bash
+        run: rm -f rust-toolchain.toml
       - name: Compile
         run: cargo test --no-run ${{ env.FLAGS }}
       - name: Test
@@ -50,15 +52,17 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - name: Install rust
-        uses: actions-rs/toolchain@v1
+        uses: dtolnay/rust-toolchain@master
         with:
-          profile: minimal
           toolchain: ${{ matrix.rust }}
-          override: true
       - name: Cache Builds
-        uses: Swatinem/rust-cache@v1
+        uses: Swatinem/rust-cache@v2
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v5
+      - name: Remove rust-toolchain.toml
+        # contains nightly & linters/formatters
+        shell: bash
+        run: rm -f rust-toolchain.toml
       - name: Compile
         run: cargo test --no-run ${{ env.FLAGS }}
       - name: Test
@@ -75,15 +79,17 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - name: Install rust
-        uses: actions-rs/toolchain@v1
+        uses: dtolnay/rust-toolchain@master
         with:
-          profile: minimal
           toolchain: ${{ matrix.rust }}
-          override: true
       - name: Cache Builds
-        uses: Swatinem/rust-cache@v1
+        uses: Swatinem/rust-cache@v2
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v5
+      - name: Remove rust-toolchain.toml
+        # contains nightly & linters/formatters
+        shell: bash
+        run: rm -f rust-toolchain.toml
       - name: Compile
         run: cargo build ${{ env.FLAGS }}
       - name: Test

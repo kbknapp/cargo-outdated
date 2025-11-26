@@ -21,7 +21,11 @@ jobs:
           - stable
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v5
+
+      - name: Remove rust-toolchain.toml
+        # contains nightly & linters/formatters
+        run: rm -f rust-toolchain.toml
 
       - name: OpenSSL Libs
         if: matrix.os == 'ubuntu-latest' && matrix.features == 'all'
@@ -29,14 +33,12 @@ jobs:
           sudo apt-get update
           sudo apt-get install libssl-dev
 
-      - uses: actions-rs/toolchain@v1
+      - uses: dtolnay/rust-toolchain@master
         with:
-          profile: minimal
-          components: clippy, rustfmt
           toolchain: ${{ matrix.rust }}
-          override: true
+          components: clippy, rustfmt
 
-      - uses: Swatinem/rust-cache@v1
+      - uses: Swatinem/rust-cache@v2
 
       - name: Spell Check
         uses: crate-ci/typos@master
@@ -47,11 +49,15 @@ jobs:
 
       - name: Check Formatting
         if: ${{ matrix.rust == 'nightly' }}
-        run: just fmt-check
+        run: |
+          just fmt-check
 
       - name: Clippy
         if: ${{ matrix.rust == 'stable' }}
-        run: just lint
+        run: |
+          cargo clippy --all-targets -- -Dwarnings
+          cargo clippy --all-targets --no-default-features -- -Dwarnings
+          cargo clippy --all-targets --all-features -- -Dwarnings
 
       - name: MSRV Check
         if: ${{ matrix.rust == '1.84.0' }}
