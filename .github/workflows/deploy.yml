@@ -5,7 +5,17 @@ on:
       - "v*.*.*"
 jobs:
   create-windows-binaries:
-    runs-on: windows-latest
+    strategy:
+      matrix:
+        os: [windows-latest, windows-11-arm]
+        include:
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+          - os: windows-11-arm
+            target: aarch64-pc-windows-msvc
+
+    runs-on: ${{ matrix.os }}
+
     steps:
       - uses: actions/checkout@v4
 
@@ -32,8 +42,7 @@ jobs:
         id: package
         shell: bash
         run: |
-          ARCHIVE_TARGET="x86_64-pc-windows-msvc"
-          ARCHIVE_NAME="cargo-outdated-${{ steps.tagName.outputs.tag }}-$ARCHIVE_TARGET"
+          ARCHIVE_NAME="cargo-outdated-${{ steps.tagName.outputs.tag }}-${{ matrix.target }}"
           ARCHIVE_FILE="${ARCHIVE_NAME}.zip"
           7z a ${ARCHIVE_FILE} ./target/release/cargo-outdated.exe
           echo "file=${ARCHIVE_FILE}" >> $GITHUB_OUTPUT
