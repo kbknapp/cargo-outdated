@@ -93,7 +93,13 @@ impl<'tmp> TempProject<'tmp> {
 
             // Resolve workspace = true references and strip [workspace.dependencies]
             if let Some(ref ws_deps) = ws_deps {
-                resolve_all_workspace_deps(&mut om, ws_deps, workspace_root)?;
+                // Member directory relative to workspace root (e.g. "tauri-app")
+                let member_rel_dir = if workspace_root_str.len() < from_dir_str.len() {
+                    PathBuf::from(&from_dir_str[workspace_root_str.len() + 1..])
+                } else {
+                    PathBuf::new()
+                };
+                resolve_all_workspace_deps(&mut om, ws_deps, &member_rel_dir)?;
 
                 if let Some(ref mut ws) = om.workspace {
                     ws.remove("dependencies");
@@ -739,6 +745,24 @@ impl<'tmp> TempProject<'tmp> {
     }
 }
 
+/// Rebase a path that is relative to the workspace root so that it becomes
+/// relative to `from_dir` (also relative to workspace root).
+///
+/// Example: `rebase_relative_path("tauri-app", "crates/api-service")`
+/// returns `"../crates/api-service"`.
+fn rebase_relative_path(from_dir: &Path, target: &Path) -> PathBuf {
+    let depth = from_dir.components().count();
+    let mut result = PathBuf::new();
+
+    for _ in 0..depth {
+        result.push("..");
+    }
+
+    result.push(target);
+
+    result
+}
+
 /// Load `[workspace.dependencies]` from a workspace root Cargo.toml.
 ///
 /// Parses the file as raw `toml::Value` (not `Manifest`) to avoid
@@ -766,13 +790,14 @@ fn load_workspace_deps(workspace_root: &Path) -> CargoResult<Option<Table>> {
 /// Resolve `workspace = true` references in a single dependency table
 /// by merging actual version/source info from workspace-level deps.
 ///
-/// Relative `path` values are made absolute (relative to `workspace_root`)
-/// so that downstream path handling doesn't misinterpret them as relative
-/// to the member directory.
+/// Workspace dep `path` values are relative to the workspace root. After
+/// flattening into a member manifest they must be rebased to be relative
+/// to the member's directory, so that the temp project structure resolves
+/// them correctly.
 fn resolve_workspace_deps(
     deps: &mut Table,
     ws_deps: &Table,
-    workspace_root: &Path,
+    member_rel_dir: &Path,
 ) -> CargoResult<()> {
     let dep_keys: Vec<_> = deps.keys().cloned().collect();
 
@@ -842,16 +867,17 @@ fn resolve_workspace_deps(
             }
         }
 
-        // Make relative paths absolute so they are not misinterpreted as
-        // relative to the member directory by `replace_path_with_absolute`.
+        // Rebase relative paths from workspace-root-relative to
+        // member-directory-relative so the temp project resolves them
+        // to the correct copy rather than the original source.
         if let Some(Value::String(ref p)) = resolved.get("path") {
             let dep_path = Path::new(p);
 
             if dep_path.is_relative() {
-                let abs_path = workspace_root.join(dep_path);
+                let rebased = rebase_relative_path(member_rel_dir, dep_path);
                 resolved.insert(
                     "path".to_owned(),
-                    Value::String(abs_path.to_string_lossy().to_string()),
+                    Value::String(rebased.to_string_lossy().to_string()),
                 );
             }
         }
@@ -867,18 +893,18 @@ fn resolve_workspace_deps(
 fn resolve_all_workspace_deps(
     manifest: &mut Manifest,
     ws_deps: &Table,
-    workspace_root: &Path,
+    member_rel_dir: &Path,
 ) -> CargoResult<()> {
     if let Some(ref mut deps) = manifest.dependencies {
-        resolve_workspace_deps(deps, ws_deps, workspace_root)?;
+        resolve_workspace_deps(deps, ws_deps, member_rel_dir)?;
     }
 
     if let Some(ref mut deps) = manifest.dev_dependencies {
-        resolve_workspace_deps(deps, ws_deps, workspace_root)?;
+        resolve_workspace_deps(deps, ws_deps, member_rel_dir)?;
     }
 
     if let Some(ref mut deps) = manifest.build_dependencies {
-        resolve_workspace_deps(deps, ws_deps, workspace_root)?;
+        resolve_workspace_deps(deps, ws_deps, member_rel_dir)?;
     }
 
     if let Some(ref mut targets) = manifest.target {
@@ -887,7 +913,7 @@ fn resolve_all_workspace_deps(
                 for dep_section in &["dependencies", "dev-dependencies", "build-dependencies"] {
                     if let Some(&mut Value::Table(ref mut dep_table)) = target.get_mut(*dep_section)
                     {
-                        resolve_workspace_deps(dep_table, ws_deps, workspace_root)?;
+                        resolve_workspace_deps(dep_table, ws_deps, member_rel_dir)?;
                     }
                 }
             }
