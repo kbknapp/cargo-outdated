@@ -93,7 +93,7 @@ impl<'tmp> TempProject<'tmp> {
 
             // Resolve workspace = true references and strip [workspace.dependencies]
             if let Some(ref ws_deps) = ws_deps {
-                resolve_all_workspace_deps(&mut om, ws_deps)?;
+                resolve_all_workspace_deps(&mut om, ws_deps, workspace_root)?;
 
                 if let Some(ref mut ws) = om.workspace {
                     ws.remove("dependencies");
@@ -765,7 +765,15 @@ fn load_workspace_deps(workspace_root: &Path) -> CargoResult<Option<Table>> {
 
 /// Resolve `workspace = true` references in a single dependency table
 /// by merging actual version/source info from workspace-level deps.
-fn resolve_workspace_deps(deps: &mut Table, ws_deps: &Table) -> CargoResult<()> {
+///
+/// Relative `path` values are made absolute (relative to `workspace_root`)
+/// so that downstream path handling doesn't misinterpret them as relative
+/// to the member directory.
+fn resolve_workspace_deps(
+    deps: &mut Table,
+    ws_deps: &Table,
+    workspace_root: &Path,
+) -> CargoResult<()> {
     let dep_keys: Vec<_> = deps.keys().cloned().collect();
 
     for key in dep_keys {
@@ -834,6 +842,20 @@ fn resolve_workspace_deps(deps: &mut Table, ws_deps: &Table) -> CargoResult<()> 
             }
         }
 
+        // Make relative paths absolute so they are not misinterpreted as
+        // relative to the member directory by `replace_path_with_absolute`.
+        if let Some(Value::String(ref p)) = resolved.get("path") {
+            let dep_path = Path::new(p);
+
+            if dep_path.is_relative() {
+                let abs_path = workspace_root.join(dep_path);
+                resolved.insert(
+                    "path".to_owned(),
+                    Value::String(abs_path.to_string_lossy().to_string()),
+                );
+            }
+        }
+
         deps.insert(key, Value::Table(resolved));
     }
 
@@ -842,17 +864,21 @@ fn resolve_workspace_deps(deps: &mut Table, ws_deps: &Table) -> CargoResult<()> 
 
 /// Resolve all `workspace = true` dep references across every dependency
 /// section in a manifest.
-fn resolve_all_workspace_deps(manifest: &mut Manifest, ws_deps: &Table) -> CargoResult<()> {
+fn resolve_all_workspace_deps(
+    manifest: &mut Manifest,
+    ws_deps: &Table,
+    workspace_root: &Path,
+) -> CargoResult<()> {
     if let Some(ref mut deps) = manifest.dependencies {
-        resolve_workspace_deps(deps, ws_deps)?;
+        resolve_workspace_deps(deps, ws_deps, workspace_root)?;
     }
 
     if let Some(ref mut deps) = manifest.dev_dependencies {
-        resolve_workspace_deps(deps, ws_deps)?;
+        resolve_workspace_deps(deps, ws_deps, workspace_root)?;
     }
 
     if let Some(ref mut deps) = manifest.build_dependencies {
-        resolve_workspace_deps(deps, ws_deps)?;
+        resolve_workspace_deps(deps, ws_deps, workspace_root)?;
     }
 
     if let Some(ref mut targets) = manifest.target {
@@ -861,7 +887,7 @@ fn resolve_all_workspace_deps(manifest: &mut Manifest, ws_deps: &Table) -> Cargo
                 for dep_section in &["dependencies", "dev-dependencies", "build-dependencies"] {
                     if let Some(&mut Value::Table(ref mut dep_table)) = target.get_mut(*dep_section)
                     {
-                        resolve_workspace_deps(dep_table, ws_deps)?;
+                        resolve_workspace_deps(dep_table, ws_deps, workspace_root)?;
                     }
                 }
             }
