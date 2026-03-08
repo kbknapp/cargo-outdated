@@ -398,14 +398,19 @@ impl<'tmp> TempProject<'tmp> {
             if !source_id.is_crates_io() && !source_id.is_sparse() {
                 source.invalidate_cache();
             }
-            source.block_until_ready()?;
             let dependency = Dependency::parse(name, None, source_id)?;
-            let query_result = match source.query_vec(&dependency, QueryKind::Exact)? {
-                Poll::Ready(query_result) => query_result,
-                Poll::Pending => {
-                    // querying private registry might fail / timeout, but let's just report an
-                    // error here instead of panicking
-                    anyhow::bail!("Querying source was unexpectedly pending")
+            // Query the source using the same poll loop pattern as cargo itself:
+            // https://github.com/rust-lang/cargo/blob/60400187f/src/cargo/core/resolver/errors.rs#L479-L488
+            //
+            // Sources (especially sparse registries) may return Poll::Pending on
+            // the first query to initiate an async fetch. Calling
+            // block_until_ready() drives the pending I/O to completion so the
+            // next query returns Poll::Ready.
+            let query_result = loop {
+                match source.query_vec(&dependency, QueryKind::Exact) {
+                    Poll::Ready(Ok(result)) => break result,
+                    Poll::Ready(Err(e)) => return Err(e),
+                    Poll::Pending => source.block_until_ready()?,
                 }
             };
             let mut query_result = query_result
