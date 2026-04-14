@@ -1,6 +1,6 @@
 use std::ffi::OsString;
 
-use clap::{error::Result, ArgAction, Parser, Subcommand, ValueEnum};
+use clap::{ArgAction, Parser, Subcommand, ValueEnum, error::Result};
 
 #[derive(ValueEnum, Copy, Clone, Debug, PartialEq, Default, strum::Display)]
 #[strum(ascii_case_insensitive, serialize_all = "lowercase")]

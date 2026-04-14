@@ -12,12 +12,12 @@ mod error;
 use std::collections::HashSet;
 
 use cargo::{
-    core::{shell::Verbosity, Workspace},
+    core::{Workspace, shell::Verbosity},
     util::{
+        CargoResult, CliError,
         context::GlobalContext,
         important_paths::find_root_manifest_for_wd,
         network::http::{http_handle, needs_custom_http_transport},
-        CargoResult, CliError,
     },
 };
 

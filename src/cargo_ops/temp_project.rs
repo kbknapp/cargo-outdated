@@ -9,22 +9,22 @@ use std::{
     task::Poll,
 };
 
-use anyhow::{anyhow, Context};
+use anyhow::{Context, anyhow};
 use cargo::{
     core::{Dependency, PackageId, Summary, Verbosity, Workspace},
-    ops::{update_lockfile, UpdateOptions},
+    ops::{UpdateOptions, update_lockfile},
     sources::{
         config::SourceConfigMap,
         source::{QueryKind, Source},
     },
-    util::{cache_lock::CacheLockMode, context::GlobalContext, CargoResult},
+    util::{CargoResult, cache_lock::CacheLockMode, context::GlobalContext},
 };
 use semver::{Version, VersionReq};
 use tempfile::{Builder, TempDir};
-use toml::{value::Table, Value};
+use toml::{Value, value::Table};
 
 use super::{ElaborateWorkspace, Manifest};
-use crate::{error::OutdatedError, Options};
+use crate::{Options, error::OutdatedError};
 
 /// A temporary project
 pub struct TempProject<'tmp> {

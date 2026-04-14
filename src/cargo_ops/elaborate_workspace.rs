@@ -9,16 +9,16 @@ use std::{
 use anyhow::anyhow;
 use cargo::{
     core::{
+        Dependency, FeatureValue, Package, PackageId, Workspace,
         compiler::{CompileKind, RustcTargetData},
         dependency::DepKind,
         resolver::{
-            features::{ForceAllTargets, HasDevUnits},
             CliFeatures,
+            features::{ForceAllTargets, HasDevUnits},
         },
-        Dependency, FeatureValue, Package, PackageId, Workspace,
     },
     ops::{self, Packages},
-    util::{context::GlobalContext, interning::InternedString, CargoResult},
+    util::{CargoResult, context::GlobalContext, interning::InternedString},
 };
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
@@ -26,7 +26,7 @@ use tabwriter::TabWriter;
 
 use crate::error::OutdatedError;
 
-use super::{pkg_status::*, Options};
+use super::{Options, pkg_status::*};
 
 /// An elaborate workspace containing resolved dependencies and
 /// the update status of packages
