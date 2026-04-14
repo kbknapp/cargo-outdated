@@ -1,5 +1,5 @@
 # https://rust-lang.github.io/rustfmt/?version=master&search=#edition
-edition = "2021"
+edition = "2024"
 # https://rust-lang.github.io/rustfmt/?version=master&search=#fn_single_line
 fn_single_line = true
 # https://rust-lang.github.io/rustfmt/?version=master&search=#format_code_in_doc_comments

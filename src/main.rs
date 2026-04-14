@@ -45,11 +45,11 @@ fn main() {
     // See cargo-outdated issue #197 and
     // https://github.com/rust-lang/cargo/blob/master/src/bin/cargo/main.rs#L181
     // fn init_git_transports()
-    if let Ok(true) = needs_custom_http_transport(&context) {
-        if let Ok(handle) = http_handle(&context) {
-            unsafe {
-                git2_curl::register(handle);
-            }
+    if let Ok(true) = needs_custom_http_transport(&context)
+        && let Ok(handle) = http_handle(&context)
+    {
+        unsafe {
+            git2_curl::register(handle);
         }
     }
 
