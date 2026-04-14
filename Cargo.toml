@@ -35,9 +35,9 @@ serde = {version="1.0.114", features = ["derive"]}
 serde_json = "1.0.56"
 tabwriter = "1.2.1"
 tempfile = "3.6"
-toml = "0.8.6"
+toml = "0.9"
 clap = { version = "4.1.4", features = ["derive"] }
-strum = { version = "0.26.3", features = ["derive"] }
+strum = { version = "0.28", features = ["derive"] }
 rustc-hash = "2.0"
 
 [features]
