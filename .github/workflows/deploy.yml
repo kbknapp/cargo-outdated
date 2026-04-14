@@ -133,10 +133,6 @@ jobs:
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Create Cargo.lock
-        run: |
-          cargo update
-
       - name: Get version
         id: tagName
         run: |
@@ -157,3 +153,25 @@ jobs:
             ./binaries/**/*.tar.gz
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  cargo-publish:
+    needs: [deploy]
+
+    permissions:
+      id-token: write
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Remove rust-toolchain.toml
+        # contains nightly & linters/formatters
+        run: rm -f rust-toolchain.toml
+
+      - uses: rust-lang/crates-io-auth-action@v1
+        id: auth
+
+      - run: cargo publish
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
