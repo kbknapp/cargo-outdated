@@ -1,3 +1,20 @@
+<a name="v0.19.0"></a>
+
+### v0.19.0 (2026-04-14)
+
+#### Changes
+
+* MSRV is now 1.88.0
+
+#### Maintenance
+
+* Publish ARM & x64 binaries on all platforms by @graelo in https://github.com/kbknapp/cargo-outdated/pull/426
+* chore(deps): bump rand from 0.9.0 to 0.9.4 by @dependabot[bot] in https://github.com/kbknapp/cargo-outdated/pull/435
+* chore(deps): bump bytes from 1.9.0 to 1.11.1 by @dependabot[bot] in https://github.com/kbknapp/cargo-outdated/pull/428
+* chore(deps): bump tar from 0.4.43 to 0.4.45 by @dependabot[bot] in https://github.com/kbknapp/cargo-outdated/pull/432
+* fix(registry): handle Poll::Pending from sparse registry source queries by @rconnol in https://github.com/kbknapp/cargo-outdated/pull/431
+* bump to cargo 0.91, MSRV 1.88, edition 2024 by @davidhewitt in https://github.com/kbknapp/cargo-outdated/pull/437
+
 <a name="v0.18.0"></a>
 
 ### v0.18.0 (2025-10-27)
