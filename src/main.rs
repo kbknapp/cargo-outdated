@@ -111,7 +111,12 @@ pub fn execute(options: Options, context: &mut GlobalContext) -> CargoResult<i32
     if options.verbose == 0 {
         context.shell().set_verbosity(Verbosity::Quiet);
     }
-    let ela_curr = ElaborateWorkspace::from_workspace(&curr_workspace, &options)?;
+
+    // Load workspace dependencies from the original workspace
+    let workspace_deps = cargo_ops::load_workspace_dep_names(curr_workspace.root())?;
+
+    let ela_curr =
+        ElaborateWorkspace::from_workspace(&curr_workspace, &options, workspace_deps.clone())?;
     if options.verbose > 0 {
         context.shell().set_verbosity(Verbosity::Verbose);
     } else {
@@ -137,6 +142,7 @@ pub fn execute(options: Options, context: &mut GlobalContext) -> CargoResult<i32
             .as_ref()
             .ok_or(OutdatedError::CannotElaborateWorkspace)?,
         &options,
+        workspace_deps.clone(),
     )?;
 
     verbose!(context, "Parsing...", "latest workspace");
@@ -157,6 +163,7 @@ pub fn execute(options: Options, context: &mut GlobalContext) -> CargoResult<i32
             .as_ref()
             .ok_or(OutdatedError::CannotElaborateWorkspace)?,
         &options,
+        workspace_deps.clone(),
     )?;
 
     if ela_curr.workspace_mode {
@@ -166,6 +173,18 @@ pub fn execute(options: Options, context: &mut GlobalContext) -> CargoResult<i32
             Format::Json => verbose!(context, "Printing...", "Package status in json format"),
         }
 
+        // Print workspace dependencies table first (across all members)
+        if matches!(options.format, Format::List) {
+            sum += ela_curr.print_workspace_deps_list(
+                &ela_compat,
+                &ela_latest,
+                &options,
+                context,
+                &skipped,
+            )?;
+        }
+
+        // Then print per-member tables
         for member in ela_curr.workspace.members() {
             ela_curr.resolve_status(
                 &ela_compat,
@@ -184,9 +203,11 @@ pub fn execute(options: Options, context: &mut GlobalContext) -> CargoResult<i32
                 }
             }
         }
+
         if sum == 0 && matches!(options.format, Format::List) {
             println!("All dependencies are up to date, yay!");
         }
+
         Ok(sum)
     } else {
         verbose!(context, "Resolving...", "package status");

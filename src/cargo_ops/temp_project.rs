@@ -49,6 +49,7 @@ impl<'tmp> TempProject<'tmp> {
         let workspace_root_str = workspace_root.to_string_lossy();
         let temp_dir = Builder::new().prefix("cargo-outdated").tempdir()?;
         let manifest_paths = manifest_paths(orig_workspace)?;
+        let ws_deps = load_workspace_deps(workspace_root)?;
         let mut tmp_manifest_paths = vec![];
 
         for from in &manifest_paths {
@@ -73,7 +74,7 @@ impl<'tmp> TempProject<'tmp> {
             tmp_manifest_paths.push(dest.clone());
             fs::copy(from, &dest)?;
 
-            // removing default-run key if it exists to check dependencies
+            // Parse manifest, clean up keys, resolve workspace deps, and re-serialize
             let mut om: Manifest = {
                 let mut buf = String::new();
                 let mut file = File::open(&dest)?;
@@ -81,32 +82,33 @@ impl<'tmp> TempProject<'tmp> {
                 ::toml::from_str(&buf)?
             };
 
-            if om.package.contains_key("default-run") {
-                om.package.remove("default-run");
-                let om_serialized = ::toml::to_string(&om).expect("Cannot format as toml file");
-                let mut cargo_toml = OpenOptions::new()
-                    .read(true)
-                    .write(true)
-                    .truncate(true)
-                    .open(&dest)?;
-                write!(cargo_toml, "{om_serialized}")?;
+            let mut needs_rewrite = false;
+
+            // Remove keys not needed for dependency checking
+            for key in &["default-run", "links", "build"] {
+                if om.package.remove(*key).is_some() {
+                    needs_rewrite = true;
+                }
             }
 
-            // if build script is specified in the original Cargo.toml (from links or build)
-            // remove it as we do not need it for checking dependencies
-            if om.package.contains_key("links") {
-                om.package.remove("links");
-                let om_serialized = ::toml::to_string(&om).expect("Cannot format as toml file");
-                let mut cargo_toml = OpenOptions::new()
-                    .read(true)
-                    .write(true)
-                    .truncate(true)
-                    .open(&dest)?;
-                write!(cargo_toml, "{om_serialized}")?;
+            // Resolve workspace = true references and strip [workspace.dependencies]
+            if let Some(ref ws_deps) = ws_deps {
+                // Member directory relative to workspace root (e.g. "tauri-app")
+                let member_rel_dir = if workspace_root_str.len() < from_dir_str.len() {
+                    PathBuf::from(&from_dir_str[workspace_root_str.len() + 1..])
+                } else {
+                    PathBuf::new()
+                };
+                resolve_all_workspace_deps(&mut om, ws_deps, &member_rel_dir)?;
+
+                if let Some(ref mut ws) = om.workspace {
+                    ws.remove("dependencies");
+                }
+
+                needs_rewrite = true;
             }
 
-            if om.package.contains_key("build") {
-                om.package.remove("build");
+            if needs_rewrite {
                 let om_serialized = ::toml::to_string(&om).expect("Cannot format as toml file");
                 let mut cargo_toml = OpenOptions::new()
                     .read(true)
@@ -127,9 +129,19 @@ impl<'tmp> TempProject<'tmp> {
         // virtual root
         let mut virtual_root = workspace_root.join("Cargo.toml");
         if !manifest_paths.contains(&virtual_root) && virtual_root.is_file() {
-            fs::copy(&virtual_root, temp_dir.path().join("Cargo.toml"))?;
+            let dest_root = temp_dir.path().join("Cargo.toml");
+            fs::copy(&virtual_root, &dest_root)?;
+
+            // Remove [workspace.dependencies] from the copy since member deps
+            // have been flattened and Cargo would complain about unreferenced
+            // workspace dependencies.
+            if ws_deps.is_some() {
+                strip_workspace_deps(&dest_root)?;
+            }
+
             virtual_root.pop();
             virtual_root.push("Cargo.lock");
+
             if virtual_root.is_file() {
                 fs::copy(&virtual_root, temp_dir.path().join("Cargo.lock"))?;
             }
@@ -736,6 +748,212 @@ impl<'tmp> TempProject<'tmp> {
         self.context.shell().set_verbosity(original_verbosity);
         Ok(())
     }
+}
+
+/// Rebase a path that is relative to the workspace root so that it becomes
+/// relative to `from_dir` (also relative to workspace root).
+///
+/// Example: `rebase_relative_path("tauri-app", "crates/api-service")`
+/// returns `"../crates/api-service"`.
+fn rebase_relative_path(from_dir: &Path, target: &Path) -> PathBuf {
+    let depth = from_dir.components().count();
+    let mut result = PathBuf::new();
+
+    for _ in 0..depth {
+        result.push("..");
+    }
+
+    result.push(target);
+
+    result
+}
+
+/// Load `[workspace.dependencies]` from a workspace root Cargo.toml.
+///
+/// Parses the file as raw `toml::Value` (not `Manifest`) to avoid
+/// requiring `[package]`, which virtual workspace roots lack.
+fn load_workspace_deps(workspace_root: &Path) -> CargoResult<Option<Table>> {
+    let cargo_toml = workspace_root.join("Cargo.toml");
+
+    if !cargo_toml.is_file() {
+        return Ok(None);
+    }
+
+    let mut buf = String::new();
+    File::open(&cargo_toml)?.read_to_string(&mut buf)?;
+    let root: Value = ::toml::from_str(&buf)?;
+
+    let ws_deps = root
+        .get("workspace")
+        .and_then(|ws| ws.get("dependencies"))
+        .and_then(|deps| deps.as_table())
+        .cloned();
+
+    Ok(ws_deps)
+}
+
+/// Resolve `workspace = true` references in a single dependency table
+/// by merging actual version/source info from workspace-level deps.
+///
+/// Workspace dep `path` values are relative to the workspace root. After
+/// flattening into a member manifest they must be rebased to be relative
+/// to the member's directory, so that the temp project structure resolves
+/// them correctly.
+fn resolve_workspace_deps(
+    deps: &mut Table,
+    ws_deps: &Table,
+    member_rel_dir: &Path,
+) -> CargoResult<()> {
+    let dep_keys: Vec<_> = deps.keys().cloned().collect();
+
+    for key in dep_keys {
+        let needs_resolve = deps
+            .get(&key)
+            .and_then(|v| v.as_table())
+            .and_then(|t| t.get("workspace"))
+            .and_then(|w| w.as_bool())
+            .unwrap_or(false);
+
+        if !needs_resolve {
+            continue;
+        }
+
+        let ws_dep = ws_deps.get(&key).ok_or_else(|| {
+            anyhow!(
+                "dependency `{}` has `workspace = true` but is not defined in [workspace.dependencies]",
+                key
+            )
+        })?;
+
+        let member_table = deps.get(&key).unwrap().as_table().unwrap().clone();
+
+        // Build the resolved table starting from workspace definition
+        let mut resolved = match ws_dep {
+            Value::String(version) => {
+                let mut t = Table::new();
+                t.insert("version".to_owned(), Value::String(version.clone()));
+                t
+            }
+            Value::Table(ws_table) => ws_table.clone(),
+            _ => {
+                return Err(anyhow!(
+                    "workspace dependency `{}` has unexpected type",
+                    key
+                ));
+            }
+        };
+
+        // Merge member-level overrides on top of workspace values.
+        // Member values take precedence, except for `features` which are additive.
+        for (k, v) in &member_table {
+            if k == "workspace" {
+                continue;
+            }
+
+            if k == "features" {
+                // Cargo merges features additively
+                let mut combined: Vec<Value> = resolved
+                    .get("features")
+                    .and_then(|f| f.as_array())
+                    .cloned()
+                    .unwrap_or_default();
+
+                if let Value::Array(ref member_features) = *v {
+                    for feat in member_features {
+                        if !combined.contains(feat) {
+                            combined.push(feat.clone());
+                        }
+                    }
+                }
+
+                resolved.insert("features".to_owned(), Value::Array(combined));
+            } else {
+                resolved.insert(k.clone(), v.clone());
+            }
+        }
+
+        // Rebase relative paths from workspace-root-relative to
+        // member-directory-relative so the temp project resolves them
+        // to the correct copy rather than the original source.
+        if let Some(Value::String(ref p)) = resolved.get("path") {
+            let dep_path = Path::new(p);
+
+            if dep_path.is_relative() {
+                let rebased = rebase_relative_path(member_rel_dir, dep_path);
+                resolved.insert(
+                    "path".to_owned(),
+                    Value::String(rebased.to_string_lossy().to_string()),
+                );
+            }
+        }
+
+        deps.insert(key, Value::Table(resolved));
+    }
+
+    Ok(())
+}
+
+/// Resolve all `workspace = true` dep references across every dependency
+/// section in a manifest.
+fn resolve_all_workspace_deps(
+    manifest: &mut Manifest,
+    ws_deps: &Table,
+    member_rel_dir: &Path,
+) -> CargoResult<()> {
+    if let Some(ref mut deps) = manifest.dependencies {
+        resolve_workspace_deps(deps, ws_deps, member_rel_dir)?;
+    }
+
+    if let Some(ref mut deps) = manifest.dev_dependencies {
+        resolve_workspace_deps(deps, ws_deps, member_rel_dir)?;
+    }
+
+    if let Some(ref mut deps) = manifest.build_dependencies {
+        resolve_workspace_deps(deps, ws_deps, member_rel_dir)?;
+    }
+
+    if let Some(ref mut targets) = manifest.target {
+        for (_key, target) in targets.iter_mut() {
+            if let Value::Table(ref mut target) = *target {
+                for dep_section in &["dependencies", "dev-dependencies", "build-dependencies"] {
+                    if let Some(&mut Value::Table(ref mut dep_table)) = target.get_mut(*dep_section)
+                    {
+                        resolve_workspace_deps(dep_table, ws_deps, member_rel_dir)?;
+                    }
+                }
+            }
+        }
+    }
+
+    Ok(())
+}
+
+/// Strip `[workspace.dependencies]` from a raw TOML value.
+///
+/// After flattening workspace deps into member manifests, the virtual root's
+/// `[workspace.dependencies]` section must be removed so Cargo doesn't
+/// complain about unreferenced workspace dependencies.
+fn strip_workspace_deps(cargo_toml_path: &Path) -> CargoResult<()> {
+    let mut buf = String::new();
+    File::open(cargo_toml_path)?.read_to_string(&mut buf)?;
+    let mut root: Value = ::toml::from_str(&buf)?;
+
+    let changed = if let Some(ws) = root.get_mut("workspace").and_then(|ws| ws.as_table_mut()) {
+        ws.remove("dependencies").is_some()
+    } else {
+        false
+    };
+
+    if changed {
+        let serialized = ::toml::to_string(&root).expect("Cannot format as toml file");
+        let mut file = OpenOptions::new()
+            .write(true)
+            .truncate(true)
+            .open(cargo_toml_path)?;
+        write!(file, "{serialized}")?;
+    }
+
+    Ok(())
 }
 
 /// Features and optional dependencies of a Summary
