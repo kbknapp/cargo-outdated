@@ -5,7 +5,7 @@ mod elaborate_workspace;
 mod pkg_status;
 mod temp_project;
 pub use self::{
-    elaborate_workspace::{load_workspace_dep_names, ElaborateWorkspace},
+    elaborate_workspace::{ElaborateWorkspace, load_workspace_dep_names},
     temp_project::TempProject,
 };
 
