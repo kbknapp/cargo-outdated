@@ -2,7 +2,9 @@ use std::{
     cell::RefCell,
     cmp::Ordering,
     collections::{BTreeSet, HashMap, HashSet, VecDeque},
-    io::{self, Write},
+    fs::File,
+    io::{self, Read, Write},
+    path::Path,
     rc::Rc,
 };
 
@@ -23,6 +25,7 @@ use cargo::{
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use tabwriter::TabWriter;
+use toml::Value;
 
 use crate::error::OutdatedError;
 
@@ -38,12 +41,16 @@ pub struct ElaborateWorkspace<'ela> {
     pub pkg_status: RefCell<FxHashMap<Vec<PackageId>, PkgStatus>>,
     /// Whether using workspace mode
     pub workspace_mode: bool,
+    /// Names of workspace-level dependencies
+    pub workspace_deps: HashSet<String>,
 }
 
 /// A struct to serialize to json with serde
 #[derive(Serialize, Deserialize)]
 pub struct CrateMetadata {
     pub crate_name: String,
+    #[serde(skip_serializing_if = "BTreeSet::is_empty")]
+    pub workspace_dependencies: BTreeSet<Metadata>,
     pub dependencies: BTreeSet<Metadata>,
 }
 
@@ -65,11 +72,34 @@ impl PartialOrd for Metadata {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> { Some(self.cmp(other)) }
 }
 
+/// Load workspace dependency names from the workspace root Cargo.toml
+pub fn load_workspace_dep_names(workspace_root: &Path) -> CargoResult<HashSet<String>> {
+    let cargo_toml = workspace_root.join("Cargo.toml");
+
+    if !cargo_toml.is_file() {
+        return Ok(HashSet::new());
+    }
+
+    let mut buf = String::new();
+    File::open(&cargo_toml)?.read_to_string(&mut buf)?;
+    let root: Value = ::toml::from_str(&buf)?;
+
+    let ws_deps = root
+        .get("workspace")
+        .and_then(|ws| ws.get("dependencies"))
+        .and_then(|deps| deps.as_table())
+        .map(|table| table.keys().cloned().collect())
+        .unwrap_or_default();
+
+    Ok(ws_deps)
+}
+
 impl<'ela> ElaborateWorkspace<'ela> {
     /// Elaborate a `Workspace`
     pub fn from_workspace(
         workspace: &'ela Workspace<'_>,
         options: &Options,
+        workspace_deps: HashSet<String>,
     ) -> CargoResult<ElaborateWorkspace<'ela>> {
         // new in cargo 0.54.0
         let flag_features: BTreeSet<FeatureValue> = options
@@ -128,6 +158,7 @@ impl<'ela> ElaborateWorkspace<'ela> {
             pkg_deps,
             pkg_status: RefCell::new(FxHashMap::default()),
             workspace_mode: options.workspace || workspace.current().is_err(),
+            workspace_deps,
         })
     }
 
@@ -278,17 +309,21 @@ impl<'ela> ElaborateWorkspace<'ela> {
         Ok(())
     }
 
-    /// Print package status to `TabWriter`
-    pub fn print_list(
+    /// Collect dependency lines for a given root, split into workspace and
+    /// package deps.
+    ///
+    /// Returns `(workspace_lines, package_lines)`.
+    fn collect_dependency_lines(
         &'ela self,
         options: &Options,
         root: PackageId,
-        preceding_line: bool,
         skip: &HashSet<String>,
-    ) -> CargoResult<i32> {
-        let mut lines = BTreeSet::new();
+    ) -> CargoResult<(BTreeSet<String>, BTreeSet<String>)> {
+        let mut workspace_lines = BTreeSet::new();
+        let mut package_lines = BTreeSet::new();
         let mut queue = VecDeque::new();
         queue.push_back(vec![root]);
+
         while let Some(path) = queue.pop_front() {
             let pkg = path.last().ok_or(OutdatedError::EmptyPath)?;
             let name = pkg.name().to_string();
@@ -298,19 +333,19 @@ impl<'ela> ElaborateWorkspace<'ela> {
             }
 
             let depth = path.len() as i32 - 1;
-            // generate lines
             let status = &self.pkg_status.borrow_mut()[&path];
+
             if (status.compat.is_changed() || status.latest.is_changed())
                 && (options.packages.is_empty() || options.packages.contains(&name))
             {
-                // name version compatible latest kind platform
                 let parent = path.get(path.len() - 2);
+
                 if let Some(parent) = parent {
                     let dependency = &self.pkg_deps[parent][pkg];
                     let label = if self.workspace_mode
                         || parent == &self.workspace.current()?.package_id()
                     {
-                        name
+                        name.clone()
                     } else {
                         format!("{}->{}", self.pkgs[parent].name(), name)
                     };
@@ -326,7 +361,14 @@ impl<'ela> ElaborateWorkspace<'ela> {
                             .map(ToString::to_string)
                             .unwrap_or_else(|| "---".to_owned())
                     );
-                    lines.insert(line);
+
+                    let is_direct_workspace_dep = depth == 1 && self.workspace_deps.contains(&name);
+
+                    if is_direct_workspace_dep {
+                        workspace_lines.insert(line);
+                    } else {
+                        package_lines.insert(line);
+                    }
                 } else {
                     let line = format!(
                         "{}\t{}\t{}\t{}\t---\t---\n",
@@ -335,9 +377,10 @@ impl<'ela> ElaborateWorkspace<'ela> {
                         status.compat,
                         status.latest
                     );
-                    lines.insert(line);
+                    package_lines.insert(line);
                 }
             }
+
             // next layer
             // this unwrap is safe since we first check if it is None :)
             if options.depth.is_none() || depth < options.depth.unwrap() {
@@ -357,6 +400,29 @@ impl<'ela> ElaborateWorkspace<'ela> {
             }
         }
 
+        Ok((workspace_lines, package_lines))
+    }
+
+    /// Print package status to `TabWriter`
+    pub fn print_list(
+        &'ela self,
+        options: &Options,
+        root: PackageId,
+        preceding_line: bool,
+        skip: &HashSet<String>,
+    ) -> CargoResult<i32> {
+        let (workspace_lines, package_lines) =
+            self.collect_dependency_lines(options, root, skip)?;
+
+        // When workspace deps exist, they are printed separately via
+        // `print_workspace_deps_list`, so only include package_lines here.
+        let lines = if self.workspace_deps.is_empty() {
+            // No workspace deps section — everything goes in one table
+            &package_lines | &workspace_lines
+        } else {
+            package_lines
+        };
+
         if lines.is_empty() {
             if !self.workspace_mode {
                 println!("All dependencies are up to date, yay!");
@@ -365,21 +431,75 @@ impl<'ela> ElaborateWorkspace<'ela> {
             if preceding_line {
                 println!();
             }
+
             if self.workspace_mode {
                 println!("{}\n================", root.name());
             }
+
             let mut tw = TabWriter::new(vec![]);
             writeln!(&mut tw, "Name\tProject\tCompat\tLatest\tKind\tPlatform")?;
             writeln!(&mut tw, "----\t-------\t------\t------\t----\t--------")?;
+
             for line in &lines {
                 write!(&mut tw, "{line}")?;
             }
+
             tw.flush()?;
             write!(io::stdout(), "{}", String::from_utf8(tw.into_inner()?)?)?;
             io::stdout().flush()?;
         }
 
         Ok(lines.len() as i32)
+    }
+
+    /// Collect workspace dependency lines across all members and print them
+    /// as a single table at the top of the output.
+    ///
+    /// Resolves status per member internally (since `resolve_status` clears
+    /// state each time).
+    ///
+    /// Returns the number of lines printed.
+    pub fn print_workspace_deps_list(
+        &'ela self,
+        compat: &ElaborateWorkspace<'_>,
+        latest: &ElaborateWorkspace<'_>,
+        options: &Options,
+        context: &GlobalContext,
+        skip: &HashSet<String>,
+    ) -> CargoResult<i32> {
+        if self.workspace_deps.is_empty() {
+            return Ok(0);
+        }
+
+        let mut all_ws_lines = BTreeSet::new();
+
+        for member in self.workspace.members() {
+            self.resolve_status(compat, latest, options, context, member.package_id(), skip)?;
+
+            let (ws_lines, _) =
+                self.collect_dependency_lines(options, member.package_id(), skip)?;
+            all_ws_lines.extend(ws_lines);
+        }
+
+        if all_ws_lines.is_empty() {
+            return Ok(0);
+        }
+
+        println!("Workspace\n================");
+
+        let mut tw = TabWriter::new(vec![]);
+        writeln!(&mut tw, "Name\tProject\tCompat\tLatest\tKind\tPlatform")?;
+        writeln!(&mut tw, "----\t-------\t------\t------\t----\t--------")?;
+
+        for line in &all_ws_lines {
+            write!(&mut tw, "{line}")?;
+        }
+
+        tw.flush()?;
+        write!(io::stdout(), "{}", String::from_utf8(tw.into_inner()?)?)?;
+        io::stdout().flush()?;
+
+        Ok(all_ws_lines.len() as i32)
     }
 
     pub fn print_json(
@@ -390,6 +510,7 @@ impl<'ela> ElaborateWorkspace<'ela> {
     ) -> CargoResult<i32> {
         let mut crate_graph = CrateMetadata {
             crate_name: root.name().to_string(),
+            workspace_dependencies: BTreeSet::new(),
             dependencies: BTreeSet::new(),
         };
         let mut queue = VecDeque::new();
@@ -422,9 +543,9 @@ impl<'ela> ElaborateWorkspace<'ela> {
                     let label = if self.workspace_mode
                         || parent == &self.workspace.current()?.package_id()
                     {
-                        name
+                        name.clone()
                     } else {
-                        format!("{}->{}", self.pkgs[parent].name(), name)
+                        format!("{}->{}", self.pkgs[parent].name(), name.clone())
                     };
 
                     let dependency_type = match dependency.kind() {
@@ -443,7 +564,7 @@ impl<'ela> ElaborateWorkspace<'ela> {
                     }
                 } else {
                     Metadata {
-                        name,
+                        name: name.clone(),
                         project: pkg.version().to_string(),
                         compat: status.compat.to_string(),
                         latest: status.latest.to_string(),
@@ -452,7 +573,14 @@ impl<'ela> ElaborateWorkspace<'ela> {
                     }
                 };
 
-                crate_graph.dependencies.insert(line);
+                // Check if this is a workspace dependency (direct dependency at depth 1)
+                let is_workspace_dep = depth == 1 && self.workspace_deps.contains(&name);
+
+                if is_workspace_dep {
+                    crate_graph.workspace_dependencies.insert(line);
+                } else {
+                    crate_graph.dependencies.insert(line);
+                }
             }
             // next layer
             // this unwrap is safe since we first check if it is None :)
@@ -478,6 +606,6 @@ impl<'ela> ElaborateWorkspace<'ela> {
 
         println!("{}", serde_json::to_string(&crate_graph)?);
 
-        Ok(crate_graph.dependencies.len() as i32)
+        Ok((crate_graph.workspace_dependencies.len() + crate_graph.dependencies.len()) as i32)
     }
 }
