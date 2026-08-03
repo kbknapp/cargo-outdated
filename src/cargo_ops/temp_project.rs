@@ -875,7 +875,7 @@ fn resolve_workspace_deps(
         // Rebase relative paths from workspace-root-relative to
         // member-directory-relative so the temp project resolves them
         // to the correct copy rather than the original source.
-        if let Some(Value::String(ref p)) = resolved.get("path") {
+        if let Some(Value::String(p)) = resolved.get("path") {
             let dep_path = Path::new(p);
 
             if dep_path.is_relative() {
