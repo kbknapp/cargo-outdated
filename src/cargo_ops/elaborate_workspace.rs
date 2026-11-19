@@ -8,17 +8,12 @@ use std::{
 
 use anyhow::anyhow;
 use cargo::{
-    core::{
-        Dependency, FeatureValue, Package, PackageId, Workspace,
-        compiler::{CompileKind, RustcTargetData},
-        dependency::DepKind,
-        resolver::{
-            CliFeatures,
-            features::{ForceAllTargets, HasDevUnits},
-        },
-    },
+    CargoResult, GlobalContext,
+    compiler::{CompileKind, RustcTargetData},
     ops::{self, Packages},
-    util::{CargoResult, context::GlobalContext, interning::InternedString},
+    resolver::{CliFeatures, ForceAllTargets, HasDevUnits},
+    util::{VersionReqMatchMode, interning::InternedString},
+    workspace::{Dependency, FeatureValue, Package, PackageId, Workspace, dependency::DepKind},
 };
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
@@ -86,8 +81,8 @@ impl<'ela> ElaborateWorkspace<'ela> {
         };
 
         // The CompileKind, this has no target since it's the temp workspace
-        // targets are blank since we don't need to fully build for the targets to get
-        // the dependencies
+        // targets are blank since we don't need to fully build for the targets
+        // to get the dependencies
         let compile_kind = CompileKind::from_requested_targets(workspace.gctx(), &[])?;
         let mut target_data = RustcTargetData::new(workspace, &compile_kind)?;
         let ws_resolve = ops::resolve_ws_with_opts(
@@ -113,7 +108,7 @@ impl<'ela> ElaborateWorkspace<'ela> {
             let mut dep_map = FxHashMap::default();
             for dep_id in resolve.deps(pkg_id) {
                 for d in deps {
-                    if d.matches_id(dep_id.0) {
+                    if d.matches_id(dep_id.0, VersionReqMatchMode::Default) {
                         dep_map.insert(dep_id.0, d.clone());
                         break;
                     }

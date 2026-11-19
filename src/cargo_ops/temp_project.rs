@@ -6,19 +6,19 @@ use std::{
     io::{Read, Write},
     path::{Path, PathBuf},
     rc::Rc,
-    task::Poll,
 };
 
 use anyhow::{Context, anyhow};
 use cargo::{
-    core::{Dependency, PackageId, Summary, Verbosity, Workspace},
+    CargoResult, GlobalContext,
+    context::homedir,
     ops::{UpdateOptions, update_lockfile},
-    sources::{
-        config::SourceConfigMap,
-        source::{QueryKind, Source},
-    },
-    util::{CargoResult, cache_lock::CacheLockMode, context::GlobalContext},
+    sources::{IndexSummary, config::SourceConfigMap, source::QueryKind},
+    util::cache_lock::CacheLockMode,
+    workspace::{Dependency, PackageId, Summary, Workspace},
 };
+use cargo_util_terminal::{Shell, Verbosity};
+use futures::executor::block_on;
 use semver::{Version, VersionReq};
 use tempfile::{Builder, TempDir};
 use toml::{Value, value::Table};
@@ -92,8 +92,9 @@ impl<'tmp> TempProject<'tmp> {
                 write!(cargo_toml, "{om_serialized}")?;
             }
 
-            // if build script is specified in the original Cargo.toml (from links or build)
-            // remove it as we do not need it for checking dependencies
+            // if build script is specified in the original Cargo.toml (from
+            // links or build) remove it as we do not need it for checking
+            // dependencies
             if om.package.contains_key("links") {
                 om.package.remove("links");
                 let om_serialized = ::toml::to_string(&om).expect("Cannot format as toml file");
@@ -175,11 +176,11 @@ impl<'tmp> TempProject<'tmp> {
         relative_manifest: &str,
         options: &Options,
     ) -> CargoResult<GlobalContext> {
-        let shell = ::cargo::core::Shell::new();
+        let shell = Shell::new();
         let cwd = env::current_dir()
             .with_context(|| "Cargo couldn't get the current directory of the process")?;
 
-        let homedir = ::cargo::util::homedir(&cwd).ok_or_else(|| {
+        let homedir = homedir(&cwd).ok_or_else(|| {
             anyhow!(
                 "Cargo couldn't find your home directory. \
                  This probably means that $HOME was not set.",
@@ -394,28 +395,17 @@ impl<'tmp> TempProject<'tmp> {
             let ws_context = workspace.workspace.gctx();
             let _lock = ws_context.acquire_package_cache_lock(CacheLockMode::DownloadExclusive)?;
             let source_config = SourceConfigMap::new(ws_context)?;
-            let mut source = source_config.load(source_id, &HashSet::new())?;
+            let source = source_config.load(source_id)?;
             if !source_id.is_crates_io() && !source_id.is_sparse() {
                 source.invalidate_cache();
             }
             let dependency = Dependency::parse(name, None, source_id)?;
-            // Query the source using the same poll loop pattern as cargo itself:
-            // https://github.com/rust-lang/cargo/blob/60400187f/src/cargo/core/resolver/errors.rs#L479-L488
-            //
-            // Sources (especially sparse registries) may return Poll::Pending on
-            // the first query to initiate an async fetch. Calling
-            // block_until_ready() drives the pending I/O to completion so the
-            // next query returns Poll::Ready.
-            let query_result = loop {
-                match source.query_vec(&dependency, QueryKind::Exact) {
-                    Poll::Ready(Ok(result)) => break result,
-                    Poll::Ready(Err(e)) => return Err(e),
-                    Poll::Pending => source.block_until_ready()?,
-                }
-            };
-            let mut query_result = query_result
+            let mut query_result = block_on(source.query_vec(&dependency, QueryKind::Exact))?
                 .into_iter()
-                .map(|index_summary| index_summary.into_summary())
+                .filter_map(|summary| match summary {
+                    IndexSummary::Candidate(summary) => Some(summary),
+                    _ => None,
+                })
                 .collect::<Vec<_>>();
 
             query_result.sort_by(|a, b| b.version().cmp(a.version()));
@@ -431,12 +421,13 @@ impl<'tmp> TempProject<'tmp> {
             } else if version_req.is_none() {
                 true
             } else if find_latest {
-                // this unwrap is safe since we check if `version_req` is `None` before this
-                // (which is only `None` if `requirement` is `None`)
+                // this unwrap is safe since we check if `version_req` is `None`
+                // before this (which is only `None` if `requirement` is `None`)
                 self.options.aggressive
                     || valid_latest_version(requirement.unwrap(), summary.version())
             } else {
-                // this unwrap is safe since we check if `version_req` is `None` before this
+                // this unwrap is safe since we check if `version_req` is `None`
+                // before this
                 version_req.as_ref().unwrap().matches(summary.version())
             }
         });
@@ -445,9 +436,9 @@ impl<'tmp> TempProject<'tmp> {
             Some(summary) => summary,
             None => {
                 // If the version_req cannot be found use the version
-                // this happens when we use a git repository as a dependency, without specifying
-                // the version in Cargo.toml, preventing us from needing an unwrap below in the
-                // warn
+                // this happens when we use a git repository as a dependency,
+                // without specifying the version in Cargo.toml, preventing us
+                // from needing an unwrap below in the warn
                 let ver_req = match version_req {
                     Some(v_r) => format!("{v_r}"),
                     None => format!("{version}"),
@@ -523,8 +514,8 @@ impl<'tmp> TempProject<'tmp> {
     ) -> CargoResult<()> {
         let dep_keys: Vec<_> = dependencies.keys().cloned().collect();
         for dep_key in dep_keys {
-            // this, by brute force, allows a user to exclude a dependency by not writing
-            // it to the temp project's manifest
+            // this, by brute force, allows a user to exclude a dependency by
+            // not writing it to the temp project's manifest
             // In short this allows cargo to build the package with semver minor
             // compatibilities issues https://github.com/rust-lang/cargo/issues/6584
             // https://github.com/kbknapp/cargo-outdated/issues/230
@@ -632,10 +623,11 @@ impl<'tmp> TempProject<'tmp> {
                                     };
                                     let retained =
                                         features_and_options(&summary).contains(feature.as_str());
-                                    // this unwrap should be safe it should only fail if we cannot
-                                    // get access to write to
+                                    // this unwrap should be safe it should only
+                                    // fail if we cannot get access to write to
                                     // the terminal
-                                    // if this fails it's a cargo (as a dependency) issue
+                                    // if this fails it's a cargo (as a
+                                    // dependency) issue
                                     if !retained {
                                         self.warn(format!(
                                             "Feature {} of package {} \
@@ -771,7 +763,8 @@ fn manifest_paths(elab: &ElaborateWorkspace<'_>) -> CargoResult<Vec<PathBuf>> {
         let pkg = &elab.pkgs[&pkg_id];
         let pkg_path = pkg.root().to_string_lossy();
 
-        // Checking if there's a CARGO_HOME set and that it is not an empty string
+        // Checking if there's a CARGO_HOME set and that it is not an empty
+        // string
         let cargo_home_path = match std::env::var_os("CARGO_HOME") {
             Some(path) if !path.is_empty() => Some(
                 path.into_string()
@@ -780,9 +773,9 @@ fn manifest_paths(elab: &ElaborateWorkspace<'_>) -> CargoResult<Vec<PathBuf>> {
             _ => None,
         };
 
-        // If there is a CARGO_HOME make sure we do not crawl the registry for more
-        // Cargo.toml files Otherwise add all Cargo.toml files to the manifest
-        // paths
+        // If there is a CARGO_HOME make sure we do not crawl the registry for
+        // more Cargo.toml files Otherwise add all Cargo.toml files to the
+        // manifest paths
         if pkg.root().starts_with(PathBuf::from(workspace_path))
             && (cargo_home_path.is_none()
                 || !pkg_path
@@ -818,7 +811,8 @@ fn manifest_paths(elab: &ElaborateWorkspace<'_>) -> CargoResult<Vec<PathBuf>> {
 
 fn valid_latest_version(mut requirement: &str, version: &Version) -> bool {
     match (requirement.contains('-'), !version.pre.is_empty()) {
-        // if user was on a stable channel, it's unlikely for him to update to an unstable one
+        // if user was on a stable channel, it's unlikely for him to update to
+        // an unstable one
         (false, true) => false,
         // both are stable, leave for further filters
         // ...or...
