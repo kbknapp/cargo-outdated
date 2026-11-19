@@ -49,4 +49,5 @@ default = []
 lto = true
 
 [dev-dependencies]
+cargo-test-support = "0.9.1"
 pretty_assertions = "1.2.0"
