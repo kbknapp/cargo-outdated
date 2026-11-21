@@ -12,14 +12,14 @@ mod error;
 use std::collections::HashSet;
 
 use cargo::{
-    core::{Workspace, shell::Verbosity},
+    CargoResult, CliError, GlobalContext,
     util::{
-        CargoResult, CliError,
-        context::GlobalContext,
         important_paths::find_root_manifest_for_wd,
         network::http::{http_handle, needs_custom_http_transport},
     },
+    workspace::Workspace,
 };
+use cargo_util_terminal::{Shell, Verbosity};
 
 use crate::{
     cargo_ops::{ElaborateWorkspace, TempProject},
@@ -34,7 +34,7 @@ fn main() {
     let mut context = match GlobalContext::default() {
         Ok(cfg) => cfg,
         Err(e) => {
-            let mut shell = cargo::core::Shell::new();
+            let mut shell = Shell::new();
             cargo::exit_with_error(e.into(), &mut shell)
         }
     };
