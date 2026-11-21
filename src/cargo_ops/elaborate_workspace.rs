@@ -18,8 +18,6 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 use tabwriter::TabWriter;
 
-use crate::error::OutdatedError;
-
 use super::{Options, pkg_status::*};
 
 /// An elaborate workspace containing resolved dependencies and
@@ -216,6 +214,16 @@ impl<'ela> ElaborateWorkspace<'ela> {
         root: PackageId,
         skip: &HashSet<String>,
     ) -> CargoResult<Vec<StatusEntry>> {
+        struct QueueEntry {
+            #[cfg(feature = "debug")]
+            path: Vec<PackageId>,
+            parent: Option<PackageId>,
+            depth: i32,
+            pkg: PackageId,
+            compat_pkg: Option<PackageId>,
+            latest_pkg: Option<PackageId>,
+        }
+
         let (compat_root, latest_root) = if self.workspace_mode {
             (compat.find_member(root)?, latest.find_member(root)?)
         } else {
@@ -227,10 +235,25 @@ impl<'ela> ElaborateWorkspace<'ela> {
 
         let mut entries = Vec::new();
         let mut seen = FxHashSet::default();
-        let mut queue = VecDeque::new();
-        queue.push_back((vec![root], Some(compat_root), Some(latest_root)));
-        while let Some((path, compat_pkg, latest_pkg)) = queue.pop_front() {
-            let (pkg, ancestors) = path.split_last().ok_or(OutdatedError::EmptyPath)?;
+        let mut queue = VecDeque::from([QueueEntry {
+            #[cfg(feature = "debug")]
+            path: vec![root],
+            parent: None,
+            depth: 0,
+            pkg: root,
+            compat_pkg: Some(compat_root),
+            latest_pkg: Some(latest_root),
+        }]);
+        while let Some(QueueEntry {
+            #[cfg(feature = "debug")]
+            path,
+            parent,
+            depth,
+            pkg,
+            compat_pkg,
+            latest_pkg,
+        }) = queue.pop_front()
+        {
             if options
                 .ignore
                 .iter()
@@ -238,7 +261,6 @@ impl<'ela> ElaborateWorkspace<'ela> {
             {
                 continue;
             }
-            let depth = ancestors.len() as i32;
             // generate pkg_status
             let status = PkgStatus {
                 compat: Status::from_versions(pkg.version(), compat_pkg.map(PackageId::version)),
@@ -254,18 +276,19 @@ impl<'ela> ElaborateWorkspace<'ela> {
                 status
             );
             entries.push(StatusEntry {
-                parent: ancestors.last().copied(),
-                package: *pkg,
+                parent,
+                package: pkg,
                 status,
             });
-            // We only need to produce each parent -> child `StatusEntry` once;
-            // if we see it again we don't need to re-insert it into the queue
-            // with a different `path`.
-            if !seen.insert((*pkg, compat_pkg, latest_pkg)) {
+            // We don't need to re-queue the same package / compat / latest trio
+            // that we've previously processed; we'll just repeat the same work
+            // (e.g. if we find the same subtree at a different depth in the
+            // graph).
+            if !seen.insert((pkg, compat_pkg, latest_pkg)) {
                 continue;
             }
             if options.depth.is_none_or(|max| depth < max) {
-                self.pkg_deps[pkg]
+                self.pkg_deps[&pkg]
                     .keys()
                     .filter(|&dep| !skip.contains(dep.name().as_str()))
                     .filter(|&dep| {
@@ -287,9 +310,19 @@ impl<'ela> ElaborateWorkspace<'ela> {
                             .map(HashMap::keys)
                             .and_then(|mut deps| deps.find(|dep| dep.name() == name))
                             .cloned();
-                        let mut path = path.clone();
-                        path.push(dep);
-                        queue.push_back((path, compat_pkg, latest_pkg));
+                        queue.push_back(QueueEntry {
+                            #[cfg(feature = "debug")]
+                            path: {
+                                let mut path = path.clone();
+                                path.push(dep);
+                                path
+                            },
+                            parent: Some(pkg),
+                            depth: depth + 1,
+                            pkg: dep,
+                            compat_pkg,
+                            latest_pkg,
+                        });
                     });
             }
         }
