@@ -129,6 +129,11 @@ impl<'tmp> TempProject<'tmp> {
         let mut virtual_root = workspace_root.join("Cargo.toml");
         if !manifest_paths.contains(&virtual_root) && virtual_root.is_file() {
             fs::copy(&virtual_root, temp_dir.path().join("Cargo.toml"))?;
+            Self::rewrite_virtual_root_paths(
+                &temp_dir.path().join("Cargo.toml"),
+                workspace_root,
+                temp_dir.path(),
+            )?;
             virtual_root.pop();
             virtual_root.push("Cargo.lock");
             if virtual_root.is_file() {
@@ -235,6 +240,40 @@ impl<'tmp> TempProject<'tmp> {
         Ok(())
     }
 
+    fn rewrite_virtual_root_paths<P: AsRef<Path>>(
+        manifest: &Path,
+        orig_root: P,
+        tmp_root: P,
+    ) -> CargoResult<()> {
+        let mut buf = String::new();
+        let mut file = File::open(manifest)?;
+        file.read_to_string(&mut buf)?;
+        let mut document: Value = ::toml::from_str(&buf)?;
+        let mut skipped = HashSet::new();
+        if let Some(patches) = document
+            .as_table_mut()
+            .and_then(|root| root.get_mut("patch"))
+            .and_then(|patch| patch.as_table_mut())
+        {
+            for (_source, patch) in patches.iter_mut() {
+                if let Value::Table(patch_table) = patch {
+                    Self::replace_path_with_absolute(
+                        false,
+                        patch_table,
+                        orig_root.as_ref(),
+                        tmp_root.as_ref(),
+                        manifest,
+                        &mut skipped,
+                    )?;
+                }
+            }
+        }
+        let serialized = ::toml::to_string(&document).expect("Failed to serialize Cargo.toml");
+        let mut file = File::create(manifest)?;
+        write!(file, "{serialized}")?;
+        Ok(())
+    }
+
     fn manipulate_dependencies<F>(manifest: &mut Manifest, f: &mut F) -> CargoResult<()>
     where
         F: FnMut(&mut Table) -> CargoResult<()>,
@@ -303,7 +342,7 @@ impl<'tmp> TempProject<'tmp> {
             }
             Self::manipulate_dependencies(&mut manifest, &mut |deps| {
                 Self::replace_path_with_absolute(
-                    self,
+                    self.options.root_deps_only,
                     deps,
                     orig_root.as_ref(),
                     tmp_root.as_ref(),
@@ -356,7 +395,7 @@ impl<'tmp> TempProject<'tmp> {
             }
             Self::manipulate_dependencies(&mut manifest, &mut |deps| {
                 Self::replace_path_with_absolute(
-                    self,
+                    self.options.root_deps_only,
                     deps,
                     orig_root.as_ref(),
                     tmp_root.as_ref(),
@@ -655,7 +694,7 @@ impl<'tmp> TempProject<'tmp> {
     }
 
     fn replace_path_with_absolute(
-        &self,
+        root_deps_only: bool,
         dependencies: &mut Table,
         orig_root: &Path,
         tmp_root: &Path,
@@ -683,7 +722,7 @@ impl<'tmp> TempProject<'tmp> {
                                 relative.join(orig_path)
                             };
                             if !tmp_root.join(&relative).join("Cargo.toml").exists() {
-                                if self.options.root_deps_only {
+                                if root_deps_only {
                                     dependencies.remove(&name);
 
                                     if t.contains_key("package") {
