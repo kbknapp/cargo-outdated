@@ -1,5 +1,4 @@
 use std::{
-    cell::RefCell,
     cmp::Ordering,
     collections::{BTreeSet, HashMap, HashSet, VecDeque},
     io::{self, Write},
@@ -8,23 +7,16 @@ use std::{
 
 use anyhow::anyhow;
 use cargo::{
-    core::{
-        Dependency, FeatureValue, Package, PackageId, Workspace,
-        compiler::{CompileKind, RustcTargetData},
-        dependency::DepKind,
-        resolver::{
-            CliFeatures,
-            features::{ForceAllTargets, HasDevUnits},
-        },
-    },
+    CargoResult, GlobalContext,
+    compiler::{CompileKind, RustcTargetData},
     ops::{self, Packages},
-    util::{CargoResult, context::GlobalContext, interning::InternedString},
+    resolver::{CliFeatures, ForceAllTargets, HasDevUnits},
+    util::{VersionReqMatchMode, interning::InternedString},
+    workspace::{Dependency, FeatureValue, Package, PackageId, Workspace, dependency::DepKind},
 };
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 use tabwriter::TabWriter;
-
-use crate::error::OutdatedError;
 
 use super::{Options, pkg_status::*};
 
@@ -34,10 +26,14 @@ pub struct ElaborateWorkspace<'ela> {
     pub workspace: &'ela Workspace<'ela>,
     pub pkgs: FxHashMap<PackageId, Package>,
     pub pkg_deps: FxHashMap<PackageId, FxHashMap<PackageId, Dependency>>,
-    /// Map of package status
-    pub pkg_status: RefCell<FxHashMap<Vec<PackageId>, PkgStatus>>,
     /// Whether using workspace mode
     pub workspace_mode: bool,
+}
+
+pub struct StatusEntry {
+    pub parent: Option<PackageId>,
+    pub package: PackageId,
+    pub status: PkgStatus,
 }
 
 /// A struct to serialize to json with serde
@@ -86,8 +82,8 @@ impl<'ela> ElaborateWorkspace<'ela> {
         };
 
         // The CompileKind, this has no target since it's the temp workspace
-        // targets are blank since we don't need to fully build for the targets to get
-        // the dependencies
+        // targets are blank since we don't need to fully build for the targets
+        // to get the dependencies
         let compile_kind = CompileKind::from_requested_targets(workspace.gctx(), &[])?;
         let mut target_data = RustcTargetData::new(workspace, &compile_kind)?;
         let ws_resolve = ops::resolve_ws_with_opts(
@@ -113,7 +109,7 @@ impl<'ela> ElaborateWorkspace<'ela> {
             let mut dep_map = FxHashMap::default();
             for dep_id in resolve.deps(pkg_id) {
                 for d in deps {
-                    if d.matches_id(dep_id.0) {
+                    if d.matches_id(dep_id.0, VersionReqMatchMode::Default) {
                         dep_map.insert(dep_id.0, d.clone());
                         break;
                     }
@@ -126,7 +122,6 @@ impl<'ela> ElaborateWorkspace<'ela> {
             workspace,
             pkgs,
             pkg_deps,
-            pkg_status: RefCell::new(FxHashMap::default()),
             workspace_mode: options.workspace || workspace.current().is_err(),
         })
     }
@@ -218,8 +213,17 @@ impl<'ela> ElaborateWorkspace<'ela> {
         _context: &GlobalContext,
         root: PackageId,
         skip: &HashSet<String>,
-    ) -> CargoResult<()> {
-        self.pkg_status.borrow_mut().clear();
+    ) -> CargoResult<Vec<StatusEntry>> {
+        struct QueueEntry {
+            #[cfg(feature = "debug")]
+            path: Vec<PackageId>,
+            parent: Option<PackageId>,
+            depth: i32,
+            pkg: PackageId,
+            compat_pkg: Option<PackageId>,
+            latest_pkg: Option<PackageId>,
+        }
+
         let (compat_root, latest_root) = if self.workspace_mode {
             (compat.find_member(root)?, latest.find_member(root)?)
         } else {
@@ -229,11 +233,34 @@ impl<'ela> ElaborateWorkspace<'ela> {
             )
         };
 
-        let mut queue = VecDeque::new();
-        queue.push_back((vec![root], Some(compat_root), Some(latest_root)));
-        while let Some((path, compat_pkg, latest_pkg)) = queue.pop_front() {
-            let pkg = path.last().ok_or(OutdatedError::EmptyPath)?;
-            let depth = path.len() as i32 - 1;
+        let mut entries = Vec::new();
+        let mut seen = FxHashSet::default();
+        let mut queue = VecDeque::from([QueueEntry {
+            #[cfg(feature = "debug")]
+            path: vec![root],
+            parent: None,
+            depth: 0,
+            pkg: root,
+            compat_pkg: Some(compat_root),
+            latest_pkg: Some(latest_root),
+        }]);
+        while let Some(QueueEntry {
+            #[cfg(feature = "debug")]
+            path,
+            parent,
+            depth,
+            pkg,
+            compat_pkg,
+            latest_pkg,
+        }) = queue.pop_front()
+        {
+            if options
+                .ignore
+                .iter()
+                .any(|name| name == pkg.name().as_str())
+            {
+                continue;
+            }
             // generate pkg_status
             let status = PkgStatus {
                 compat: Status::from_versions(pkg.version(), compat_pkg.map(PackageId::version)),
@@ -248,14 +275,29 @@ impl<'ela> ElaborateWorkspace<'ela> {
                 latest_pkg,
                 status
             );
-            self.pkg_status.borrow_mut().insert(path.clone(), status);
-            // next layer
-            // this unwrap is safe since we first check if it is None :)
-            if options.depth.is_none() || depth < options.depth.unwrap() {
-                self.pkg_deps[pkg]
+            entries.push(StatusEntry {
+                parent,
+                package: pkg,
+                status,
+            });
+            // We don't need to re-queue the same package / compat / latest trio
+            // that we've previously processed; we'll just repeat the same work
+            // (e.g. if we find the same subtree at a different depth in the
+            // graph).
+            if !seen.insert((pkg, compat_pkg, latest_pkg)) {
+                continue;
+            }
+            if options.depth.is_none_or(|max| depth < max) {
+                self.pkg_deps[&pkg]
                     .keys()
-                    .filter(|dep| !path.contains(dep))
                     .filter(|&dep| !skip.contains(dep.name().as_str()))
+                    .filter(|&dep| {
+                        !self.workspace_mode
+                            || !self
+                                .workspace
+                                .members()
+                                .any(|member| member.package_id() == *dep)
+                    })
                     .for_each(|&dep| {
                         let name = dep.name();
                         let compat_pkg = compat_pkg
@@ -268,14 +310,24 @@ impl<'ela> ElaborateWorkspace<'ela> {
                             .map(HashMap::keys)
                             .and_then(|mut deps| deps.find(|dep| dep.name() == name))
                             .cloned();
-                        let mut path = path.clone();
-                        path.push(dep);
-                        queue.push_back((path, compat_pkg, latest_pkg));
+                        queue.push_back(QueueEntry {
+                            #[cfg(feature = "debug")]
+                            path: {
+                                let mut path = path.clone();
+                                path.push(dep);
+                                path
+                            },
+                            parent: Some(pkg),
+                            depth: depth + 1,
+                            pkg: dep,
+                            compat_pkg,
+                            latest_pkg,
+                        });
                     });
             }
         }
 
-        Ok(())
+        Ok(entries)
     }
 
     /// Print package status to `TabWriter`
@@ -284,35 +336,28 @@ impl<'ela> ElaborateWorkspace<'ela> {
         options: &Options,
         root: PackageId,
         preceding_line: bool,
-        skip: &HashSet<String>,
+        entries: &[StatusEntry],
     ) -> CargoResult<i32> {
         let mut lines = BTreeSet::new();
-        let mut queue = VecDeque::new();
-        queue.push_back(vec![root]);
-        while let Some(path) = queue.pop_front() {
-            let pkg = path.last().ok_or(OutdatedError::EmptyPath)?;
+        for entry in entries {
+            let pkg = entry.package;
             let name = pkg.name().to_string();
 
-            if options.ignore.contains(&name) {
-                continue;
-            }
-
-            let depth = path.len() as i32 - 1;
             // generate lines
-            let status = &self.pkg_status.borrow_mut()[&path];
+            let status = &entry.status;
             if (status.compat.is_changed() || status.latest.is_changed())
                 && (options.packages.is_empty() || options.packages.contains(&name))
             {
                 // name version compatible latest kind platform
-                let parent = path.get(path.len() - 2);
+                let parent = entry.parent;
                 if let Some(parent) = parent {
-                    let dependency = &self.pkg_deps[parent][pkg];
+                    let dependency = &self.pkg_deps[&parent][&pkg];
                     let label = if self.workspace_mode
-                        || parent == &self.workspace.current()?.package_id()
+                        || parent == self.workspace.current()?.package_id()
                     {
                         name
                     } else {
-                        format!("{}->{}", self.pkgs[parent].name(), name)
+                        format!("{}->{}", self.pkgs[&parent].name(), name)
                     };
                     let line = format!(
                         "{}\t{}\t{}\t{}\t{:?}\t{}\n",
@@ -337,23 +382,6 @@ impl<'ela> ElaborateWorkspace<'ela> {
                     );
                     lines.insert(line);
                 }
-            }
-            // next layer
-            // this unwrap is safe since we first check if it is None :)
-            if options.depth.is_none() || depth < options.depth.unwrap() {
-                self.pkg_deps[pkg]
-                    .keys()
-                    .filter(|dep| !path.contains(dep))
-                    .filter(|&dep| {
-                        !self.workspace_mode
-                            || !self.workspace.members().any(|mem| &mem.package_id() == dep)
-                    })
-                    .filter(|&dep| !skip.contains(dep.name().as_str()))
-                    .for_each(|&dep| {
-                        let mut path = path.clone();
-                        path.push(dep);
-                        queue.push_back(path);
-                    });
             }
         }
 
@@ -386,45 +414,34 @@ impl<'ela> ElaborateWorkspace<'ela> {
         &'ela self,
         options: &Options,
         root: PackageId,
-        skip: &HashSet<String>,
+        entries: &[StatusEntry],
     ) -> CargoResult<i32> {
         let mut crate_graph = CrateMetadata {
             crate_name: root.name().to_string(),
             dependencies: BTreeSet::new(),
         };
-        let mut queue = VecDeque::new();
-        queue.push_back(vec![root]);
 
-        while let Some(path) = queue.pop_front() {
-            let pkg = path.last().ok_or(OutdatedError::EmptyPath)?;
+        for entry in entries {
+            let pkg = entry.package;
             let name = pkg.name().to_string();
 
-            if options.ignore.contains(&name) {
-                continue;
-            }
-
-            let depth = path.len() as i32 - 1;
             // generate lines
-            let status = &self.pkg_status.borrow_mut()[&path];
+            let status = &entry.status;
             if (status.compat.is_changed() || status.latest.is_changed())
                 && (options.packages.is_empty() || options.packages.contains(&name))
             {
                 // name version compatible latest kind platform
                 // safely get the parent index
-                let parent = if path.len() > 1 {
-                    path.get(path.len() - 2)
-                } else {
-                    None
-                };
+                let parent = entry.parent;
 
                 let line = if let Some(parent) = parent {
-                    let dependency = &self.pkg_deps[parent][pkg];
+                    let dependency = &self.pkg_deps[&parent][&pkg];
                     let label = if self.workspace_mode
-                        || parent == &self.workspace.current()?.package_id()
+                        || parent == self.workspace.current()?.package_id()
                     {
                         name
                     } else {
-                        format!("{}->{}", self.pkgs[parent].name(), name)
+                        format!("{}->{}", self.pkgs[&parent].name(), name)
                     };
 
                     let dependency_type = match dependency.kind() {
@@ -453,26 +470,6 @@ impl<'ela> ElaborateWorkspace<'ela> {
                 };
 
                 crate_graph.dependencies.insert(line);
-            }
-            // next layer
-            // this unwrap is safe since we first check if it is None :)
-            if options.depth.is_none() || depth < options.depth.unwrap() {
-                self.pkg_deps[pkg]
-                    .keys()
-                    .filter(|dep| !path.contains(dep))
-                    .filter(|dep| {
-                        !self.workspace_mode
-                            || !self
-                                .workspace
-                                .members()
-                                .any(|mem| mem.package_id() == **dep)
-                    })
-                    .filter(|&dep| !skip.contains(dep.name().as_str()))
-                    .for_each(|dep| {
-                        let mut path = path.clone();
-                        path.push(*dep);
-                        queue.push_back(path);
-                    });
             }
         }
 

@@ -12,14 +12,14 @@ mod error;
 use std::collections::HashSet;
 
 use cargo::{
-    core::{Workspace, shell::Verbosity},
+    CargoResult, CliError, GlobalContext,
     util::{
-        CargoResult, CliError,
-        context::GlobalContext,
         important_paths::find_root_manifest_for_wd,
         network::http::{http_handle, needs_custom_http_transport},
     },
+    workspace::Workspace,
 };
+use cargo_util_terminal::{Shell, Verbosity};
 
 use crate::{
     cargo_ops::{ElaborateWorkspace, TempProject},
@@ -34,7 +34,7 @@ fn main() {
     let mut context = match GlobalContext::default() {
         Ok(cfg) => cfg,
         Err(e) => {
-            let mut shell = cargo::core::Shell::new();
+            let mut shell = Shell::new();
             cargo::exit_with_error(e.into(), &mut shell)
         }
     };
@@ -167,7 +167,7 @@ pub fn execute(options: Options, context: &mut GlobalContext) -> CargoResult<i32
         }
 
         for member in ela_curr.workspace.members() {
-            ela_curr.resolve_status(
+            let entries = ela_curr.resolve_status(
                 &ela_compat,
                 &ela_latest,
                 &options,
@@ -177,10 +177,10 @@ pub fn execute(options: Options, context: &mut GlobalContext) -> CargoResult<i32
             )?;
             match options.format {
                 Format::List => {
-                    sum += ela_curr.print_list(&options, member.package_id(), sum > 0, &skipped)?;
+                    sum += ela_curr.print_list(&options, member.package_id(), sum > 0, &entries)?;
                 }
                 Format::Json => {
-                    sum += ela_curr.print_json(&options, member.package_id(), &skipped)?;
+                    sum += ela_curr.print_json(&options, member.package_id(), &entries)?;
                 }
             }
         }
@@ -191,16 +191,17 @@ pub fn execute(options: Options, context: &mut GlobalContext) -> CargoResult<i32
     } else {
         verbose!(context, "Resolving...", "package status");
         let root = ela_curr.determine_root(&options)?;
-        ela_curr.resolve_status(&ela_compat, &ela_latest, &options, context, root, &skipped)?;
+        let entries =
+            ela_curr.resolve_status(&ela_compat, &ela_latest, &options, context, root, &skipped)?;
         verbose!(context, "Printing...", "list format");
         let mut count = 0;
 
         match options.format {
             Format::List => {
-                count = ela_curr.print_list(&options, root, false, &skipped)?;
+                count = ela_curr.print_list(&options, root, false, &entries)?;
             }
             Format::Json => {
-                ela_curr.print_json(&options, root, &skipped)?;
+                ela_curr.print_json(&options, root, &entries)?;
             }
         }
 
