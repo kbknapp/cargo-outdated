@@ -15,7 +15,7 @@ use cargo::{
     ops::{UpdateOptions, update_lockfile},
     sources::{IndexSummary, config::SourceConfigMap, source::QueryKind},
     util::cache_lock::CacheLockMode,
-    workspace::{Dependency, PackageId, Summary, Workspace},
+    workspace::{Dependency, Package, PackageId, Summary, Workspace},
 };
 use cargo_util_terminal::{Shell, Verbosity};
 use futures::executor::block_on;
@@ -48,12 +48,13 @@ impl<'tmp> TempProject<'tmp> {
         let workspace_root = orig_workspace.workspace.root();
         let workspace_root_str = workspace_root.to_string_lossy();
         let temp_dir = Builder::new().prefix("cargo-outdated").tempdir()?;
-        let manifest_paths = manifest_paths(orig_workspace)?;
+        let packages = manifest_packages(orig_workspace)?;
         let mut tmp_manifest_paths = vec![];
 
-        for from in &manifest_paths {
+        for pkg in &packages {
+            let from = pkg.manifest_path();
             // e.g. /path/to/project/src/sub
-            let mut from_dir = from.clone();
+            let mut from_dir = from.to_owned();
             from_dir.pop();
             let from_dir_str = from_dir.to_string_lossy();
 
@@ -73,7 +74,8 @@ impl<'tmp> TempProject<'tmp> {
             tmp_manifest_paths.push(dest.clone());
             fs::copy(from, &dest)?;
 
-            // removing default-run key if it exists to check dependencies
+            // Parse manifest, clean up keys, resolve workspace deps, and
+            // re-serialize
             let mut om: Manifest = {
                 let mut buf = String::new();
                 let mut file = File::open(&dest)?;
@@ -81,33 +83,16 @@ impl<'tmp> TempProject<'tmp> {
                 ::toml::from_str(&buf)?
             };
 
-            if om.package.contains_key("default-run") {
-                om.package.remove("default-run");
-                let om_serialized = ::toml::to_string(&om).expect("Cannot format as toml file");
-                let mut cargo_toml = OpenOptions::new()
-                    .read(true)
-                    .write(true)
-                    .truncate(true)
-                    .open(&dest)?;
-                write!(cargo_toml, "{om_serialized}")?;
+            let mut needs_rewrite = false;
+
+            // Remove keys not needed for dependency checking
+            for key in &["default-run", "links", "build"] {
+                if om.package.remove(*key).is_some() {
+                    needs_rewrite = true;
+                }
             }
 
-            // if build script is specified in the original Cargo.toml (from
-            // links or build) remove it as we do not need it for checking
-            // dependencies
-            if om.package.contains_key("links") {
-                om.package.remove("links");
-                let om_serialized = ::toml::to_string(&om).expect("Cannot format as toml file");
-                let mut cargo_toml = OpenOptions::new()
-                    .read(true)
-                    .write(true)
-                    .truncate(true)
-                    .open(&dest)?;
-                write!(cargo_toml, "{om_serialized}")?;
-            }
-
-            if om.package.contains_key("build") {
-                om.package.remove("build");
+            if expand_inherited_dependencies(&mut om, pkg)? || needs_rewrite {
                 let om_serialized = ::toml::to_string(&om).expect("Cannot format as toml file");
                 let mut cargo_toml = OpenOptions::new()
                     .read(true)
@@ -127,7 +112,11 @@ impl<'tmp> TempProject<'tmp> {
 
         // virtual root
         let mut virtual_root = workspace_root.join("Cargo.toml");
-        if !manifest_paths.contains(&virtual_root) && virtual_root.is_file() {
+        if !packages
+            .iter()
+            .any(|pkg| pkg.manifest_path() == virtual_root)
+            && virtual_root.is_file()
+        {
             fs::copy(&virtual_root, temp_dir.path().join("Cargo.toml"))?;
             Self::rewrite_virtual_root_paths(
                 &temp_dir.path().join("Cargo.toml"),
@@ -136,6 +125,7 @@ impl<'tmp> TempProject<'tmp> {
             )?;
             virtual_root.pop();
             virtual_root.push("Cargo.lock");
+
             if virtual_root.is_file() {
                 fs::copy(&virtual_root, temp_dir.path().join("Cargo.lock"))?;
             }
@@ -769,6 +759,54 @@ impl<'tmp> TempProject<'tmp> {
     }
 }
 
+/// Expand workspace-inherited dependencies into their member Cargo.toml so
+/// their version requirements can be rewritten in the temporary manifest.
+/// Returns whether any entries changed.
+fn expand_inherited_dependencies(manifest: &mut Manifest, pkg: &Package) -> CargoResult<bool> {
+    let normalized = Value::try_from(pkg.manifest().normalized_toml())?;
+    let mut changed = false;
+    let mut expand = |deps: &mut Table, scope: Option<&Value>, section: &str| -> CargoResult<()> {
+        let normalized_deps = scope.and_then(|scope| scope.get(section));
+        for (name, dep) in deps.iter_mut() {
+            if dep.get("workspace").and_then(Value::as_bool) == Some(true) {
+                *dep = normalized_deps
+                    .and_then(|deps| deps.get(name))
+                    .with_context(|| {
+                        format!("missing normalized dependency `{name}` for {}", pkg.name())
+                    })?
+                    .clone();
+                changed = true;
+            }
+        }
+        Ok(())
+    };
+
+    for (section, deps) in [
+        ("dependencies", &mut manifest.dependencies),
+        ("dev-dependencies", &mut manifest.dev_dependencies),
+        ("build-dependencies", &mut manifest.build_dependencies),
+    ] {
+        if let Some(deps) = deps {
+            expand(deps, Some(&normalized), section)?;
+        }
+    }
+
+    if let Some(targets) = &mut manifest.target {
+        for (name, target) in targets.iter_mut() {
+            let scope = normalized
+                .get("target")
+                .and_then(|targets| targets.get(name));
+            for section in ["dependencies", "dev-dependencies", "build-dependencies"] {
+                if let Some(deps) = target.get_mut(section).and_then(Value::as_table_mut) {
+                    expand(deps, scope, section)?;
+                }
+            }
+        }
+    }
+
+    Ok(changed)
+}
+
 /// Features and optional dependencies of a Summary
 fn features_and_options(summary: &Summary) -> HashSet<&str> {
     let mut result: HashSet<&str> = summary.features().keys().map(|s| s.as_str()).collect();
@@ -783,17 +821,17 @@ fn features_and_options(summary: &Summary) -> HashSet<&str> {
     result
 }
 
-/// Paths of all manifest files in current workspace
-fn manifest_paths(elab: &ElaborateWorkspace<'_>) -> CargoResult<Vec<PathBuf>> {
+/// All packages in current workspace
+fn manifest_packages<'a>(elab: &'a ElaborateWorkspace<'_>) -> CargoResult<Vec<&'a Package>> {
     let mut visited: HashSet<PackageId> = HashSet::new();
-    let mut manifest_paths = vec![];
+    let mut packages = vec![];
 
-    fn manifest_paths_recursive(
+    fn manifest_packages_recursive<'a>(
         pkg_id: PackageId,
-        elab: &ElaborateWorkspace<'_>,
+        elab: &'a ElaborateWorkspace<'_>,
         workspace_path: &str,
         visited: &mut HashSet<PackageId>,
-        manifest_paths: &mut Vec<PathBuf>,
+        packages: &mut Vec<&'a Package>,
     ) -> CargoResult<()> {
         if visited.contains(&pkg_id) {
             return Ok(());
@@ -820,11 +858,11 @@ fn manifest_paths(elab: &ElaborateWorkspace<'_>) -> CargoResult<Vec<PathBuf>> {
                 || !pkg_path
                     .starts_with(&cargo_home_path.expect("Error extracting CARGO_HOME string")))
         {
-            manifest_paths.push(pkg.manifest_path().to_owned());
+            packages.push(pkg);
         }
 
         for &dep in elab.pkg_deps[&pkg_id].keys() {
-            manifest_paths_recursive(dep, elab, workspace_path, visited, manifest_paths)?;
+            manifest_packages_recursive(dep, elab, workspace_path, visited, packages)?;
         }
 
         Ok(())
@@ -836,16 +874,16 @@ fn manifest_paths(elab: &ElaborateWorkspace<'_>) -> CargoResult<Vec<PathBuf>> {
     // member
     for member in elab.workspace.members() {
         let root_pkg_id = member.package_id();
-        manifest_paths_recursive(
+        manifest_packages_recursive(
             root_pkg_id,
             elab,
             &workspace_path,
             &mut visited,
-            &mut manifest_paths,
+            &mut packages,
         )?;
     }
 
-    Ok(manifest_paths)
+    Ok(packages)
 }
 
 fn valid_latest_version(mut requirement: &str, version: &Version) -> bool {

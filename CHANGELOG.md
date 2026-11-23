@@ -17,6 +17,10 @@
 
 <a name="v0.18.0"></a>
 
+#### Features
+
+* Add support for `[workspace.dependencies]`, (closes [#360](https://github.com/kbknapp/cargo-outdated/issues/360))
+
 ### v0.18.0 (2025-10-27)
 
 #### Changes
