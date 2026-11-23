@@ -1,3 +1,29 @@
+<a name="v0.20.0"></a>
+
+### v0.20.0 (2026-11-23)
+
+#### Changes
+
+* MSRV is now 1.98.0
+
+#### Improvements
+
+* optimize resolve_status graph traversal by @davidhewitt in https://github.com/kbknapp/cargo-outdated/pull/454
+* Add support for workspace dependencies by @regexident in https://github.com/kbknapp/cargo-outdated/pull/430
+
+#### Maintenance
+
+* chore(deps): bump openssl from 0.10.77 to 0.10.78 by @dependabot[bot] in https://github.com/kbknapp/cargo-outdated/pull/439
+* chore(deps): bump tar from 0.4.45 to 0.4.46 by @dependabot[bot] in https://github.com/kbknapp/cargo-outdated/pull/443
+* chore(deps): bump openssl from 0.10.78 to 0.10.80 by @dependabot[bot] in https://github.com/kbknapp/cargo-outdated/pull/442
+* chore: bump to cargo 0.94, MSRV 1.91 by @cannonpalms in https://github.com/kbknapp/cargo-outdated/pull/440
+* update to cargo 1.00, MSRV 1.98 by @davidhewitt in https://github.com/kbknapp/cargo-outdated/pull/448
+* add dependabot configuration by @davidhewitt in https://github.com/kbknapp/cargo-outdated/pull/449
+* chore(deps): bump the cargo-dependencies group with 131 updates by @dependabot[bot] in https://github.com/kbknapp/cargo-outdated/pull/451
+* chore(deps): bump the github-actions group with 4 updates by @dependabot[bot] in https://github.com/kbknapp/cargo-outdated/pull/450
+* add basic integration tests by @davidhewitt in https://github.com/kbknapp/cargo-outdated/pull/447
+* Fix relative [patch] paths in relocated virtual roots by @NellowTCS in https://github.com/kbknapp/cargo-outdated/pull/444
+
 <a name="v0.19.0"></a>
 
 ### v0.19.0 (2026-04-14)
@@ -16,10 +42,6 @@
 * bump to cargo 0.91, MSRV 1.88, edition 2024 by @davidhewitt in https://github.com/kbknapp/cargo-outdated/pull/437
 
 <a name="v0.18.0"></a>
-
-#### Features
-
-* Add support for `[workspace.dependencies]`, (closes [#360](https://github.com/kbknapp/cargo-outdated/issues/360))
 
 ### v0.18.0 (2025-10-27)
 
