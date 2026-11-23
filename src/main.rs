@@ -111,7 +111,12 @@ pub fn execute(options: Options, context: &mut GlobalContext) -> CargoResult<i32
     if options.verbose == 0 {
         context.shell().set_verbosity(Verbosity::Quiet);
     }
-    let ela_curr = ElaborateWorkspace::from_workspace(&curr_workspace, &options)?;
+
+    // Load workspace dependencies from the original workspace
+    let workspace_deps = cargo_ops::load_workspace_dep_names(curr_workspace.root())?;
+
+    let ela_curr =
+        ElaborateWorkspace::from_workspace(&curr_workspace, &options, workspace_deps.clone())?;
     if options.verbose > 0 {
         context.shell().set_verbosity(Verbosity::Verbose);
     } else {
@@ -137,6 +142,7 @@ pub fn execute(options: Options, context: &mut GlobalContext) -> CargoResult<i32
             .as_ref()
             .ok_or(OutdatedError::CannotElaborateWorkspace)?,
         &options,
+        workspace_deps.clone(),
     )?;
 
     verbose!(context, "Parsing...", "latest workspace");
@@ -157,6 +163,7 @@ pub fn execute(options: Options, context: &mut GlobalContext) -> CargoResult<i32
             .as_ref()
             .ok_or(OutdatedError::CannotElaborateWorkspace)?,
         &options,
+        workspace_deps.clone(),
     )?;
 
     if ela_curr.workspace_mode {
@@ -164,6 +171,16 @@ pub fn execute(options: Options, context: &mut GlobalContext) -> CargoResult<i32
         match options.format {
             Format::List => verbose!(context, "Printing...", "Package status in list format"),
             Format::Json => verbose!(context, "Printing...", "Package status in json format"),
+        }
+
+        if matches!(options.format, Format::List) {
+            return ela_curr.print_workspace_list(
+                &ela_compat,
+                &ela_latest,
+                &options,
+                context,
+                &skipped,
+            );
         }
 
         for member in ela_curr.workspace.members() {
@@ -175,18 +192,9 @@ pub fn execute(options: Options, context: &mut GlobalContext) -> CargoResult<i32
                 member.package_id(),
                 &skipped,
             )?;
-            match options.format {
-                Format::List => {
-                    sum += ela_curr.print_list(&options, member.package_id(), sum > 0, &entries)?;
-                }
-                Format::Json => {
-                    sum += ela_curr.print_json(&options, member.package_id(), &entries)?;
-                }
-            }
+            sum += ela_curr.print_json(&options, member.package_id(), &entries)?;
         }
-        if sum == 0 && matches!(options.format, Format::List) {
-            println!("All dependencies are up to date, yay!");
-        }
+
         Ok(sum)
     } else {
         verbose!(context, "Resolving...", "package status");
@@ -198,7 +206,7 @@ pub fn execute(options: Options, context: &mut GlobalContext) -> CargoResult<i32
 
         match options.format {
             Format::List => {
-                count = ela_curr.print_list(&options, root, false, &entries)?;
+                count = ela_curr.print_list(&options, &entries)?;
             }
             Format::Json => {
                 ela_curr.print_json(&options, root, &entries)?;
