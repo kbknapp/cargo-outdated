@@ -214,6 +214,68 @@ example-dep  1.0.0    ---     1.0.1   Normal  ---
     );
 }
 
+#[cargo_test]
+fn absolute_workspace_paths() {
+    local_registry();
+    Package::new("example-dep", "1.0.0").local(true).publish();
+
+    let root = paths::root().join("build");
+    let root_path = toml::Value::String(root.to_str().unwrap().to_owned());
+    let member_path = toml::Value::String(root.join("src/core").to_str().unwrap().to_owned());
+    let project = project()
+        .at(&root)
+        .file(
+            "Cargo.toml",
+            &format!(
+                r#"
+[package]
+name = "example"
+version = "0.1.0"
+edition = "2021"
+
+[workspace]
+resolver = "2"
+members = [{member_path}]
+default-members = [{member_path}]
+
+[workspace.dependencies]
+example-core = {{ path = {member_path} }}
+
+[dependencies]
+example-core.workspace = true
+example-dep = "1.0"
+"#,
+            ),
+        )
+        .file("src/lib.rs", "")
+        .file(
+            "src/core/Cargo.toml",
+            &format!(
+                r#"
+[package]
+name = "example-core"
+workspace = {root_path}
+version = "0.1.0"
+edition = "2021"
+"#,
+            ),
+        )
+        .file("src/core/src/lib.rs", "")
+        .build();
+    generate_lockfile(&project);
+    Package::new("example-dep", "1.0.1").local(true).publish();
+
+    assert_output(
+        &project,
+        str![[r#"
+Name         Project  Compat  Latest  Kind    Platform
+----         -------  ------  ------  ----    --------
+example-dep  1.0.0    1.0.1   1.0.1   Normal  ---
+
+"#]],
+    );
+}
+
 fn locked_project() -> Project {
     local_registry();
     Package::new("example-dep", "1.0.0").local(true).publish();

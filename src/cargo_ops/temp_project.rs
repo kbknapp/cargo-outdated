@@ -92,6 +92,16 @@ impl<'tmp> TempProject<'tmp> {
                 }
             }
 
+            if let Some(path) = om.package.get_mut("workspace") {
+                needs_rewrite |=
+                    Self::relocate_workspace_path(path, workspace_root, temp_dir.path());
+            }
+            needs_rewrite |= Self::relocate_workspace_members(
+                om.workspace.as_mut(),
+                workspace_root,
+                temp_dir.path(),
+            );
+
             if expand_inherited_dependencies(&mut om, pkg)? || needs_rewrite {
                 let om_serialized = ::toml::to_string(&om).expect("Cannot format as toml file");
                 let mut cargo_toml = OpenOptions::new()
@@ -230,6 +240,35 @@ impl<'tmp> TempProject<'tmp> {
         Ok(())
     }
 
+    fn relocate_workspace_path(path: &mut Value, orig_root: &Path, tmp_root: &Path) -> bool {
+        if let Value::String(path) = path
+            && let Ok(relative) = Path::new(path).strip_prefix(orig_root)
+        {
+            *path = tmp_root.join(relative).to_string_lossy().into_owned();
+            return true;
+        }
+        false
+    }
+
+    fn relocate_workspace_members(
+        workspace: Option<&mut Table>,
+        orig_root: &Path,
+        tmp_root: &Path,
+    ) -> bool {
+        let Some(workspace) = workspace else {
+            return false;
+        };
+        let mut changed = false;
+        for key in ["members", "default-members", "exclude"] {
+            if let Some(Value::Array(paths)) = workspace.get_mut(key) {
+                for path in paths {
+                    changed |= Self::relocate_workspace_path(path, orig_root, tmp_root);
+                }
+            }
+        }
+        changed
+    }
+
     fn rewrite_virtual_root_paths<P: AsRef<Path>>(
         manifest: &Path,
         orig_root: P,
@@ -239,6 +278,11 @@ impl<'tmp> TempProject<'tmp> {
         let mut file = File::open(manifest)?;
         file.read_to_string(&mut buf)?;
         let mut document: Value = ::toml::from_str(&buf)?;
+        Self::relocate_workspace_members(
+            document.get_mut("workspace").and_then(Value::as_table_mut),
+            orig_root.as_ref(),
+            tmp_root.as_ref(),
+        );
         let mut skipped = HashSet::new();
         if let Some(patches) = document
             .as_table_mut()
