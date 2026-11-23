@@ -37,6 +37,69 @@ All dependencies are up to date, yay!
     );
 }
 
+#[cargo_test]
+fn relative_patch_in_virtual_workspace() {
+    local_registry();
+    Package::new("example-dep", "1.0.0").local(true).publish();
+
+    project()
+        .at("patched")
+        .file(
+            "Cargo.toml",
+            r#"
+[package]
+name = "patched-dep"
+version = "1.0.0"
+edition = "2021"
+"#,
+        )
+        .file("src/lib.rs", "")
+        .build();
+
+    let project = project()
+        .at("workspace")
+        .file(
+            "Cargo.toml",
+            r#"
+[workspace]
+resolver = "2"
+members = ["member"]
+
+[patch.crates-io]
+patched-dep = { path = "../patched" }
+"#,
+        )
+        .file(
+            "member/Cargo.toml",
+            r#"
+[package]
+name = "member"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+example-dep = "=1.0.0"
+patched-dep = "1.0"
+"#,
+        )
+        .file("member/src/lib.rs", "")
+        .build();
+    generate_lockfile(&project);
+    Package::new("example-dep", "1.0.1").local(true).publish();
+
+    assert_output(
+        &project,
+        str![[r#"
+member
+================
+Name         Project  Compat  Latest  Kind    Platform
+----         -------  ------  ------  ----    --------
+example-dep  1.0.0    ---     1.0.1   Normal  ---
+
+"#]],
+    );
+}
+
 fn locked_project() -> Project {
     local_registry();
     Package::new("example-dep", "1.0.0").local(true).publish();
@@ -57,12 +120,15 @@ example-dep = "1.0"
         .file("src/lib.rs", "")
         .build();
 
+    generate_lockfile(&project);
+    project
+}
+
+fn generate_lockfile(project: &Project) {
     project
         .process(env!("CARGO"))
         .args(&["generate-lockfile", "--offline"])
         .run();
-
-    project
 }
 
 fn assert_output(project: &Project, stdout: impl IntoData) {
